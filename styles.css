@@ -378,6 +378,137 @@ body {
     animation: modalSlideIn 0.3s ease-out;
 }
 
+/* Fullscreen modal for AI chat on mobile */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Specific fullscreen for AI chat modal */
+    #createWishModal .modal-content {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #createWishModal .modal-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+    
+    #createWishModal .ai-chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+    }
+    
+    #createWishModal .ai-chat-messages {
+        flex: 1;
+        min-height: 0;
+        margin-bottom: 0;
+        border-radius: 0;
+    }
+    
+    #createWishModal .ai-chat-input {
+        padding: 1rem;
+        background: var(--background);
+        border-top: 1px solid var(--border-color);
+        margin: 0;
+    }
+    
+    #createWishModal .wish-preview {
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+        background: var(--background-secondary);
+    }
+    
+    #createWishModal .modal-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--background);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    #createWishModal .modal-header h2 {
+        font-size: 1.125rem;
+    }
+    
+    /* Improve mobile chat input */
+    #createWishModal .ai-chat-input input {
+        font-size: 16px; /* Prevents zoom on iOS */
+        padding: 1rem;
+    }
+    
+    #createWishModal .ai-chat-input button {
+        padding: 1rem;
+        font-size: 1.125rem;
+    }
+    
+    /* Better message spacing on mobile */
+    #createWishModal .ai-message, 
+    #createWishModal .user-message {
+        margin-bottom: 1.5rem;
+    }
+    
+    #createWishModal .message-content {
+        padding: 1rem 1.25rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+}
+
+/* Additional mobile fullscreen enhancements */
+.mobile-fullscreen {
+    background: var(--background) !important;
+}
+
+.mobile-fullscreen .modal-content {
+    animation: mobileSlideUp 0.3s ease-out;
+}
+
+@keyframes mobileSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Ensure proper mobile keyboard handling */
+@media (max-width: 768px) {
+    .mobile-fullscreen .ai-chat-input {
+        position: sticky;
+        bottom: 0;
+        background: var(--background);
+        border-top: 1px solid var(--border-color);
+        padding: 1rem;
+        margin: 0;
+    }
+    
+    .mobile-fullscreen .ai-chat-messages {
+        padding-bottom: 0;
+    }
+}
+
 @keyframes modalSlideIn {
     from {
         opacity: 0;
@@ -428,6 +559,14 @@ body {
     height: 400px;
     display: flex;
     flex-direction: column;
+}
+
+/* Improved AI chat container for better mobile experience */
+@media (max-width: 768px) {
+    .ai-chat-container {
+        height: auto;
+        min-height: 300px;
+    }
 }
 
 .ai-chat-messages {

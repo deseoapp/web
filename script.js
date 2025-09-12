@@ -203,11 +203,61 @@ class DeseoApp {
     openModal(modalId) {
         document.getElementById(modalId).classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // Mobile-specific enhancements for AI chat modal
+        if (modalId === 'createWishModal' && this.isMobile()) {
+            this.enhanceMobileChat();
+        }
     }
 
     closeModal(modalId) {
         document.getElementById(modalId).classList.remove('active');
         document.body.style.overflow = 'auto';
+        
+        // Clean up mobile enhancements
+        if (modalId === 'createWishModal') {
+            this.cleanupMobileChat();
+        }
+    }
+
+    // Mobile detection utility
+    isMobile() {
+        return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    // Enhance mobile chat experience
+    enhanceMobileChat() {
+        const modal = document.getElementById('createWishModal');
+        const input = document.getElementById('aiChatInput');
+        
+        // Add mobile-specific class
+        modal.classList.add('mobile-fullscreen');
+        
+        // Focus input after a short delay to ensure modal is fully open
+        setTimeout(() => {
+            if (input) {
+                input.focus();
+                // Scroll to bottom of messages
+                const messagesContainer = document.getElementById('aiChatMessages');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+            }
+        }, 300);
+        
+        // Prevent body scroll on mobile
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+    }
+
+    // Clean up mobile enhancements
+    cleanupMobileChat() {
+        const modal = document.getElementById('createWishModal');
+        modal.classList.remove('mobile-fullscreen');
+        
+        // Restore body scroll
+        document.body.style.position = '';
+        document.body.style.width = '';
     }
 
     // ===== CREAR DESEO CON IA =====

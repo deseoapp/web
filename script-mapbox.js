@@ -31,6 +31,10 @@ class DeseoApp {
             distance: 10
         };
         this.aiResponses = this.initializeAIResponses();
+        // Historial de chat con IA (para contexto de Gemini)
+        this.aiChatHistory = [];
+        // Perfil de intereses del usuario (persistido en localStorage)
+        this.userProfile = this.loadUserProfile();
         this.initializeApp();
     }
 
@@ -460,9 +464,12 @@ class DeseoApp {
         `;
         document.getElementById('wishPreview').style.display = 'none';
         document.getElementById('aiChatInput').value = '';
+        this.aiChatHistory = [
+            { role: 'model', content: '¡Hola! Soy tu acompañante. ¿Qué tienes en mente hoy?' }
+        ];
     }
 
-    sendAIMessage() {
+    async sendAIMessage() {
         const input = document.getElementById('aiChatInput');
         const message = input.value.trim();
         
@@ -470,17 +477,26 @@ class DeseoApp {
 
         // Agregar mensaje del usuario
         this.addMessageToChat('user', message);
+        this.aiChatHistory.push({ role: 'user', content: message });
         input.value = '';
 
-        // Simular respuesta de IA
-        setTimeout(() => {
-            const aiResponse = this.generateAIResponse(message);
-            this.addMessageToChat('ai', aiResponse.text);
-            
-            if (aiResponse.wishData) {
-                this.showWishPreview(aiResponse.wishData);
-            }
-        }, 1000);
+        // Análisis básico de texto y actualización de perfil
+        const analysis = this.analyzeText(message);
+        if (analysis.matchedCategories.length > 0) {
+            this.updateUserProfile(analysis.matchedCategories);
+        }
+
+        // Respuesta de IA (Gemini con fallback)
+        const aiResponse = await this.respondWithAI(message, analysis);
+        this.addMessageToChat('ai', aiResponse.text);
+        this.aiChatHistory.push({ role: 'model', content: aiResponse.text });
+        
+        if (aiResponse.wishData) {
+            this.showWishPreview(aiResponse.wishData);
+        }
+
+        // Sugerencias personalizadas en base a intereses
+        this.maybeShowPersonalizedSuggestion();
     }
 
     addMessageToChat(sender, message) {
@@ -560,6 +576,155 @@ class DeseoApp {
             text: "Interesante deseo. Para ayudarte mejor, ¿podrías ser más específico sobre qué necesitas? También me gustaría saber si tienes alguna preferencia de precio o si hay algo especial que deba considerar.",
             wishData: null
         };
+    }
+
+    // ===== PERFIL DE USUARIO EN LOCALSTORAGE =====
+    loadUserProfile() {
+        try {
+            const raw = localStorage.getItem('deseo_user_profile');
+            if (raw) return JSON.parse(raw);
+        } catch (e) { /* ignore */ }
+        // Estructura base
+        return {
+            interests: {
+                viajes: 0,
+                comida: 0,
+                ocio: 0,
+                trabajo: 0,
+                amor: 0,
+                transporte: 0,
+                entretenimiento: 0,
+                servicios: 0,
+                compras: 0
+            },
+            updatedAt: Date.now()
+        };
+    }
+
+    saveUserProfile() {
+        try {
+            localStorage.setItem('deseo_user_profile', JSON.stringify(this.userProfile));
+        } catch (e) { /* ignore */ }
+    }
+
+    updateUserProfile(categories) {
+        categories.forEach(cat => {
+            if (!(cat in this.userProfile.interests)) {
+                this.userProfile.interests[cat] = 0;
+            }
+            this.userProfile.interests[cat] += 1;
+        });
+        this.userProfile.updatedAt = Date.now();
+        this.saveUserProfile();
+    }
+
+    getTopInterests(limit = 3) {
+        const entries = Object.entries(this.userProfile.interests);
+        entries.sort((a, b) => b[1] - a[1]);
+        return entries.slice(0, limit).map(([k, v]) => ({ category: k, count: v }));
+    }
+
+    // ===== ANÁLISIS BÁSICO DE TEXTO =====
+    analyzeText(text) {
+        const t = (text || '').toLowerCase();
+        const categories = {
+            viajes: ['viajar', 'viaje', 'playa', 'montaña', 'avión', 'hotel', 'turismo'],
+            comida: ['comer', 'café', 'coffee', 'restaurante', 'pizza', 'hamburguesa', 'comida'],
+            ocio: ['película', 'cine', 'juego', 'paseo', 'música', 'fiesta', 'ocio'],
+            trabajo: ['trabajo', 'empleo', 'freelance', 'proyecto', 'oficina'],
+            amor: ['amor', 'pareja', 'cita', 'romántico'],
+            transporte: ['taxi', 'uber', 'llevar', 'entregar', 'transporte', 'paquete'],
+            entretenimiento: ['concierto', 'videojuego', 'evento', 'diversión'],
+            servicios: ['arreglar', 'instalar', 'pasear', 'perro', 'servicio'],
+            compras: ['comprar', 'supermercado', 'tienda', 'mercado']
+        };
+
+        const matchedCategories = [];
+        Object.entries(categories).forEach(([category, keywords]) => {
+            if (keywords.some(k => t.includes(k))) {
+                matchedCategories.push(category);
+            }
+        });
+
+        return { matchedCategories };
+    }
+
+    // ===== GEMINI INTEGRATION (con fallback) =====
+    async respondWithAI(userMessage, analysis) {
+        // Si hay API Key configurada, intentamos usar Gemini
+        const hasGeminiKey = window.CONFIG && window.CONFIG.GEMINI && window.CONFIG.GEMINI.API_KEY && window.CONFIG.GEMINI.API_KEY !== 'TU_GEMINI_API_KEY';
+        if (hasGeminiKey) {
+            try {
+                const responseText = await this.callGeminiAPI(userMessage, analysis);
+                // Intentar inferir wishData básico por categorías
+                const fallback = this.generateAIResponse(userMessage);
+                return {
+                    text: responseText,
+                    wishData: fallback.wishData || null
+                };
+            } catch (e) {
+                console.warn('Gemini falló, usando fallback local:', e);
+            }
+        }
+        // Fallback local
+        return this.generateAIResponse(userMessage);
+    }
+
+    async callGeminiAPI(userMessage, analysis) {
+        const apiKey = window.CONFIG.GEMINI.API_KEY;
+        const model = window.CONFIG.GEMINI.MODEL || 'gemini-1.5-flash';
+        const temperature = window.CONFIG.GEMINI.TEMPERATURE || 0.7;
+        const maxTokens = window.CONFIG.GEMINI.MAX_TOKENS || 1000;
+
+        const systemPrompt = `Eres un acompañante psicológico empático y un amigo que escucha. Mantén un tono amable y cercano. Analiza el mensaje del usuario, refleja sus emociones brevemente y sugiere pasos claros. Si aplica a la app de deseos, sugiere un título, categoría y rango de precio razonable. Categorías: comida, transporte, entretenimiento, servicios, compras, viajes, ocio, trabajo, amor.`;
+
+        const history = this.aiChatHistory.slice(-8).map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n');
+        const interestSummary = this.getTopInterests(3).map(i => `${i.category}(${i.count})`).join(', ');
+
+        const prompt = `${systemPrompt}\n\nIntereses del usuario: ${interestSummary || 'N/A'}\nCategorias detectadas ahora: ${(analysis.matchedCategories || []).join(', ') || 'N/A'}\n\nHistorial reciente:\n${history}\n\nMensaje actual del usuario: ${userMessage}\n\nResponde de forma breve (máx 3-4 oraciones). Si corresponde, incluye una sugerencia estructurada de deseo con formato: Título:, Categoría:, Precio sugerido:.`;
+
+        // Llamada a Gemini vía fetch (API Generative Language v1beta; simulación genérica)
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+        const body = {
+            contents: [{ parts: [{ text: prompt }] }],
+            safetySettings: [],
+            generationConfig: { temperature, maxOutputTokens: maxTokens }
+        };
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error('Gemini HTTP error ' + res.status);
+        const data = await res.json();
+        // Extraer texto (estructura típica de Gemini)
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Gracias por compartir. ¿Me cuentas un poco más?';
+        return text;
+    }
+
+    // ===== SUGERENCIAS PERSONALIZADAS =====
+    maybeShowPersonalizedSuggestion() {
+        const top = this.getTopInterests(3);
+        if (!top || top.length === 0) return;
+        const best = top[0];
+        if (!best || best.count <= 0) return;
+        const suggestions = {
+            viajes: 'Noto que te gustan los viajes, ¿quieres que te muestre deseos relacionados con viajar?',
+            comida: 'Veo que te gusta la comida, ¿te muestro deseos de comida cercanos?',
+            ocio: 'Parece que te interesa el ocio, ¿buscamos actividades cerca?',
+            trabajo: 'Te interesa el trabajo, ¿quieres ver tareas disponibles?',
+            amor: 'Te interesan temas de amor, ¿quieres consejos o actividades románticas?',
+            transporte: 'Interés en transporte, ¿te muestro entregas o traslados?',
+            entretenimiento: 'Te gusta el entretenimiento, ¿vemos planes y eventos?',
+            servicios: 'Te interesan servicios, ¿te muestro tareas que ayudar?',
+            compras: 'Interés en compras, ¿quieres ver recados y compras cercanas?'
+        };
+        const msg = suggestions[best.category];
+        if (msg) {
+            this.addMessageToChat('ai', msg);
+            this.aiChatHistory.push({ role: 'model', content: msg });
+        }
     }
 
     showWishPreview(wishData) {
@@ -901,6 +1066,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.deseoApp = new DeseoApp();
+    // Exponer API pública mínima
+    window.getTopInterests = () => window.deseoApp.getTopInterests();
 });
 
 console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');

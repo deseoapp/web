@@ -28,6 +28,16 @@ const CONFIG = {
         defaultStyle: 'light'
     },
     
+    // Configuración de Gemini AI
+    GEMINI: {
+        // IMPORTANTE: Reemplaza 'TU_GEMINI_API_KEY' con tu API key real de Gemini
+        // Obtén tu API key en: https://makersuite.google.com/app/apikey
+        API_KEY: 'TU_GEMINI_API_KEY', // Reemplaza con tu API key real
+        MODEL: 'gemini-1.5-flash',
+        MAX_TOKENS: 1000,
+        TEMPERATURE: 0.7
+    },
+    
     // Configuración de la aplicación
     APP: {
         name: 'Deseo',

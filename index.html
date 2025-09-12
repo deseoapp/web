@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deseo - Plataforma de Micro-Deseos</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+</head>
+<body>
+    <!-- Header principal -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-star"></i>
+                <h1>Deseo</h1>
+            </div>
+            <div class="header-actions">
+                <button class="btn-secondary" id="filterBtn">
+                    <i class="fas fa-filter"></i>
+                    Filtros
+                </button>
+                <button class="btn-primary" id="createWishBtn">
+                    <i class="fas fa-plus"></i>
+                    Crear Deseo
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenedor principal del mapa -->
+    <main class="main-container">
+        <div class="map-container" id="mapContainer">
+            <!-- Mapa real de Mapbox -->
+            <div id="map" class="mapbox-map">
+                <!-- El mapa de Mapbox se inicializará aquí -->
+            </div>
+            
+            <!-- Overlay de información del mapa -->
+            <div class="map-overlay">
+                <div class="map-info">
+                    <p>Explora deseos cerca de ti</p>
+                </div>
+            </div>
+            
+            <!-- Controles del mapa -->
+            <div class="map-controls">
+                <button class="map-control-btn" id="locateBtn" title="Mi ubicación">
+                    <i class="fas fa-crosshairs"></i>
+                </button>
+                <button class="map-control-btn" id="zoomInBtn" title="Acercar">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button class="map-control-btn" id="zoomOutBtn" title="Alejar">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal para crear deseo con IA -->
+    <div class="modal" id="createWishModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Crear tu Deseo</h2>
+                <button class="close-btn" id="closeCreateModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="ai-chat-container">
+                    <div class="ai-chat-messages" id="aiChatMessages">
+                        <div class="ai-message">
+                            <div class="ai-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <p>¡Hola! Soy tu asistente de deseos. Cuéntame qué te gustaría que alguien haga por ti y te ayudo a crear el deseo perfecto con un precio justo.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ai-chat-input">
+                        <input type="text" id="aiChatInput" placeholder="Describe tu deseo...">
+                        <button id="sendAiMessage">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="wish-preview" id="wishPreview" style="display: none;">
+                    <h3>Vista previa de tu deseo:</h3>
+                    <div class="wish-card">
+                        <h4 id="previewTitle"></h4>
+                        <p id="previewDescription"></p>
+                        <div class="wish-meta">
+                            <span class="price" id="previewPrice"></span>
+                            <span class="category" id="previewCategory"></span>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="publishWish">Publicar Deseo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para detalles del deseo -->
+    <div class="modal" id="wishDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="wishDetailsTitle"></h2>
+                <button class="close-btn" id="closeDetailsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="wish-details">
+                    <p id="wishDetailsDescription"></p>
+                    <div class="wish-meta">
+                        <span class="price" id="wishDetailsPrice"></span>
+                        <span class="category" id="wishDetailsCategory"></span>
+                        <span class="location" id="wishDetailsLocation"></span>
+                    </div>
+                    <div class="wish-actions">
+                        <button class="btn-secondary" id="viewDetailsBtn">Ver Detalles</button>
+                        <button class="btn-primary" id="acceptWishBtn">Aceptar Deseo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de chat privado -->
+    <div class="modal" id="privateChatModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Chat con <span id="chatUserName"></span></h2>
+                <button class="close-btn" id="closeChatModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="private-chat-container">
+                    <div class="chat-messages" id="privateChatMessages">
+                        <!-- Mensajes del chat se generarán dinámicamente -->
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="privateChatInput" placeholder="Escribe tu mensaje...">
+                        <button id="sendPrivateMessage">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <button class="btn-success" id="completeWishBtn">Marcar como Completado</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de calificación -->
+    <div class="modal" id="ratingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Califica la Experiencia</h2>
+                <button class="close-btn" id="closeRatingModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="rating-container">
+                    <div class="rating-status">
+                        <h3>¿Se cumplió el deseo?</h3>
+                        <div class="status-buttons">
+                            <button class="btn-success" id="fulfilledBtn">Cumplido</button>
+                            <button class="btn-danger" id="unfulfilledBtn">No Cumplido</button>
+                        </div>
+                    </div>
+                    <div class="star-rating">
+                        <h3>Calificación (1-5 estrellas)</h3>
+                        <div class="stars" id="starRating">
+                            <i class="fas fa-star" data-rating="1"></i>
+                            <i class="fas fa-star" data-rating="2"></i>
+                            <i class="fas fa-star" data-rating="3"></i>
+                            <i class="fas fa-star" data-rating="4"></i>
+                            <i class="fas fa-star" data-rating="5"></i>
+                        </div>
+                    </div>
+                    <div class="comment-section">
+                        <h3>Comentario (opcional)</h3>
+                        <textarea id="ratingComment" placeholder="Cuéntanos sobre tu experiencia..."></textarea>
+                    </div>
+                    <button class="btn-primary" id="submitRating">Enviar Calificación</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de filtros -->
+    <div class="modal" id="filterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Filtrar Deseos</h2>
+                <button class="close-btn" id="closeFilterModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-container">
+                    <div class="filter-group">
+                        <label>Precio máximo:</label>
+                        <input type="range" id="priceFilter" min="0" max="1000" value="1000">
+                        <span id="priceValue">$1000</span>
+                    </div>
+                    <div class="filter-group">
+                        <label>Categoría:</label>
+                        <select id="categoryFilter">
+                            <option value="">Todas las categorías</option>
+                            <option value="comida">Comida</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="entretenimiento">Entretenimiento</option>
+                            <option value="servicios">Servicios</option>
+                            <option value="compras">Compras</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Distancia:</label>
+                        <select id="distanceFilter">
+                            <option value="5">5 km</option>
+                            <option value="10">10 km</option>
+                            <option value="25">25 km</option>
+                            <option value="50">50 km</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" id="applyFilters">Aplicar Filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón flotante para crear deseo -->
+    <button class="floating-btn" id="floatingCreateBtn">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="script-mapbox.js"></script>
+</body>
+</html>

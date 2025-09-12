@@ -24,6 +24,7 @@ class DeseoApp {
         this.currentUser = { id: 'user1', name: 'Usuario Actual' };
         this.activeChat = null;
         this.userLocation = null;
+        this.userLocationMarker = null;
         this.filters = {
             maxPrice: 1000,
             category: '',
@@ -84,6 +85,9 @@ class DeseoApp {
 
         // Configurar eventos del mapa
         this.setupMapEvents();
+        
+        // Intentar geolocalización automática al cargar
+        this.autoLocateUser();
     }
 
     setupMapEvents() {
@@ -169,6 +173,46 @@ class DeseoApp {
     }
 
     // ===== CONTROLES DEL MAPA =====
+    autoLocateUser() {
+        if (navigator.geolocation) {
+            // Mostrar indicador de carga
+            this.showNotification('Obteniendo tu ubicación...', 'info');
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    this.userLocation = { lat: latitude, lng: longitude };
+                    
+                    // Centrar el mapa en la ubicación del usuario con animación suave
+                    this.map.flyTo({
+                        center: [longitude, latitude],
+                        zoom: 14,
+                        essential: true,
+                        duration: 2000 // 2 segundos de animación
+                    });
+                    
+                    // Agregar marcador de ubicación del usuario
+                    this.addUserLocationMarker(longitude, latitude);
+                    
+                    this.showNotification('¡Ubicación encontrada! Mapa centrado en tu posición', 'success');
+                },
+                (error) => {
+                    console.warn('No se pudo obtener ubicación automáticamente:', error);
+                    // No mostrar error al usuario, simplemente usar ubicación por defecto
+                    this.showNotification('Usando ubicación por defecto. Puedes usar el botón de ubicación para centrar el mapa en tu posición', 'info');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000, // 10 segundos máximo
+                    maximumAge: 300000 // Cache por 5 minutos
+                }
+            );
+        } else {
+            console.warn('Geolocalización no soportada por el navegador');
+            this.showNotification('Geolocalización no disponible. Usando ubicación por defecto', 'info');
+        }
+    }
+
     locateUser() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -181,6 +225,9 @@ class DeseoApp {
                         zoom: 15,
                         essential: true
                     });
+                    
+                    // Agregar/actualizar marcador de ubicación del usuario
+                    this.addUserLocationMarker(longitude, latitude);
                     
                     this.showNotification('Ubicación encontrada', 'success');
                 },
@@ -202,6 +249,47 @@ class DeseoApp {
     zoomOut() {
         const currentZoom = this.map.getZoom();
         this.map.zoomTo(currentZoom - 1);
+    }
+
+    // ===== MARCADOR DE UBICACIÓN DEL USUARIO =====
+    addUserLocationMarker(lng, lat) {
+        // Remover marcador anterior si existe
+        if (this.userLocationMarker) {
+            this.userLocationMarker.remove();
+        }
+
+        // Crear elemento HTML para el marcador del usuario
+        const userMarkerElement = document.createElement('div');
+        userMarkerElement.className = 'user-location-marker';
+        userMarkerElement.innerHTML = `
+            <div class="user-marker-pulse"></div>
+            <div class="user-marker-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+        `;
+
+        // Crear marcador de Mapbox
+        this.userLocationMarker = new mapboxgl.Marker({
+            element: userMarkerElement,
+            anchor: 'center'
+        })
+        .setLngLat([lng, lat])
+        .addTo(this.map);
+
+        // Agregar popup informativo
+        const popup = new mapboxgl.Popup({
+            offset: 25,
+            closeButton: false,
+            closeOnClick: false
+        })
+        .setHTML(`
+            <div class="user-location-popup">
+                <h4>📍 Tu ubicación</h4>
+                <p>Estás aquí</p>
+            </div>
+        `);
+
+        this.userLocationMarker.setPopup(popup);
     }
 
     // ===== GENERACIÓN DE DATOS DE PRUEBA =====

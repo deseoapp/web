@@ -25,16 +25,17 @@ class DeseoApp {
         this.activeChat = null;
         this.userLocation = null;
         this.userLocationMarker = null;
+        // ===== IA =====
+        this.conversationHistory = [];
+        this.userProfile = this.loadUserProfile();
+        this.gemini = null; // Se inicializará después
         this.filters = {
             maxPrice: 1000,
             category: '',
             distance: 10
         };
         this.aiResponses = this.initializeAIResponses();
-        // Historial de chat con IA (para contexto de Gemini)
-        this.aiChatHistory = [];
-        // Perfil de intereses del usuario (persistido en localStorage)
-        this.userProfile = this.loadUserProfile();
+        this.exposeGetTopInterests();
         this.initializeApp();
     }
 
@@ -45,6 +46,13 @@ class DeseoApp {
             this.setupEventListeners();
             this.generateSampleWishes();
             this.renderWishesOnMap();
+            
+            // Inicializar Gemini después de que todo esté cargado
+            setTimeout(() => {
+                this.gemini = this.initializeGeminiClient();
+                console.log('Gemini client initialized:', !!this.gemini);
+            }, 1000);
+            
             this.showNotification('¡Bienvenido a Deseo! Explora deseos cerca de ti.', 'success');
         } catch (error) {
             console.error('Error inicializando la aplicación:', error);
@@ -464,12 +472,10 @@ class DeseoApp {
         `;
         document.getElementById('wishPreview').style.display = 'none';
         document.getElementById('aiChatInput').value = '';
-        this.aiChatHistory = [
-            { role: 'model', content: '¡Hola! Soy tu acompañante. ¿Qué tienes en mente hoy?' }
-        ];
+        this.conversationHistory = [];
     }
 
-    async sendAIMessage() {
+    sendAIMessage() {
         const input = document.getElementById('aiChatInput');
         const message = input.value.trim();
         
@@ -477,26 +483,80 @@ class DeseoApp {
 
         // Agregar mensaje del usuario
         this.addMessageToChat('user', message);
-        this.aiChatHistory.push({ role: 'user', content: message });
         input.value = '';
 
-        // Análisis básico de texto y actualización de perfil
-        const analysis = this.analyzeText(message);
-        if (analysis.matchedCategories.length > 0) {
-            this.updateUserProfile(analysis.matchedCategories);
-        }
+        // Actualizar perfil del usuario por análisis de texto
+        this.updateProfileFromText(message);
 
-        // Respuesta de IA (Gemini con fallback)
-        const aiResponse = await this.respondWithAI(message, analysis);
-        this.addMessageToChat('ai', aiResponse.text);
-        this.aiChatHistory.push({ role: 'model', content: aiResponse.text });
-        
-        if (aiResponse.wishData) {
-            this.showWishPreview(aiResponse.wishData);
-        }
+        // Guardar en historial de conversación
+        this.conversationHistory.push({ role: 'user', content: message });
 
-        // Sugerencias personalizadas en base a intereses
-        this.maybeShowPersonalizedSuggestion();
+        // Verificar si Gemini está disponible y configurado correctamente
+        const geminiAvailable = CONFIG.AI && 
+                               CONFIG.AI.GEMINI && 
+                               CONFIG.AI.GEMINI.enabled && 
+                               CONFIG.AI.GEMINI.apiKey && 
+                               CONFIG.AI.GEMINI.apiKey !== 'PON_AQUI_TU_API_KEY_DE_GEMINI' &&
+                               CONFIG.AI.GEMINI.apiKey.length > 10 &&
+                               this.gemini;
+
+        console.log('=== AI CHAT DEBUG ===');
+        console.log('Message:', message);
+        console.log('Gemini available:', geminiAvailable);
+        console.log('Gemini config:', CONFIG.AI?.GEMINI);
+        console.log('Gemini client:', !!this.gemini);
+        console.log('Conversation history:', this.conversationHistory);
+
+        if (geminiAvailable) {
+            console.log('Using Gemini for AI response...');
+            
+            // Mostrar indicador de carga
+            this.addMessageToChat('ai', '🤖 Pensando...');
+            
+            this.generateGeminiResponse(message)
+                .then((text) => {
+                    // Remover mensaje de carga
+                    const messagesContainer = document.getElementById('aiChatMessages');
+                    const lastMessage = messagesContainer.lastElementChild;
+                    if (lastMessage && lastMessage.querySelector('.message-content p').textContent === '🤖 Pensando...') {
+                        lastMessage.remove();
+                    }
+                    
+                    const aiText = text || 'Estoy aquí para ayudarte. ¿Puedes contarme un poco más?';
+                    this.addMessageToChat('ai', aiText);
+                    this.conversationHistory.push({ role: 'assistant', content: aiText });
+                    this.maybeShowSuggestions();
+                })
+                .catch((error) => {
+                    console.error('Gemini error, falling back to local AI:', error);
+                    
+                    // Remover mensaje de carga
+                    const messagesContainer = document.getElementById('aiChatMessages');
+                    const lastMessage = messagesContainer.lastElementChild;
+                    if (lastMessage && lastMessage.querySelector('.message-content p').textContent === '🤖 Pensando...') {
+                        lastMessage.remove();
+                    }
+                    
+                    // Fallback local
+                    const aiResponse = this.generateAIResponse(message);
+                    this.addMessageToChat('ai', aiResponse.text);
+                    if (aiResponse.wishData) {
+                        this.showWishPreview(aiResponse.wishData);
+                    }
+                    this.maybeShowSuggestions();
+                });
+        } else {
+            console.log('Using local AI fallback...');
+            // Fallback inmediato
+            setTimeout(() => {
+                const aiResponse = this.generateAIResponse(message);
+                this.addMessageToChat('ai', aiResponse.text);
+                if (aiResponse.wishData) {
+                    this.showWishPreview(aiResponse.wishData);
+                }
+                this.maybeShowSuggestions();
+            }, CONFIG.AI.responseDelay || 1000);
+        }
     }
 
     addMessageToChat(sender, message) {
@@ -578,153 +638,165 @@ class DeseoApp {
         };
     }
 
-    // ===== PERFIL DE USUARIO EN LOCALSTORAGE =====
+    // ===== GEMINI INTEGRATION (REST API) =====
+    initializeGeminiClient() {
+        try {
+            const cfg = CONFIG.AI && CONFIG.AI.GEMINI;
+            if (!cfg || !cfg.enabled || !cfg.apiKey) {
+                console.log('Gemini config not available');
+                return null;
+            }
+            
+            // Verificar que la API key no sea el placeholder
+            if (cfg.apiKey === 'PON_AQUI_TU_API_KEY_DE_GEMINI' || cfg.apiKey.length < 10) {
+                console.log('Gemini API key not configured properly');
+                return null;
+            }
+            
+            console.log('Gemini REST API client initialized successfully');
+            return {
+                apiKey: cfg.apiKey,
+                model: cfg.model,
+                apiUrl: cfg.apiUrl
+            };
+        } catch (e) {
+            console.warn('Gemini client not initialized:', e);
+            return null;
+        }
+    }
+
+    async generateGeminiResponse(userMessage) {
+        try {
+            const client = this.gemini;
+            if (!client) {
+                console.log('Gemini client not available');
+                return null;
+            }
+
+            console.log('Generating Gemini response for:', userMessage);
+            
+            // Construir prompt con historial de conversación
+            const historyText = this.conversationHistory.map(m => 
+                `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`
+            ).join('\n');
+            
+            const systemPrompt = `Eres un asistente amable y útil que ayuda a las personas a crear deseos cortos y claros para una plataforma de micro-deseos. 
+            Responde en español con un tono cercano y amigable. 
+            Ayuda a los usuarios a definir qué necesitan, sugiere precios justos y categorías apropiadas.
+            Mantén las respuestas concisas pero útiles.`;
+            
+            const fullPrompt = `${systemPrompt}\n\nHistorial de conversación:\n${historyText}\n\nMensaje actual del usuario: ${userMessage}`;
+
+            console.log('Sending request to Gemini REST API...');
+            
+            // Usar la API REST directamente como sugiere la documentación
+            const response = await fetch(`${client.apiUrl}/${client.model}:generateContent`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-goog-api-key': client.apiKey
+                },
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: fullPrompt
+                                }
+                            ]
+                        }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+                const text = data.candidates[0].content.parts[0].text;
+                console.log('Gemini response received:', text);
+                return text;
+            }
+            
+            console.log('No response text from Gemini');
+            return null;
+        } catch (e) {
+            console.error('Gemini generation failed:', e);
+            return null;
+        }
+    }
+
+    // ===== USER PROFILE AND ANALYSIS =====
     loadUserProfile() {
         try {
             const raw = localStorage.getItem('deseo_user_profile');
-            if (raw) return JSON.parse(raw);
-        } catch (e) { /* ignore */ }
-        // Estructura base
-        return {
-            interests: {
-                viajes: 0,
-                comida: 0,
-                ocio: 0,
-                trabajo: 0,
-                amor: 0,
-                transporte: 0,
-                entretenimiento: 0,
-                servicios: 0,
-                compras: 0
-            },
-            updatedAt: Date.now()
-        };
+            if (!raw) return { viajes: 0, comida: 0, ocio: 0, trabajo: 0, amor: 0, transporte: 0, servicios: 0, compras: 0 };
+            const parsed = JSON.parse(raw);
+            return Object.assign({ viajes: 0, comida: 0, ocio: 0, trabajo: 0, amor: 0, transporte: 0, servicios: 0, compras: 0 }, parsed);
+        } catch {
+            return { viajes: 0, comida: 0, ocio: 0, trabajo: 0, amor: 0, transporte: 0, servicios: 0, compras: 0 };
+        }
     }
 
     saveUserProfile() {
         try {
             localStorage.setItem('deseo_user_profile', JSON.stringify(this.userProfile));
-        } catch (e) { /* ignore */ }
+        } catch {}
     }
 
-    updateUserProfile(categories) {
-        categories.forEach(cat => {
-            if (!(cat in this.userProfile.interests)) {
-                this.userProfile.interests[cat] = 0;
-            }
-            this.userProfile.interests[cat] += 1;
+    updateProfileFromText(text) {
+        if (!text) return;
+        const matches = this.extractCategories(text);
+        matches.forEach(cat => {
+            if (this.userProfile[cat] === undefined) this.userProfile[cat] = 0;
+            this.userProfile[cat] += 1;
         });
-        this.userProfile.updatedAt = Date.now();
         this.saveUserProfile();
     }
 
-    getTopInterests(limit = 3) {
-        const entries = Object.entries(this.userProfile.interests);
+    extractCategories(text) {
+        const found = new Set();
+        const lower = text.toLowerCase();
+        const dict = (CONFIG.AI && CONFIG.AI.KEYWORDS) || {};
+        Object.keys(dict).forEach(cat => {
+            const words = dict[cat] || [];
+            for (let i = 0; i < words.length; i++) {
+                if (lower.includes(words[i])) { found.add(cat); break; }
+            }
+        });
+        return Array.from(found);
+    }
+
+    getTopInterests() {
+        const entries = Object.entries(this.userProfile || {});
         entries.sort((a, b) => b[1] - a[1]);
-        return entries.slice(0, limit).map(([k, v]) => ({ category: k, count: v }));
+        return entries.slice(0, 3).map(([cat, count]) => ({ category: cat, count }));
     }
 
-    // ===== ANÁLISIS BÁSICO DE TEXTO =====
-    analyzeText(text) {
-        const t = (text || '').toLowerCase();
-        const categories = {
-            viajes: ['viajar', 'viaje', 'playa', 'montaña', 'avión', 'hotel', 'turismo'],
-            comida: ['comer', 'café', 'coffee', 'restaurante', 'pizza', 'hamburguesa', 'comida'],
-            ocio: ['película', 'cine', 'juego', 'paseo', 'música', 'fiesta', 'ocio'],
-            trabajo: ['trabajo', 'empleo', 'freelance', 'proyecto', 'oficina'],
-            amor: ['amor', 'pareja', 'cita', 'romántico'],
-            transporte: ['taxi', 'uber', 'llevar', 'entregar', 'transporte', 'paquete'],
-            entretenimiento: ['concierto', 'videojuego', 'evento', 'diversión'],
-            servicios: ['arreglar', 'instalar', 'pasear', 'perro', 'servicio'],
-            compras: ['comprar', 'supermercado', 'tienda', 'mercado']
-        };
-
-        const matchedCategories = [];
-        Object.entries(categories).forEach(([category, keywords]) => {
-            if (keywords.some(k => t.includes(k))) {
-                matchedCategories.push(category);
-            }
-        });
-
-        return { matchedCategories };
+    // Exponer función globalmente
+    exposeGetTopInterests() {
+        window.getTopInterests = () => this.getTopInterests();
     }
 
-    // ===== GEMINI INTEGRATION (con fallback) =====
-    async respondWithAI(userMessage, analysis) {
-        // Si hay API Key configurada, intentamos usar Gemini
-        const hasGeminiKey = window.CONFIG && window.CONFIG.GEMINI && window.CONFIG.GEMINI.API_KEY && window.CONFIG.GEMINI.API_KEY !== 'TU_GEMINI_API_KEY';
-        if (hasGeminiKey) {
-            try {
-                const responseText = await this.callGeminiAPI(userMessage, analysis);
-                // Intentar inferir wishData básico por categorías
-                const fallback = this.generateAIResponse(userMessage);
-                return {
-                    text: responseText,
-                    wishData: fallback.wishData || null
-                };
-            } catch (e) {
-                console.warn('Gemini falló, usando fallback local:', e);
-            }
-        }
-        // Fallback local
-        return this.generateAIResponse(userMessage);
-    }
-
-    async callGeminiAPI(userMessage, analysis) {
-        const apiKey = window.CONFIG.GEMINI.API_KEY;
-        const model = window.CONFIG.GEMINI.MODEL || 'gemini-1.5-flash';
-        const temperature = window.CONFIG.GEMINI.TEMPERATURE || 0.7;
-        const maxTokens = window.CONFIG.GEMINI.MAX_TOKENS || 1000;
-
-        const systemPrompt = `Eres un acompañante psicológico empático y un amigo que escucha. Mantén un tono amable y cercano. Analiza el mensaje del usuario, refleja sus emociones brevemente y sugiere pasos claros. Si aplica a la app de deseos, sugiere un título, categoría y rango de precio razonable. Categorías: comida, transporte, entretenimiento, servicios, compras, viajes, ocio, trabajo, amor.`;
-
-        const history = this.aiChatHistory.slice(-8).map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n');
-        const interestSummary = this.getTopInterests(3).map(i => `${i.category}(${i.count})`).join(', ');
-
-        const prompt = `${systemPrompt}\n\nIntereses del usuario: ${interestSummary || 'N/A'}\nCategorias detectadas ahora: ${(analysis.matchedCategories || []).join(', ') || 'N/A'}\n\nHistorial reciente:\n${history}\n\nMensaje actual del usuario: ${userMessage}\n\nResponde de forma breve (máx 3-4 oraciones). Si corresponde, incluye una sugerencia estructurada de deseo con formato: Título:, Categoría:, Precio sugerido:.`;
-
-        // Llamada a Gemini vía fetch (API Generative Language v1beta; simulación genérica)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const body = {
-            contents: [{ parts: [{ text: prompt }] }],
-            safetySettings: [],
-            generationConfig: { temperature, maxOutputTokens: maxTokens }
-        };
-
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) throw new Error('Gemini HTTP error ' + res.status);
-        const data = await res.json();
-        // Extraer texto (estructura típica de Gemini)
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Gracias por compartir. ¿Me cuentas un poco más?';
-        return text;
-    }
-
-    // ===== SUGERENCIAS PERSONALIZADAS =====
-    maybeShowPersonalizedSuggestion() {
-        const top = this.getTopInterests(3);
-        if (!top || top.length === 0) return;
-        const best = top[0];
-        if (!best || best.count <= 0) return;
+    maybeShowSuggestions() {
+        const top = this.getTopInterests().filter(item => item.count > 0);
+        if (top.length === 0) return;
+        const main = top[0].category;
         const suggestions = {
-            viajes: 'Noto que te gustan los viajes, ¿quieres que te muestre deseos relacionados con viajar?',
-            comida: 'Veo que te gusta la comida, ¿te muestro deseos de comida cercanos?',
-            ocio: 'Parece que te interesa el ocio, ¿buscamos actividades cerca?',
-            trabajo: 'Te interesa el trabajo, ¿quieres ver tareas disponibles?',
-            amor: 'Te interesan temas de amor, ¿quieres consejos o actividades románticas?',
-            transporte: 'Interés en transporte, ¿te muestro entregas o traslados?',
-            entretenimiento: 'Te gusta el entretenimiento, ¿vemos planes y eventos?',
-            servicios: 'Te interesan servicios, ¿te muestro tareas que ayudar?',
-            compras: 'Interés en compras, ¿quieres ver recados y compras cercanas?'
+            viajes: 'Noto que te gustan los viajes, ¿quieres ver deseos relacionados con viajar?',
+            comida: 'Veo que te interesa la comida, ¿te muestro deseos de comida cerca?',
+            ocio: 'Te gusta el ocio. ¿Quieres ver actividades y entretenimiento cercanos?',
+            trabajo: 'Parece que te interesan temas de trabajo. ¿Buscamos deseos de servicios profesionales?',
+            amor: 'Veo interés en temas románticos. ¿Te muestro ideas de detalles y regalos?',
+            transporte: 'Te interesa transporte. ¿Te muestro deseos de traslados cercanos?',
+            servicios: 'Veo interés en servicios. ¿Quieres ver tareas que puedes solicitar o aceptar?',
+            compras: 'Te interesan compras. ¿Te muestro deseos de compras y encargos?'
         };
-        const msg = suggestions[best.category];
-        if (msg) {
-            this.addMessageToChat('ai', msg);
-            this.aiChatHistory.push({ role: 'model', content: msg });
-        }
+        const text = suggestions[main];
+        if (text) this.addMessageToChat('ai', text);
     }
 
     showWishPreview(wishData) {
@@ -1066,8 +1138,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.deseoApp = new DeseoApp();
-    // Exponer API pública mínima
-    window.getTopInterests = () => window.deseoApp.getTopInterests();
 });
 
 console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');

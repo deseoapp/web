@@ -28,16 +28,6 @@ const CONFIG = {
         defaultStyle: 'light'
     },
     
-    // Configuración de Gemini AI
-    GEMINI: {
-        // IMPORTANTE: Reemplaza 'TU_GEMINI_API_KEY' con tu API key real de Gemini
-        // Obtén tu API key en: https://makersuite.google.com/app/apikey
-        API_KEY: 'TU_GEMINI_API_KEY', // Reemplaza con tu API key real
-        MODEL: 'gemini-1.5-flash',
-        MAX_TOKENS: 1000,
-        TEMPERATURE: 0.7
-    },
-    
     // Configuración de la aplicación
     APP: {
         name: 'Deseo',
@@ -96,6 +86,24 @@ const CONFIG = {
     AI: {
         responseDelay: 1000, // 1 segundo
         maxRetries: 3,
+        // Gemini configuration using REST API (recommended by Google)
+        GEMINI: {
+            enabled: true,
+            apiKey: 'AIzaSyCIwYtCIlFQMOZGEP3VqEhQ0kycBIFfBMc', // https://ai.google.dev/ (Generative Language API)
+            model: 'gemini-2.0-flash',
+            apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models'
+        },
+        // Diccionario básico de categorías y palabras clave
+        KEYWORDS: {
+            viajes: ['viaje', 'viajar', 'playa', 'montaña', 'hotel', 'vuelo', 'turismo', 'vacaciones', 'ruta', 'tour'],
+            comida: ['comida', 'café', 'coffee', 'almuerzo', 'cena', 'desayuno', 'pizza', 'hamburguesa', 'restaurante', 'postre'],
+            ocio: ['ocio', 'diversión', 'cine', 'película', 'leer', 'música', 'concierto', 'parque', 'paseo', 'juego'],
+            trabajo: ['trabajo', 'freelance', 'proyecto', 'reunión', 'oficina', 'empleo', 'currículum', 'cv', 'entrevista', 'deadline'],
+            amor: ['amor', 'cita', 'pareja', 'novia', 'novio', 'romántico', 'regalo', 'flores', 'detalles', 'san valentín'],
+            transporte: ['transporte', 'uber', 'taxi', 'carro', 'coche', 'moto', 'bus', 'metro', 'traslado', 'llevar'],
+            servicios: ['servicio', 'arreglar', 'reparar', 'limpieza', 'pasear perro', 'jardín', 'mudanza', 'clases', 'ayuda', 'cuidar'],
+            compras: ['comprar', 'compra', 'tienda', 'supermercado', 'pedido', 'producto', 'envío', 'entrega', 'mercado', 'regalo']
+        },
         
         // Respuestas predefinidas
         responses: {

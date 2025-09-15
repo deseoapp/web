@@ -598,8 +598,9 @@ class DeseoApp {
                 title: 'Comprar café en Starbucks',
                 description: 'Necesito que alguien me compre un café grande de vainilla en Starbucks y me lo traiga a mi oficina.',
                 price: 8,
+                priceFormatted: '$8',
                 category: 'comida',
-                coordinates: [-3.7038, 40.4168], // Madrid
+                location: { lat: 40.4168, lng: -3.7038 }, // Madrid
                 author: { id: 'user2', name: 'María García' },
                 status: 'active',
                 createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000)
@@ -609,8 +610,9 @@ class DeseoApp {
                 title: 'Pasear a mi perro',
                 description: 'Busco alguien que pueda pasear a mi perro Golden Retriever por 30 minutos en el parque.',
                 price: 15,
+                priceFormatted: '$15',
                 category: 'servicios',
-                coordinates: [-3.7138, 40.4268], // Madrid (cerca)
+                location: { lat: 40.4268, lng: -3.7138 }, // Madrid (cerca)
                 author: { id: 'user3', name: 'Carlos López' },
                 status: 'active',
                 createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000)
@@ -620,8 +622,9 @@ class DeseoApp {
                 title: 'Llevar paquete a correos',
                 description: 'Necesito que alguien lleve un paquete pequeño a la oficina de correos más cercana.',
                 price: 12,
+                priceFormatted: '$12',
                 category: 'servicios',
-                coordinates: [-3.6938, 40.4068], // Madrid (cerca)
+                location: { lat: 40.4068, lng: -3.6938 }, // Madrid (cerca)
                 author: { id: 'user4', name: 'Ana Martínez' },
                 status: 'active',
                 createdAt: new Date(Date.now() - 30 * 60 * 1000)
@@ -631,8 +634,9 @@ class DeseoApp {
                 title: 'Comprar ingredientes para cena',
                 description: 'Necesito que alguien compre los ingredientes para hacer pasta: tomates, cebolla, ajo y queso parmesano.',
                 price: 20,
+                priceFormatted: '$20',
                 category: 'compras',
-                coordinates: [-3.7238, 40.4368], // Madrid (cerca)
+                location: { lat: 40.4368, lng: -3.7238 }, // Madrid (cerca)
                 author: { id: 'user5', name: 'Roberto Silva' },
                 status: 'active',
                 createdAt: new Date(Date.now() - 45 * 60 * 1000)
@@ -642,8 +646,9 @@ class DeseoApp {
                 title: 'Dar un paseo en bicicleta',
                 description: 'Busco compañía para dar un paseo en bicicleta por el centro de la ciudad este fin de semana.',
                 price: 25,
+                priceFormatted: '$25',
                 category: 'entretenimiento',
-                coordinates: [-3.6838, 40.3968], // Madrid (cerca)
+                location: { lat: 40.3968, lng: -3.6838 }, // Madrid (cerca)
                 author: { id: 'user6', name: 'Laura Fernández' },
                 status: 'active',
                 createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000)
@@ -687,7 +692,7 @@ class DeseoApp {
             element: markerElement,
             anchor: 'bottom'
         })
-            .setLngLat(wish.coordinates)
+            .setLngLat([wish.location.lng, wish.location.lat])
             .addTo(this.map);
 
         // Crear popup (simple, la tarjeta flotante es para detalles)
@@ -1262,7 +1267,7 @@ class DeseoApp {
 
         // Centrar el mapa en la ubicación del deseo
         this.map.flyTo({
-            center: wish.coordinates,
+            center: [wish.location.lng, wish.location.lat],
             essential: true,
             duration: 900 // animación suave
         });
@@ -1523,7 +1528,7 @@ class DeseoApp {
         if (this.userLocation && this.filters.distance) {
             const distance = this.calculateDistance(
                 this.userLocation.lat, this.userLocation.lng,
-                wish.coordinates[1], wish.coordinates[0]
+                wish.location.lat, wish.location.lng
             );
             if (distance > this.filters.distance) return false;
         }
@@ -1700,18 +1705,27 @@ class DeseoApp {
                 return;
             }
 
+            // Verificar que firebase.database esté disponible
+            if (typeof firebase.database === 'undefined') {
+                console.warn('⚠️ Firebase Database no está cargado, reintentando en 2 segundos...');
+                setTimeout(() => this.initializeFirebase(), 2000);
+                return;
+            }
+
             // Inicializar Firebase
             this.firebase = firebase.initializeApp(CONFIG.FIREBASE.config);
             this.database = firebase.database();
             this.wishesRef = this.database.ref(CONFIG.FIREBASE.database.wishes);
             
             console.log('✅ Firebase Realtime Database inicializado');
+            console.log('📊 Database URL:', CONFIG.FIREBASE.config.databaseURL);
             
             // Escuchar cambios en tiempo real
             this.setupRealtimeListeners();
             
         } catch (error) {
             console.error('❌ Error inicializando Firebase:', error);
+            console.error('Configuración Firebase:', CONFIG.FIREBASE.config);
             this.showNotification('Error al conectar con la base de datos', 'error');
         }
     }
@@ -1769,10 +1783,12 @@ class DeseoApp {
             this.initializeFirebase();
             
             // Esperar un poco y verificar de nuevo
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             if (!this.wishesRef) {
-                throw new Error('Firebase no está disponible. Verifica tu conexión a internet.');
+                // Modo fallback: crear deseo localmente sin Firebase
+                console.warn('⚠️ Firebase no disponible, creando deseo localmente');
+                return this.createWishLocally(wishData);
             }
         }
 
@@ -1973,6 +1989,54 @@ class DeseoApp {
         } catch (error) {
             console.error('Error en geocodificación inversa:', error);
             return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        }
+    }
+
+    // ===== MODO FALLBACK - CREAR DESEO LOCALMENTE =====
+    async createWishLocally(wishData) {
+        try {
+            // Obtener ubicación actual del usuario
+            const location = await this.getCurrentLocation();
+            
+            const wish = {
+                id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                title: wishData.title,
+                description: wishData.description,
+                category: wishData.category,
+                price: parseInt(wishData.price),
+                priceFormatted: this.formatPrice(wishData.price),
+                address: wishData.address,
+                urgency: wishData.urgency,
+                location: {
+                    lat: location.lat,
+                    lng: location.lng
+                },
+                author: {
+                    id: this.currentUser?.id || 'anonymous',
+                    name: this.currentUser?.name || 'Usuario Anónimo',
+                    email: this.currentUser?.email || 'anonymous@example.com'
+                },
+                status: 'active',
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                acceptedBy: null,
+                completedAt: null
+            };
+
+            // Agregar localmente
+            this.wishes.push(wish);
+            this.addWishMarker(wish);
+            this.renderWishListInSidebar();
+            
+            console.log('✅ Deseo creado localmente:', wish.title);
+            this.showNotification(`¡Deseo "${wish.title}" creado localmente! (Sin sincronización)`, 'success');
+            
+            return wish.id;
+            
+        } catch (error) {
+            console.error('❌ Error creando deseo localmente:', error);
+            this.showNotification('Error al crear el deseo localmente', 'error');
+            throw error;
         }
     }
 

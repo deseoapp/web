@@ -60,9 +60,9 @@ class DeseoApp {
         console.log('Clerk Sign In - User:', user);
         this.currentUser = {
             id: user.id,
-            name: user.fullName || user.emailAddresses[0].emailAddress, // Clerk proporciona fullName
-            email: user.emailAddresses[0].emailAddress,
-            profileImageUrl: user.profileImageUrl
+            name: user.fullName || (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) || 'Usuario',
+            email: (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) || '',
+            profileImageUrl: user.imageUrl || user.profileImageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
         };
         this.showNotification(`¡Bienvenido, ${this.currentUser.name}!`, 'success');
         // Cerrar el modal de autenticación si está abierto
@@ -197,6 +197,11 @@ class DeseoApp {
         await new Promise((resolve) => {
             this.map.on('load', resolve);
         });
+
+        // Aplicar el estilo del mapa según el tema actual
+        if (this.currentTheme) {
+            this.updateMapStyle(this.currentTheme);
+        }
 
         // Añadir controles de navegación
         this.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -1622,7 +1627,26 @@ class DeseoApp {
             themeIcon.className = 'fas fa-moon';
         }
         
+        // Actualizar estilo del mapa según el tema
+        this.updateMapStyle(newTheme);
+        
         this.showNotification(`Tema cambiado a ${newTheme === 'light' ? 'claro' : 'oscuro'}`, 'success');
+    }
+
+    // ===== ACTUALIZAR ESTILO DEL MAPA =====
+    updateMapStyle(theme) {
+        if (!this.map) {
+            console.warn('⚠️ Map not initialized, cannot update style');
+            return;
+        }
+        
+        try {
+            const mapStyle = theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11';
+            this.map.setStyle(mapStyle);
+            console.log(`✅ Map style updated to ${theme} theme`);
+        } catch (error) {
+            console.error('❌ Error updating map style:', error);
+        }
     }
 
     // ===== TOGGLE DEL SIDEBAR MENU =====
@@ -1671,6 +1695,9 @@ class DeseoApp {
                 themeToggle.className = 'fas fa-moon';
             }
         }
+        
+        // Guardar el tema actual para usar después de que el mapa se cargue
+        this.currentTheme = document.documentElement.getAttribute('data-theme');
     }
 
     // ===== INDICADOR DE TYPING =====

@@ -27,7 +27,7 @@
             </div>
             <nav class="main-nav">
                 <ul>
-                    <li><a href="#" onclick="window.deseoApp.showAuthUI()" id="authButton"><i class="fas fa-user"></i> Iniciar Sesión</a></li> <!-- Botón de Auth -->
+                    <li><a href="#" id="authButton"><i class="fas fa-user"></i> Iniciar Sesión</a></li> <!-- Botón de Auth -->
                     <li><a href="#"><i class="fas fa-home"></i> Inicio</a></li>
                     <li><a href="#"><i class="fas fa-wallet"></i> Billetera</a></li>
                     <li><a href="#"><i class="fas fa-cog"></i> Configuración</a></li>
@@ -306,45 +306,94 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
+    <script src="script-mapbox.js"></script> <!-- Mover script-mapbox.js antes del script de inicialización de Clerk -->
     
     <!-- Clerk SDKs -->
     <script
       async
+      crossorigin="anonymous"
       data-clerk-publishable-key="pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ"
       id="clerk-js"
-      src="https://js.clerk.com/v1/clerk.browser.js" <!-- URL DE CLERK SDK CORREGIDA -->
+      src="https://cdnjs.cloudflare.com/ajax/libs/clerk-js/5.88.0/clerk.min.js"
       type="application/javascript"
     ></script>
 
-    <!-- Inicialización de Clerk y renderizado de componentes -->
+    <!-- Inicialización GLOBAL de la aplicación y Clerk -->
     <script type="module">
-        if (CONFIG.CLERK.enabled && window.Clerk) {
-            window.Clerk.load().then(() => {
-                window.Clerk.addListener(({ user }) => {
-                    if (user) {
-                        console.log('👤 Usuario autenticado con Clerk:', user);
-                        window.deseoApp.handleClerkSignIn(user);
-                    } else {
-                        console.log('👤 Usuario no autenticado con Clerk');
-                        window.deseoApp.handleClerkSignOut();
+        window.addEventListener('load', async function () {
+            console.log('🏁 Window fully loaded. Initializing Deseo App and Clerk...');
+
+            // Inicializar la aplicación principal
+            if (!window.deseoApp) {
+                window.deseoApp = new DeseoApp();
+                console.log('✨ DeseoApp instance created.');
+            } else {
+                console.log('DeseoApp ya estaba inicializada.');
+            }
+            
+            // Inicializar Clerk
+            if (CONFIG.CLERK.enabled && window.Clerk) {
+                try {
+                    await window.Clerk.load();
+                    console.log('Clerk SDK loaded successfully.');
+
+                    window.Clerk.addListener(({ user }) => {
+                        if (user) {
+                            console.log('👤 Usuario autenticado con Clerk:', user);
+                            if (window.deseoApp) {
+                                window.deseoApp.handleClerkSignIn(user);
+                            }
+                        } else {
+                            console.log('👤 Usuario no autenticado con Clerk');
+                            if (window.deseoApp) {
+                                window.deseoApp.handleClerkSignOut();
+                            }
+                        }
+                    });
+
+                    // Verificar el estado inicial después de que Clerk se cargue
+                    if (window.Clerk.user && window.deseoApp) {
+                        window.deseoApp.handleClerkSignIn(window.Clerk.user);
+                    } else if (window.deseoApp) {
+                        console.log('Clerk Ready, pero no hay usuario autenticado. Esperando interacción.');
+                        window.deseoApp.handleClerkSignOut(); // Asegurar que la UI se actualice al estado de no logueado
                     }
-                });
+                    
+                    // Forzar actualización de UI para el botón de auth después de que Clerk se haya cargado
+                    if (window.deseoApp) {
+                        window.deseoApp.updateAuthUI();
+                    }
 
-                if (window.Clerk.user) {
-                    window.deseoApp.handleClerkSignIn(window.Clerk.user);
-                } else {
-                    console.log('Clerk Ready, pero no hay usuario autenticado. Esperando interacción.');
+                } catch (err) {
+                    console.error("Error loading Clerk:", err);
                 }
-                // Asegurarse de que la UI de autenticación se inicialice
-                window.deseoApp.updateAuthUI();
+            } else {
+                console.log("Clerk no está habilitado o el SDK no está disponible.");
+            }
 
-            }).catch(err => {
-                console.error("Error loading Clerk:", err);
-            });
-        } else {
-            console.log("Clerk no está habilitado o el SDK no está disponible.");
-        }
+            // Llamadas iniciales que dependen de DeseoApp y el DOM
+            if (window.deseoApp) {
+                window.deseoApp.renderWishListInSidebar();
+
+                // Inicializar listeners de filtros del sidebar
+                const priceFilterSidebar = document.getElementById('priceFilterSidebar');
+                const priceValueSidebar = document.getElementById('priceValueSidebar');
+                if (priceFilterSidebar && priceValueSidebar) {
+                    priceFilterSidebar.addEventListener('input', (e) => {
+                        priceValueSidebar.textContent = `$${e.target.value}`;
+                    });
+                    priceValueSidebar.textContent = `$${priceFilterSidebar.value}`;
+                }
+            }
+
+            console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
+            console.log('📱 Plataforma de micro-deseos con mapa real');
+            console.log('🤖 IA simulada activa');
+            console.log('🗺️ Mapa interactivo de Mapbox funcionando');
+            console.log('💬 Sistema de chat implementado');
+            console.log('⭐ Sistema de calificaciones activo');
+            console.log('🔥 Sistema de autenticación implementado');
+        });
     </script>
-
-    <script src="script-mapbox.js"></script>
+    
 </body>

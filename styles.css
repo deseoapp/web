@@ -142,6 +142,12 @@ body {
 .main-nav {
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+/* Clase para ocultar el menú de navegación */
+.main-nav.hidden {
+    display: none;
 }
 
 .main-nav ul {

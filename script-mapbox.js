@@ -70,7 +70,7 @@ class DeseoApp {
         if (authContainer) {
             authContainer.classList.remove('active');
             // Desmontar el componente de Clerk para limpiar la UI
-            if (window.Clerk.isSignInStaged()) {
+            if (window.Clerk && window.Clerk.isSignInStaged()) {
                 window.Clerk.unmountSignIn();
             }
         }
@@ -85,26 +85,35 @@ class DeseoApp {
     }
 
     updateAuthUI() {
+        console.log('⚙️ updateAuthUI called.');
         const authButton = document.getElementById('authButton');
-        if (!authButton) return; 
+        if (!authButton) {
+            console.log('⚠️ authButton not found in updateAuthUI.');
+            return;
+        }
         
         // Limpiar onclick previo para evitar múltiples listeners
         authButton.onclick = null;
 
         if (this.currentUser) {
+            console.log('User is signed in. Updating authButton for logout.');
             authButton.innerHTML = `<img src="${this.currentUser.profileImageUrl}" alt="${this.currentUser.name}" class="user-avatar-small"> ${this.currentUser.name}`;
             authButton.onclick = () => window.Clerk.signOut(); 
             authButton.title = 'Cerrar sesión';
         } else {
+            console.log('User is signed out. Updating authButton for sign in.');
             authButton.innerHTML = '<i class="fas fa-user"></i> Iniciar Sesión';
-            authButton.onclick = () => this.showAuthUI(); // Llama a la nueva función
+            // El onclick ahora se maneja en setupEventListeners
+            // authButton.onclick = () => this.showAuthUI(); 
             authButton.title = 'Iniciar sesión';
         }
     }
 
     showAuthUI() {
+        console.log('🚀 showAuthUI called.');
         const authContainer = document.getElementById('authContainer');
         if (authContainer && window.Clerk) {
+            console.log('Auth container and Clerk available. Showing modal...');
             authContainer.classList.add('active'); // Mostrar el modal
             // Montar el componente de Clerk para SignIn dentro del contenedor
             window.Clerk.mountSignIn({
@@ -112,6 +121,8 @@ class DeseoApp {
                 appearance: {},
                 // Puedes añadir más opciones de apariencia o redirección aquí
             });
+        } else {
+            console.warn('❌ Auth container or Clerk not available. Cannot show UI.', { authContainer: !!authContainer, Clerk: !!window.Clerk });
         }
     }
 
@@ -121,15 +132,16 @@ class DeseoApp {
             this.loadSavedTheme();
             await this.initializeMapbox();
             this.setupEventListeners();
-            this.generateSampleWishes(); 
-            this.renderWishesOnMap();    
+            this.generateSampleWishes();
+            this.renderWishesOnMap();
             
             setTimeout(() => {
                 this.gemini = this.initializeGeminiClient();
                 console.log('Gemini client initialized:', !!this.gemini);
             }, 1000);
             
-            this.updateAuthUI();
+            // La UI de autenticación se actualizará cuando Clerk se cargue y detecte el estado.
+            // this.updateAuthUI(); // Eliminamos esta llamada duplicada.
 
             this.showNotification('¡Bienvenido a Deseo! Explora deseos cerca de ti.', 'success');
         } catch (error) {
@@ -195,65 +207,217 @@ class DeseoApp {
 
     // ===== CONFIGURACIÓN DE EVENT LISTENERS (DeseoApp) =====
     setupEventListeners() {
-        // Botones principales
-        document.getElementById('floatingCreateWishBtn').addEventListener('click', () => this.openCreateWishModal());
-        document.getElementById('filterBtn').addEventListener('click', () => this.openFilterModal());
-        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
+        console.log('🔧 Setting up event listeners...');
+        
+        // Botones principales con verificaciones defensivas
+        const floatingCreateWishBtn = document.getElementById('floatingCreateWishBtn');
+        if (floatingCreateWishBtn) {
+            floatingCreateWishBtn.addEventListener('click', () => this.openCreateWishModal());
+        } else {
+            console.warn('⚠️ floatingCreateWishBtn not found');
+        }
 
-        // Sidebar - Búsqueda y filtros
-        document.getElementById('wishSearchInput').addEventListener('input', (e) => {
-            // Implementar lógica de búsqueda de deseos aquí
-            console.log('Buscando deseos:', e.target.value);
-            // this.filterWishesBySearch(e.target.value);
-            this.renderWishListInSidebar();
-            this.renderWishesOnMap();
-        });
-        document.getElementById('categoryFilterSidebar').addEventListener('change', () => this.applySidebarFilters());
-        document.getElementById('priceFilterSidebar').addEventListener('input', (e) => {
-            document.getElementById('priceValueSidebar').textContent = `$${e.target.value}`;
-        });
-        document.getElementById('applySidebarFiltersBtn').addEventListener('click', () => this.applySidebarFilters());
+        const filterBtn = document.getElementById('filterBtn');
+        if (filterBtn) {
+            filterBtn.addEventListener('click', () => this.openFilterModal());
+        } else {
+            console.warn('⚠️ filterBtn not found');
+        }
 
-        // Modales - botones de cerrar
-        document.getElementById('closeCreateModal').addEventListener('click', () => this.closeModal('createWishModal'));
-        // document.getElementById('closeDetailsModal').addEventListener('click', () => this.closeModal('wishDetailsModal')); // Obsoleto, la tarjeta flotante se cierra con su propio botón
-        document.getElementById('closeChatModal').addEventListener('click', () => this.closeModal('privateChatModal'));
-        document.getElementById('closeRatingModal').addEventListener('click', () => this.closeModal('ratingModal'));
-        document.getElementById('closeFilterModal').addEventListener('click', () => this.closeModal('filterModal'));
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => this.toggleTheme());
+        } else {
+            console.warn('⚠️ themeToggle not found');
+        }
 
-        // Chat con IA
-        document.getElementById('sendAiMessage').addEventListener('click', () => this.sendAIMessage());
-        document.getElementById('aiChatInput').addEventListener('keypress', (e) => {
+        // Toggle del sidebar para ocultar/mostrar el menú
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => this.toggleSidebarMenu());
+        } else {
+            console.warn('⚠️ sidebarToggle not found');
+        }
+
+        const authButton = document.getElementById('authButton');
+        if (authButton) {
+            authButton.addEventListener('click', () => {
+                if (this.currentUser) {
+                    window.Clerk.signOut();
+                } else {
+                    this.showAuthUI();
+                }
+            });
+        } else {
+            console.warn('⚠️ authButton not found');
+        }
+
+        // Sidebar - Búsqueda y filtros con verificaciones defensivas
+        const wishSearchInput = document.getElementById('wishSearchInput');
+        if (wishSearchInput) {
+            wishSearchInput.addEventListener('input', (e) => {
+                console.log('Buscando deseos:', e.target.value);
+                this.renderWishListInSidebar();
+                this.renderWishesOnMap();
+            });
+        } else {
+            console.warn('⚠️ wishSearchInput not found');
+        }
+
+        const categoryFilterSidebar = document.getElementById('categoryFilterSidebar');
+        if (categoryFilterSidebar) {
+            categoryFilterSidebar.addEventListener('change', () => this.applySidebarFilters());
+        } else {
+            console.warn('⚠️ categoryFilterSidebar not found');
+        }
+
+        const priceFilterSidebar = document.getElementById('priceFilterSidebar');
+        if (priceFilterSidebar) {
+            priceFilterSidebar.addEventListener('input', (e) => {
+                const priceValueSidebar = document.getElementById('priceValueSidebar');
+                if (priceValueSidebar) {
+                    priceValueSidebar.textContent = `$${e.target.value}`;
+                }
+            });
+        } else {
+            console.warn('⚠️ priceFilterSidebar not found');
+        }
+
+        const applySidebarFiltersBtn = document.getElementById('applySidebarFiltersBtn');
+        if (applySidebarFiltersBtn) {
+            applySidebarFiltersBtn.addEventListener('click', () => this.applySidebarFilters());
+        } else {
+            console.warn('⚠️ applySidebarFiltersBtn not found');
+        }
+
+        // Modales - botones de cerrar con verificaciones defensivas
+        const closeCreateModal = document.getElementById('closeCreateModal');
+        if (closeCreateModal) {
+            closeCreateModal.addEventListener('click', () => this.closeModal('createWishModal'));
+        } else {
+            console.warn('⚠️ closeCreateModal not found');
+        }
+
+        const closeChatModal = document.getElementById('closeChatModal');
+        if (closeChatModal) {
+            closeChatModal.addEventListener('click', () => this.closeModal('privateChatModal'));
+        } else {
+            console.warn('⚠️ closeChatModal not found');
+        }
+
+        const closeRatingModal = document.getElementById('closeRatingModal');
+        if (closeRatingModal) {
+            closeRatingModal.addEventListener('click', () => this.closeModal('ratingModal'));
+        } else {
+            console.warn('⚠️ closeRatingModal not found');
+        }
+
+        const closeFilterModal = document.getElementById('closeFilterModal');
+        if (closeFilterModal) {
+            closeFilterModal.addEventListener('click', () => this.closeModal('filterModal'));
+        } else {
+            console.warn('⚠️ closeFilterModal not found');
+        }
+
+        // Chat con IA con verificaciones defensivas
+        const sendAiMessage = document.getElementById('sendAiMessage');
+        if (sendAiMessage) {
+            sendAiMessage.addEventListener('click', () => this.sendAIMessage());
+        } else {
+            console.warn('⚠️ sendAiMessage not found');
+        }
+
+        const aiChatInput = document.getElementById('aiChatInput');
+        if (aiChatInput) {
+            aiChatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendAIMessage();
         });
+        } else {
+            console.warn('⚠️ aiChatInput not found');
+        }
 
-        // Publicar deseo
-        document.getElementById('publishWish').addEventListener('click', () => this.publishWish());
+        // Publicar deseo con verificación defensiva
+        const publishWish = document.getElementById('publishWish');
+        if (publishWish) {
+            publishWish.addEventListener('click', () => this.publishWish());
+        } else {
+            console.warn('⚠️ publishWish not found');
+        }
 
-        // Tarjeta de detalles del deseo (botones de acción)
-        document.getElementById('acceptWishBtnCard').addEventListener('click', () => this.acceptWishFromCard());
-        document.getElementById('viewChatBtnCard').addEventListener('click', () => this.openPrivateChatForCurrentWish());
+        // Tarjeta de detalles del deseo (botones de acción) con verificaciones defensivas
+        const acceptWishBtnCard = document.getElementById('acceptWishBtnCard');
+        if (acceptWishBtnCard) {
+            acceptWishBtnCard.addEventListener('click', () => this.acceptWishFromCard());
+        } else {
+            console.warn('⚠️ acceptWishBtnCard not found');
+        }
 
-        // Chat privado
-        document.getElementById('sendPrivateMessage').addEventListener('click', () => this.sendPrivateMessage());
-        document.getElementById('privateChatInput').addEventListener('keypress', (e) => {
+        const viewChatBtnCard = document.getElementById('viewChatBtnCard');
+        if (viewChatBtnCard) {
+            viewChatBtnCard.addEventListener('click', () => this.openPrivateChatForCurrentWish());
+        } else {
+            console.warn('⚠️ viewChatBtnCard not found');
+        }
+
+        // Chat privado con verificaciones defensivas
+        const sendPrivateMessage = document.getElementById('sendPrivateMessage');
+        if (sendPrivateMessage) {
+            sendPrivateMessage.addEventListener('click', () => this.sendPrivateMessage());
+        } else {
+            console.warn('⚠️ sendPrivateMessage not found');
+        }
+
+        const privateChatInput = document.getElementById('privateChatInput');
+        if (privateChatInput) {
+            privateChatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendPrivateMessage();
         });
+        } else {
+            console.warn('⚠️ privateChatInput not found');
+        }
 
-        // Completar deseo
-        document.getElementById('completeWishBtn').addEventListener('click', () => this.completeWish());
+        // Completar deseo con verificación defensiva
+        const completeWishBtn = document.getElementById('completeWishBtn');
+        if (completeWishBtn) {
+            completeWishBtn.addEventListener('click', () => this.completeWish());
+        } else {
+            console.warn('⚠️ completeWishBtn not found');
+        }
 
-        // Calificación
-        document.getElementById('fulfilledBtn').addEventListener('click', () => this.setFulfillmentStatus(true));
-        document.getElementById('unfulfilledBtn').addEventListener('click', () => this.setFulfillmentStatus(false));
-        document.getElementById('submitRating').addEventListener('click', () => this.submitRating());
+        // Calificación con verificaciones defensivas
+        const fulfilledBtn = document.getElementById('fulfilledBtn');
+        if (fulfilledBtn) {
+            fulfilledBtn.addEventListener('click', () => this.setFulfillmentStatus(true));
+        } else {
+            console.warn('⚠️ fulfilledBtn not found');
+        }
 
-        // Estrellas de calificación
-        document.querySelectorAll('#starRating i').forEach((star, index) => {
+        const unfulfilledBtn = document.getElementById('unfulfilledBtn');
+        if (unfulfilledBtn) {
+            unfulfilledBtn.addEventListener('click', () => this.setFulfillmentStatus(false));
+        } else {
+            console.warn('⚠️ unfulfilledBtn not found');
+        }
+
+        const submitRating = document.getElementById('submitRating');
+        if (submitRating) {
+            submitRating.addEventListener('click', () => this.submitRating());
+        } else {
+            console.warn('⚠️ submitRating not found');
+        }
+
+        // Estrellas de calificación con verificación defensiva
+        const starRating = document.getElementById('starRating');
+        if (starRating) {
+            const stars = starRating.querySelectorAll('i');
+            stars.forEach((star, index) => {
             star.addEventListener('click', () => this.setStarRating(index + 1));
             star.addEventListener('mouseenter', () => this.highlightStars(index + 1));
         });
-        document.getElementById('starRating').addEventListener('mouseleave', () => this.resetStarHighlight());
+            starRating.addEventListener('mouseleave', () => this.resetStarHighlight());
+        } else {
+            console.warn('⚠️ starRating not found');
+        }
 
         // Filtros (del modal, si se sigue usando el modal de filtros avanzados)
         document.getElementById('priceFilter').addEventListener('input', (e) => {
@@ -1244,6 +1408,46 @@ class DeseoApp {
         this.renderWishesOnMap();
     }
 
+    // ===== RENDERIZAR LISTA DE DESEOS EN SIDEBAR =====
+    renderWishListInSidebar() {
+        const wishList = document.getElementById('wishList');
+        if (!wishList) {
+            console.warn('wishList element not found');
+            return;
+        }
+
+        // Filtrar deseos según los filtros actuales
+        const filteredWishes = this.wishes.filter(wish => this.passesWishFilters(wish));
+        
+        // Limpiar la lista actual
+        wishList.innerHTML = '';
+
+        // Renderizar cada deseo
+        filteredWishes.forEach(wish => {
+            const wishItem = document.createElement('div');
+            wishItem.className = 'wish-item';
+            wishItem.innerHTML = `
+                <div class="wish-logo"><i class="${this.getCategoryIcon(wish.category)}"></i></div>
+                <div class="wish-info">
+                    <h3>${wish.title}</h3>
+                    <p>$${wish.price} • ${this.getCategoryName(wish.category)}</p>
+                </div>
+                <div class="wish-actions">
+                    <i class="fas fa-heart"></i>
+                </div>
+            `;
+            
+            // Añadir evento de clic para mostrar detalles
+            wishItem.addEventListener('click', () => {
+                this.showWishDetails(wish);
+            });
+            
+            wishList.appendChild(wishItem);
+        });
+
+        console.log(`Rendered ${filteredWishes.length} wishes in sidebar`);
+    }
+
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====
     openFilterModal() {
         // Adaptar para filtros de deseos si se usa un modal de filtros avanzados
@@ -1396,6 +1600,31 @@ class DeseoApp {
         this.showNotification(`Tema cambiado a ${newTheme === 'light' ? 'claro' : 'oscuro'}`, 'success');
     }
 
+    // ===== TOGGLE DEL SIDEBAR MENU =====
+    toggleSidebarMenu() {
+        console.log('🔄 Toggling sidebar menu...');
+        const mainNav = document.querySelector('.main-nav');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        
+        if (mainNav && sidebarToggle) {
+            const isHidden = mainNav.classList.contains('hidden');
+            
+            if (isHidden) {
+                // Mostrar el menú
+                mainNav.classList.remove('hidden');
+                sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
+                console.log('✅ Sidebar menu shown');
+            } else {
+                // Ocultar el menú
+                mainNav.classList.add('hidden');
+                sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Mantener el mismo icono
+                console.log('✅ Sidebar menu hidden');
+            }
+        } else {
+            console.warn('⚠️ main-nav or sidebarToggle not found');
+        }
+    }
+
     // ===== CARGAR TEMA GUARDADO =====
     loadSavedTheme() {
         const savedTheme = localStorage.getItem('deseo-theme');
@@ -1452,74 +1681,6 @@ class DeseoApp {
     }
 }
 
-// ===== INICIALIZACIÓN DE LA APLICACIÓN Y FIREBASE AUTH LISTENER =====
-document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si CONFIG está disponible
-    if (typeof CONFIG === 'undefined') {
-        console.error('CONFIG no está disponible. Verifica que config.js se cargue antes que script-mapbox.js');
-        // No detener la ejecución aquí, ya que las funciones globales deben seguir disponibles
-    }
-
-    // Verificar si Mapbox GL JS está cargado
-    if (typeof mapboxgl === 'undefined') {
-        console.error('Mapbox GL JS no está cargado');
-        // Renderizar un mensaje de error o fallback si Mapbox no está disponible
-        document.body.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
-                <h1>Error de Carga</h1>
-                <p>Mapbox GL JS no se pudo cargar. Verifica tu conexión a internet.</p>
-                <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 20px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                Recargar Página
-                </button>
-            </div>
-        `;
-        return; // Detener la ejecución del script de la aplicación si Mapbox no está
-    }
-
-    // Inicializar la aplicación principal
-    window.deseoApp = new DeseoApp();
-
-    // Este listener ya no es necesario con Clerk
-    // if (window.firebaseAuth && window.firebaseFunctions) {
-    //     window.firebaseFunctions.onAuthStateChanged(window.firebaseAuth, (user) => {
-    //         if (user) {
-    //             console.log('👤 Usuario autenticado:', user);
-    //             updateAuthButton(user);
-    //         } else {
-    //             console.log('👤 Usuario no autenticado');
-    //             updateAuthButton(null);
-    //         }
-    //     });
-    // } else {
-    //     console.log('⚠️ Firebase Auth no disponible. Algunas funcionalidades pueden estar limitadas.');
-    //     updateAuthButton(null);
-    // }
-    
-    // Inicializar la lista de deseos en el sidebar
-    window.deseoApp.renderWishListInSidebar();
-
-    // Inicializar listeners de filtros del sidebar
-    document.getElementById('priceFilterSidebar').addEventListener('input', (e) => {
-        document.getElementById('priceValueSidebar').textContent = `$${e.target.value}`;
-    });
-
-    // Asegurarse de que el rango de precio se inicialice correctamente en el sidebar
-    const priceFilterSidebar = document.getElementById('priceFilterSidebar');
-    const priceValueSidebar = document.getElementById('priceValueSidebar');
-    if (priceFilterSidebar && priceValueSidebar) {
-        priceValueSidebar.textContent = `$${priceFilterSidebar.value}`;
-    }
-
-    // Montar el UserButton de Clerk si el usuario ya está autenticado al cargar la página.
-    // Esto es solo si deseas un UserButton en un lugar fijo en lugar de siempre el SignIn.
-    // Si el usuario está autenticado, la UI se actualiza con updateAuthUI().
-    // Si no, showAuthUI() es llamada por el click en #authButton.
-
-    console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
-    console.log('📱 Plataforma de micro-deseos con mapa real');
-    console.log('🤖 IA simulada activa');
-    console.log('🗺️ Mapa interactivo de Mapbox funcionando');
-    console.log('💬 Sistema de chat implementado');
-    console.log('⭐ Sistema de calificaciones activo');
-    console.log('🔥 Sistema de autenticación implementado');
-});
+// ===== INICIALIZACIÓN DE LA APLICACIÓN =====
+// La inicialización de DeseoApp ahora se maneja en index.html dentro del window.addEventListener('load')
+// para asegurar que el DOM esté completamente cargado antes de la inicialización

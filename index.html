@@ -12,57 +12,212 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </head>
 <body>
-    <!-- Header principal -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <i class="fas fa-star"></i>
-                <h1>Deseo</h1>
-            </div>
-            <div class="header-actions">
-                <button class="btn-secondary" id="filterBtn">
-                    <i class="fas fa-filter"></i>
-                    Filtros
-                </button>
-                <button class="btn-primary" id="createWishBtn">
-                    <i class="fas fa-plus"></i>
-                    Crear Deseo
+    <!-- Contenedor principal del layout -->
+    <div class="app-container">
+        <!-- Sidebar izquierdo -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-compass"></i>
+                    <h1>outletbuddy</h1>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
                 </button>
             </div>
-        </div>
-    </header>
 
-    <!-- Contenedor principal del mapa -->
-    <main class="main-container">
-        <div class="map-container" id="mapContainer">
-            <!-- Mapa real de Mapbox -->
-            <div id="map" class="mapbox-map">
-                <!-- El mapa de Mapbox se inicializará aquí -->
+            <div class="search-bar">
+                <input type="text" placeholder="Search..." id="storeSearchInput">
+                <button><i class="fas fa-search"></i></button>
             </div>
-            
-            <!-- Overlay de información del mapa -->
-            <div class="map-overlay">
-                <div class="map-info">
-                    <p>Explora deseos cerca de ti</p>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <span>Show me:</span>
+                    <select id="showMeFilter">
+                        <option value="openNow">Open Now</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span>Sort by:</span>
+                    <select id="sortByFilter">
+                        <option value="nearest">Nearest</option>
+                        <option value="rating">Rating</option>
+                    </select>
+                </div>
+                <button class="btn-filter" id="applyFiltersBtn"><i class="fas fa-filter"></i> Filters</button>
+            </div>
+
+            <div class="store-list" id="storeList">
+                <!-- Store items will be dynamically loaded here -->
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Adidas_Logo.svg/2048px-Adidas_Logo.svg.png" alt="Adidas"></div>
+                    <div class="store-info">
+                        <h3>Adidas</h3>
+                        <p>0.5 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Nike_logo_black.svg/1200px-Nike_logo_black.svg.png" alt="Nike"></div>
+                    <div class="store-info">
+                        <h3>Nike</h3>
+                        <p>0.7 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://cdn.icon-icons.com/icons2/2699/PNG/512/puma_logo_icon_169430.png" alt="Puma"></div>
+                    <div class="store-info">
+                        <h3>Puma</h3>
+                        <p>0.3 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://seeklogo.com/images/U/under-armour-logo-545C664C33-seeklogo.com.png" alt="Under Armour"></div>
+                    <div class="store-info">
+                        <h3>Under Armour</h3>
+                        <p>0.2 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://seeklogo.com/images/T/timberland-logo-B31F63489A-seeklogo.com.png" alt="Timberland"></div>
+                    <div class="store-info">
+                        <h3>Timberland</h3>
+                        <p>0.4 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://www.ea7.com/on/demandware.static/-/Library-Sites-EA7SharedLibrary/default/dw10d54a2a/images/EA7_logo_black.svg" alt="EA7 Emporio Armani"></div>
+                    <div class="store-info">
+                        <h3>EA7 Emporio Armani</h3>
+                        <p>2.1 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                </div>
+                <div class="store-item">
+                    <div class="store-logo"><img src="https://logolook.net/wp-content/uploads/2023/04/Converse-Logo.png" alt="Converse"></div>
+                    <div class="store-info">
+                        <h3>Converse</h3>
+                        <p>2.5 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-actions">
+                        <i class="fas fa-heart"></i>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Controles del mapa -->
-            <div class="map-controls">
-                <button class="map-control-btn" id="locateBtn" title="Mi ubicación">
-                    <i class="fas fa-crosshairs"></i>
+        </aside>
+
+        <!-- Área del mapa -->
+        <main class="map-area">
+            <div id="map" class="mapbox-map"></div>
+
+            <!-- Tarjeta de detalles de la tienda (oculta por defecto) -->
+            <div class="store-details-card" id="storeDetailsCard">
+                <div class="card-header">
+                    <div class="store-logo-small"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Adidas_Logo.svg/2048px-Adidas_Logo.svg.png" alt="Adidas"></div>
+                    <div class="store-info-small">
+                        <h3>Adidas</h3>
+                        <p>0.5 mi • <span class="open-status">Open 'til 6pm</span></p>
+                    </div>
+                    <div class="store-meta">
+                        <span class="rating"><i class="fas fa-smile"></i> 100</span>
+                        <span class="price-range">$$$$$</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h4>The largest Adidas store in the city</h4>
+                    <p>Adidas is a German company, one of the world's leading sports goods manufacturers. It was founded in 1924 by the Dassler brothers as Dassler.</p>
+                    <button class="btn-more-details">More Details</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notificaciones y Modales (mantener existentes) -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <!-- Modal de Autenticación (mantener tal cual) -->
+    <div class="modal" id="authModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user"></i> Iniciar Sesión</h2>
+                <button class="close-btn" onclick="closeAuthModal()">
+                    <i class="fas fa-times"></i>
                 </button>
-                <button class="map-control-btn" id="zoomInBtn" title="Acercar">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <button class="map-control-btn" id="zoomOutBtn" title="Alejar">
-                    <i class="fas fa-minus"></i>
+            </div>
+            <div class="modal-body">
+                <!-- Tabs de login/registro -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchAuthTab('login')">Iniciar Sesión</button>
+                    <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
+                </div>
+                
+                <!-- Formulario de login -->
+                <div id="loginForm" class="auth-form">
+                    <form onsubmit="handleEmailLogin(event)">
+                        <div class="form-group">
+                            <label for="loginEmail">Correo:</label>
+                            <input type="email" id="loginEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Contraseña:</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Iniciar Sesión</button>
+                    </form>
+                </div>
+                
+                <!-- Formulario de registro -->
+                <div id="registerForm" class="auth-form" style="display: none;">
+                    <form onsubmit="handleEmailRegister(event)">
+                        <div class="form-group">
+                            <label for="registerEmail">Correo:</label>
+                            <input type="email" id="registerEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Contraseña:</label>
+                            <input type="password" id="registerPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerName">Nombre completo:</label>
+                            <input type="text" id="registerName" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Registrarse</button>
+                    </form>
+                </div>
+                
+                <!-- Divider -->
+                <div class="auth-divider">
+                    <span>o</span>
+                </div>
+                
+                <!-- Google Sign-In -->
+                <button class="btn-google" onclick="handleGoogleSignIn()">
+                    <i class="fab fa-google"></i>
+                    Continuar con Google
                 </button>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- Modal para crear deseo con IA -->
+    <!-- Modal para crear deseo con IA (mantener tal cual) -->
     <div class="modal" id="createWishModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -106,7 +261,7 @@
         </div>
     </div>
 
-    <!-- Modal para detalles del deseo -->
+    <!-- Modal para detalles del deseo (mantener tal cual) -->
     <div class="modal" id="wishDetailsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -132,7 +287,7 @@
         </div>
     </div>
 
-    <!-- Modal de chat privado -->
+    <!-- Modal de chat privado (mantener tal cual) -->
     <div class="modal" id="privateChatModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -160,7 +315,7 @@
         </div>
     </div>
 
-    <!-- Modal de calificación -->
+    <!-- Modal de calificación (mantener tal cual) -->
     <div class="modal" id="ratingModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -198,7 +353,7 @@
         </div>
     </div>
 
-    <!-- Modal de filtros -->
+    <!-- Modal de filtros (mantener tal cual) -->
     <div class="modal" id="filterModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -240,14 +395,40 @@
         </div>
     </div>
 
-    <!-- Botón flotante para crear deseo -->
-    <button class="floating-btn" id="floatingCreateBtn">
-        <i class="fas fa-plus"></i>
-    </button>
-
     <!-- Scripts -->
     <script src="config.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
+        
+        // Inicializar Firebase
+        if (CONFIG.FIREBASE.enabled) {
+            const app = initializeApp(CONFIG.FIREBASE.config);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+            const storage = getStorage(app);
+            
+            // Hacer disponible globalmente
+            window.firebaseApp = app;
+            window.firebaseDB = db;
+            window.firebaseAuth = auth;
+            window.firebaseStorage = storage;
+            window.firebaseCollections = CONFIG.FIREBASE.collections;
+            window.firebaseFunctions = { 
+                collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
+                signInWithEmailAndPassword, createUserWithEmailAndPassword, 
+                signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
+                ref, uploadBytes, getDownloadURL
+            };
+            
+            console.log('🔥 Firebase inicializado correctamente');
+        }
+    </script>
+    
     <!-- No SDK needed - using REST API directly -->
     <script src="script-mapbox.js"></script>
 </body>
-</html>

@@ -25,7 +25,7 @@ const CONFIG = {
         },
         
         // Estilo por defecto
-        defaultStyle: 'light'
+        defaultStyle: 'dark'
     },
     
     // Configuración de la aplicación
@@ -226,6 +226,31 @@ if (typeof module !== 'undefined' && module.exports) {
     window.debugLog = debugLog;
 }
 
+// ===== CONFIGURACIÓN DE FIREBASE =====
+CONFIG.FIREBASE = {
+    enabled: true,
+    config: {
+        // IMPORTANTE: Reemplaza con tu configuración real de Firebase
+        // Obtén esta configuración en: https://console.firebase.google.com/
+        apiKey: "AIzaSyCIwYtCIlFQMOZGEP3VqEhQ0kycBIFfBMc",
+        authDomain: "deseo-app.firebaseapp.com",
+        projectId: "deseo-app",
+        storageBucket: "deseo-app.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "1:123456789:web:abcdef123456"
+    },
+    collections: {
+        wishes: 'wishes',
+        users: 'users',
+        conversations: 'conversations'
+    },
+    auth: {
+        providers: ['google', 'email'],
+        googleClientId: 'YOUR_GOOGLE_CLIENT_ID'
+    }
+};
+
 console.log('⚙️ Configuración de Deseo App cargada');
 console.log('🗺️ Token de Mapbox:', isMapboxTokenConfigured() ? '✅ Configurado' : '❌ No configurado');
+console.log('🔥 Firebase:', CONFIG.FIREBASE.enabled ? '✅ Habilitado' : '❌ Deshabilitado');
 console.log('📱 Versión:', CONFIG.APP.version);

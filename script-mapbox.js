@@ -10,10 +10,260 @@
  * - Filtros y búsqueda
  */
 
-// ===== CONFIGURACIÓN DE MAPBOX =====
+// ===== FUNCIONES DE AUTENTICACIÓN (GLOBALES) =====
+
+// Función para mostrar el modal de autenticación
+function showAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+        authModal.style.display = 'flex';
+    }
+}
+
+// Función para cerrar el modal de autenticación
+function closeAuthModal() {
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+        authModal.style.display = 'none';
+    }
+}
+
+// Función para cambiar entre tabs de login/registro
+function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    document.querySelectorAll('.auth-tab').forEach(t => {
+        t.classList.remove('active');
+    });
+
+    if (tab === 'login') {
+        const loginForm = document.getElementById('loginForm');
+        const loginTab = document.querySelector('.auth-tab[onclick*="login"]');
+        if (loginForm) loginForm.style.display = 'block';
+        if (loginTab) loginTab.classList.add('active');
+    } else {
+        const registerForm = document.getElementById('registerForm');
+        const registerTab = document.querySelector('.auth-tab[onclick*="register"]');
+        if (registerForm) registerForm.style.display = 'block';
+        if (registerTab) registerTab.classList.add('active');
+    }
+}
+
+// Función para manejar login con email y contraseña
+async function handleEmailLogin(event) {
+    event.preventDefault();
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+
+    if (!emailInput || !passwordInput) return;
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
+
+    try {
+        if (!window.firebaseAuth || !window.firebaseFunctions) {
+            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
+        }
+        
+        const userCredential = await window.firebaseFunctions.signInWithEmailAndPassword(
+            window.firebaseAuth, email, password
+        );
+        
+        console.log('✅ Login exitoso:', userCredential.user);
+        closeAuthModal();
+        window.deseoApp.showNotification('¡Bienvenido!', 'success');
+        
+        emailInput.value = '';
+        passwordInput.value = '';
+        
+    } catch (error) {
+        console.error('❌ Error en login:', error);
+        let errorMessage = 'Error en el login';
+        
+        if (error.code === 'auth/user-not-found') {
+            errorMessage = 'No existe una cuenta con este correo.';
+        } else if (error.code === 'auth/wrong-password') {
+            errorMessage = 'Contraseña incorrecta.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Correo inválido.';
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = 'Demasiados intentos. Intenta más tarde.';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        window.deseoApp.showNotification(errorMessage, 'error');
+    }
+}
+
+// Función para manejar registro con email y contraseña
+async function handleEmailRegister(event) {
+    event.preventDefault();
+    const emailInput = document.getElementById('registerEmail');
+    const passwordInput = document.getElementById('registerPassword');
+    const nameInput = document.getElementById('registerName');
+
+    if (!emailInput || !passwordInput || !nameInput) return;
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    const name = nameInput.value;
+    
+    try {
+        if (!window.firebaseAuth || !window.firebaseFunctions) {
+            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
+        }
+        
+        const userCredential = await window.firebaseFunctions.createUserWithEmailAndPassword(
+            window.firebaseAuth, email, password
+        );
+        
+        // Guardar datos adicionales del usuario en Firestore
+        if (window.firebaseDB && userCredential.user) {
+            await window.firebaseFunctions.addDoc(
+                window.firebaseFunctions.collection(window.firebaseDB, window.firebaseCollections.users),
+                {
+                    uid: userCredential.user.uid,
+                    email: userCredential.user.email,
+                    fullName: name,
+                    createdAt: new Date().toISOString(),
+                    lastLogin: new Date().toISOString()
+                }
+            );
+        }
+        
+        console.log('✅ Registro exitoso:', userCredential.user);
+        closeAuthModal();
+        window.deseoApp.showNotification('¡Cuenta creada exitosamente!', 'success');
+        
+        emailInput.value = '';
+        passwordInput.value = '';
+        nameInput.value = '';
+        
+    } catch (error) {
+        console.error('❌ Error en registro:', error);
+        let errorMessage = 'Error en el registro';
+        
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'Ya existe una cuenta con este correo.';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage = 'Correo inválido.';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        window.deseoApp.showNotification(errorMessage, 'error');
+    }
+}
+
+// Función para manejar Google Sign-In
+async function handleGoogleSignIn() {
+    try {
+        if (!window.firebaseAuth || !window.firebaseFunctions) {
+            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
+        }
+        
+        const provider = new window.firebaseFunctions.GoogleAuthProvider();
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
+        
+        const result = await window.firebaseFunctions.signInWithPopup(
+            window.firebaseAuth, provider
+        );
+        
+        // Guardar datos del usuario en Firestore si es nuevo
+        if (window.firebaseDB && result.additionalUserInfo.isNewUser) {
+            await window.firebaseFunctions.addDoc(
+                window.firebaseFunctions.collection(window.firebaseDB, window.firebaseCollections.users),
+                {
+                    uid: result.user.uid,
+                    email: result.user.email,
+                    fullName: result.user.displayName,
+                    photoURL: result.user.photoURL,
+                    createdAt: new Date().toISOString(),
+                    lastLogin: new Date().toISOString(),
+                    provider: 'google'
+                }
+            );
+        }
+        
+        console.log('✅ Google Sign-In exitoso:', result.user);
+        closeAuthModal();
+        window.deseoApp.showNotification('¡Bienvenido con Google!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error en Google Sign-In:', error);
+        let errorMessage = 'Error en Google Sign-In';
+        
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorMessage = 'Inicio de sesión cancelado por el usuario.';
+        } else if (error.code === 'auth/popup-blocked') {
+            errorMessage = 'Popup bloqueado. Por favor, permite las ventanas emergentes para continuar.';
+        } else if (error.code === 'auth/cancelled-popup-request') {
+            errorMessage = 'La solicitud de popup fue cancelada. Intenta de nuevo.';
+        } else {
+            errorMessage = error.message;
+        }
+        
+        window.deseoApp.showNotification(errorMessage, 'error');
+    }
+}
+
+// Función para manejar logout
+async function handleLogout() {
+    try {
+        if (!window.firebaseAuth || !window.firebaseFunctions) {
+            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
+        }
+        
+        await window.firebaseFunctions.signOut(window.firebaseAuth);
+        window.deseoApp.showNotification('Sesión cerrada exitosamente.', 'info');
+        
+    } catch (error) {
+        console.error('❌ Error al cerrar sesión:', error);
+        window.deseoApp.showNotification('Error al cerrar sesión: ' + error.message, 'error');
+    }
+}
+
+// Función para actualizar el botón de autenticación en la UI
+function updateAuthButton(user) {
+    const authButton = document.getElementById('authButton');
+    if (!authButton) return;
+    
+    if (user) {
+        authButton.innerHTML = `<i class="fas fa-user"></i> ${user.displayName || user.email}`;
+        authButton.onclick = handleLogout;
+        authButton.title = 'Cerrar sesión';
+    } else {
+        authButton.innerHTML = '<i class="fas fa-user"></i> Iniciar Sesión';
+        authButton.onclick = showAuthModal;
+        authButton.title = 'Iniciar sesión';
+    }
+}
+
+// ===== CONFIGURACIÓN DE MAPBOX (REQUIERE CONFIG.JS) =====
 // La configuración se carga desde config.js
 const MAPBOX_TOKEN = CONFIG.MAPBOX_TOKEN;
 const MAP_CONFIG = CONFIG.MAP;
+
+// Verificar si Mapbox GL JS está cargado
+if (typeof mapboxgl === 'undefined') {
+    console.error('Mapbox GL JS no está cargado');
+    document.body.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
+            <h1>Error de Carga</h1>
+            <p>Mapbox GL JS no se pudo cargar. Verifica tu conexión a internet.</p>
+            <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 20px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Recargar Página
+            </button>
+        </div>
+    `;
+    throw new Error("Mapbox GL JS not loaded"); // Detener la ejecución del script
+}
 
 // ===== ESTADO GLOBAL DE LA APLICACIÓN =====
 class DeseoApp {
@@ -39,7 +289,7 @@ class DeseoApp {
         this.initializeApp();
     }
 
-    // ===== INICIALIZACIÓN =====
+    // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
     async initializeApp() {
         try {
             await this.initializeMapbox();
@@ -115,7 +365,7 @@ class DeseoApp {
         });
     }
 
-    // ===== CONFIGURACIÓN DE EVENT LISTENERS =====
+    // ===== CONFIGURACIÓN DE EVENT LISTENERS (DeseoApp) =====
     setupEventListeners() {
         // Botones principales
         document.getElementById('createWishBtn').addEventListener('click', () => this.openCreateWishModal());
@@ -903,18 +1153,17 @@ class DeseoApp {
                 '<div class="user-avatar"><i class="fas fa-user"></i></div>' :
                 '<div class="ai-avatar"><i class="fas fa-user"></i></div>';
 
-            messageDiv.innerHTML = `
-                ${avatar}
-                <div class="message-content">
-                    <p>${msg.message}</p>
-                    <small>${this.formatTime(msg.timestamp)}</small>
-                </div>
-            `;
+        messageDiv.innerHTML = `
+            ${avatar}
+            <div class="message-content">
+                <p>${msg.message}</p>
+                <small>${this.formatTime(msg.timestamp)}</small>
+            </div>
+        `;
 
             messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
-
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
     sendPrivateMessage() {
@@ -1120,11 +1369,18 @@ class DeseoApp {
     }
 }
 
-// ===== INICIALIZACIÓN DE LA APLICACIÓN =====
+// ===== INICIALIZACIÓN DE LA APLICACIÓN Y FIREBASE AUTH LISTENER =====
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar si Mapbox está disponible
+    // Verificar si CONFIG está disponible
+    if (typeof CONFIG === 'undefined') {
+        console.error('CONFIG no está disponible. Verifica que config.js se cargue antes que script-mapbox.js');
+        // No detener la ejecución aquí, ya que las funciones globales deben seguir disponibles
+    }
+
+    // Verificar si Mapbox GL JS está cargado
     if (typeof mapboxgl === 'undefined') {
         console.error('Mapbox GL JS no está cargado');
+        // Renderizar un mensaje de error o fallback si Mapbox no está disponible
         document.body.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: center; height: 100vh; flex-direction: column; font-family: Arial, sans-serif;">
                 <h1>Error de Carga</h1>
@@ -1134,15 +1390,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 </button>
             </div>
         `;
-        return;
+        return; // Detener la ejecución del script de la aplicación si Mapbox no está
     }
 
+    // Inicializar la aplicación principal
     window.deseoApp = new DeseoApp();
-});
 
-console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
-console.log('📱 Plataforma de micro-deseos con mapa real');
-console.log('🤖 IA simulada activa');
-console.log('🗺️ Mapa interactivo de Mapbox funcionando');
-console.log('💬 Sistema de chat implementado');
-console.log('⭐ Sistema de calificaciones activo');
+    // Escuchar cambios de estado de autenticación de Firebase
+    // Este listener se adjunta una vez que el DOM está listo y firebaseAuth debería estar inicializado.
+    if (window.firebaseAuth && window.firebaseFunctions) {
+        window.firebaseFunctions.onAuthStateChanged(window.firebaseAuth, (user) => {
+            if (user) {
+                console.log('👤 Usuario autenticado:', user);
+                updateAuthButton(user);
+            } else {
+                console.log('👤 Usuario no autenticado');
+                updateAuthButton(null);
+            }
+        });
+    } else {
+        console.log('⚠️ Firebase Auth no disponible. Algunas funcionalidades pueden estar limitadas.');
+        // Asegurarse de que el botón de autenticación muestre el estado correcto incluso sin Firebase activo
+        updateAuthButton(null);
+    }
+
+    console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
+    console.log('📱 Plataforma de micro-deseos con mapa real');
+    console.log('🤖 IA simulada activa');
+    console.log('🗺️ Mapa interactivo de Mapbox funcionando');
+    console.log('💬 Sistema de chat implementado');
+    console.log('⭐ Sistema de calificaciones activo');
+    console.log('🔥 Sistema de autenticación implementado');
+});

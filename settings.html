@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración - Deseo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-star"></i>
+                <h1>Deseo</h1>
+            </div>
+            <div class="header-actions">
+                <button class="menu-toggle" id="menuToggle" onclick="app.toggleNavMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <button class="theme-toggle" id="themeToggle" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn-secondary" onclick="window.location.href='index.html'">
+                    <i class="fas fa-home"></i>
+                    Inicio
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Menu -->
+    <nav class="nav-menu" id="navMenu" style="display: none;">
+        <div class="nav-content">
+            <div class="nav-header">
+                <div class="user-info" id="userInfo">
+                    <div class="user-avatar" id="userAvatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <h3 id="userName">Usuario</h3>
+                        <p id="userEmail">usuario@email.com</p>
+                    </div>
+                </div>
+                <button class="close-nav" onclick="app.closeNavMenu()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="nav-items">
+                <a href="index.html" class="nav-item">
+                    <i class="fas fa-home"></i>
+                    <span>Inicio</span>
+                </a>
+                <a href="wallet.html" class="nav-item">
+                    <i class="fas fa-wallet"></i>
+                    <span>Billetera</span>
+                </a>
+                <a href="settings.html" class="nav-item active">
+                    <i class="fas fa-cog"></i>
+                    <span>Configuración</span>
+                </a>
+                <hr class="nav-divider">
+                <a href="#" class="nav-item" onclick="app.logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Cerrar Sesión</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <div class="page-container">
+            <div class="page-header">
+                <h2><i class="fas fa-cog"></i> Configuración</h2>
+                <p>Personaliza tu experiencia en Deseo</p>
+            </div>
+
+            <!-- Profile Section -->
+            <div class="settings-section">
+                <h3><i class="fas fa-user"></i> Perfil</h3>
+                <div class="settings-card">
+                    <div class="profile-info">
+                        <div class="profile-avatar" id="profileAvatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="profile-details">
+                            <h4 id="profileName">Usuario</h4>
+                            <p id="profileEmail">usuario@email.com</p>
+                        </div>
+                        <button class="btn-secondary" onclick="app.editProfile()">
+                            <i class="fas fa-edit"></i>
+                            Editar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences Section -->
+            <div class="settings-section">
+                <h3><i class="fas fa-sliders-h"></i> Preferencias</h3>
+                <div class="settings-card">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Tema</h4>
+                            <p>Cambiar entre tema claro y oscuro</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="themeToggleSetting">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Notificaciones</h4>
+                            <p>Recibir notificaciones de nuevos deseos</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notificationsToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Ubicación</h4>
+                            <p>Permitir acceso a la ubicación</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="locationToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Section -->
+            <div class="settings-section">
+                <h3><i class="fas fa-shield-alt"></i> Privacidad</h3>
+                <div class="settings-card">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Perfil público</h4>
+                            <p>Mostrar mi perfil a otros usuarios</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="publicProfileToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Historial de actividad</h4>
+                            <p>Guardar historial de deseos completados</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="activityHistoryToggle" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Section -->
+            <div class="settings-section">
+                <h3><i class="fas fa-user-cog"></i> Cuenta</h3>
+                <div class="settings-card">
+                    <button class="btn-secondary" onclick="app.changePassword()">
+                        <i class="fas fa-key"></i>
+                        Cambiar Contraseña
+                    </button>
+                    <button class="btn-secondary" onclick="app.exportData()">
+                        <i class="fas fa-download"></i>
+                        Exportar Datos
+                    </button>
+                    <button class="btn-danger" onclick="app.deleteAccount()">
+                        <i class="fas fa-trash"></i>
+                        Eliminar Cuenta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal para editar perfil -->
+    <div class="modal" id="editProfileModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Editar Perfil</h2>
+                <button class="close-btn" onclick="app.closeModal('editProfileModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="form-group">
+                        <label for="editPhoto">Foto de perfil:</label>
+                        <input type="file" id="editPhoto" accept="image/*">
+                    </div>
+                    <div class="form-group">
+                        <label for="editFullName">Nombre completo:</label>
+                        <input type="text" id="editFullName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editAddress">Dirección:</label>
+                        <input type="text" id="editAddress" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editGender">Género:</label>
+                        <select id="editGender" required>
+                            <option value="">Seleccionar</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="otro">Otro</option>
+                            <option value="prefiero_no_decir">Prefiero no decir</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="script-settings.js"></script>
+</body>
+</html>

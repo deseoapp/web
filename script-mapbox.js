@@ -278,6 +278,7 @@ class DeseoApp {
         // ===== IA =====
         this.conversationHistory = [];
         this.userProfile = this.loadUserProfile();
+        this.emotionalState = this.loadEmotionalState();
         this.gemini = null; // Se inicializará después
         this.filters = {
             maxPrice: 1000, // Filtro de precio para deseos
@@ -292,6 +293,7 @@ class DeseoApp {
     // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
     async initializeApp() {
         try {
+            this.loadSavedTheme();
             await this.initializeMapbox();
             this.setupEventListeners();
             this.generateSampleWishes(); // Vuelve a generateSampleWishes
@@ -368,7 +370,9 @@ class DeseoApp {
     // ===== CONFIGURACIÓN DE EVENT LISTENERS (DeseoApp) =====
     setupEventListeners() {
         // Botones principales
-        document.getElementById('floatingCreateWishBtn').addEventListener('click', () => this.openCreateWishModal()); // Botón flotante para crear deseos
+        document.getElementById('floatingCreateWishBtn').addEventListener('click', () => this.openCreateWishModal());
+        document.getElementById('filterBtn').addEventListener('click', () => this.openFilterModal());
+        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
 
         // Sidebar - Búsqueda y filtros
         document.getElementById('wishSearchInput').addEventListener('input', (e) => {
@@ -384,12 +388,8 @@ class DeseoApp {
         });
         document.getElementById('applySidebarFiltersBtn').addEventListener('click', () => this.applySidebarFilters());
 
-        // Controles del mapa (mantener los controles de Mapbox GL JS por defecto)
-        // Los botones de zoom y localización ya son manejados por Mapbox directamente
-
         // Modales - botones de cerrar (adaptados si los IDs cambiaron)
         document.getElementById('closeCreateModal').addEventListener('click', () => this.closeModal('createWishModal'));
-        // document.getElementById('closeDetailsModal').addEventListener('click', () => this.closeModal('wishDetailsModal')); // Obsoleto, la tarjeta flotante se cierra con su propio botón
         document.getElementById('closeChatModal').addEventListener('click', () => this.closeModal('privateChatModal'));
         document.getElementById('closeRatingModal').addEventListener('click', () => this.closeModal('ratingModal'));
         document.getElementById('closeFilterModal').addEventListener('click', () => this.closeModal('filterModal'));
@@ -737,6 +737,9 @@ class DeseoApp {
         // Actualizar perfil del usuario por análisis de texto
         this.updateProfileFromText(message);
 
+        // Analizar estado emocional
+        const emotionalState = this.analyzeEmotionalState(message);
+
         // Guardar en historial de conversación
         this.conversationHistory.push({ role: 'user', content: message });
 
@@ -760,16 +763,12 @@ class DeseoApp {
             console.log('Using Gemini for AI response...');
             
             // Mostrar indicador de carga
-            this.addMessageToChat('ai', '🤖 Pensando...');
+            this.addTypingIndicator();
             
             this.generateGeminiResponse(message)
                 .then((text) => {
-                    // Remover mensaje de carga
-                    const messagesContainer = document.getElementById('aiChatMessages');
-                    const lastMessage = messagesContainer.lastElementChild;
-                    if (lastMessage && lastMessage.querySelector('.message-content p').textContent === '🤖 Pensando...') {
-                        lastMessage.remove();
-                    }
+                    // Remover indicador de typing
+                    this.removeTypingIndicator();
                     
                     const aiText = text || 'Estoy aquí para ayudarte. ¿Puedes contarme un poco más?';
                     this.addMessageToChat('ai', aiText);
@@ -779,12 +778,8 @@ class DeseoApp {
                 .catch((error) => {
                     console.error('Gemini error, falling back to local AI:', error);
                     
-                    // Remover mensaje de carga
-                    const messagesContainer = document.getElementById('aiChatMessages');
-                    const lastMessage = messagesContainer.lastElementChild;
-                    if (lastMessage && lastMessage.querySelector('.message-content p').textContent === '🤖 Pensando...') {
-                        lastMessage.remove();
-                    }
+                    // Remover indicador de typing
+                    this.removeTypingIndicator();
                     
                     // Fallback local
                     const aiResponse = this.generateAIResponse(message);
@@ -817,10 +812,13 @@ class DeseoApp {
             '<div class="ai-avatar"><i class="fas fa-robot"></i></div>' :
             '<div class="user-avatar"><i class="fas fa-user"></i></div>';
 
+        // Formatear el mensaje para mejor legibilidad
+        const formattedMessage = this.formatMessage(message);
+
         messageDiv.innerHTML = `
             ${avatar}
             <div class="message-content">
-                <p>${message}</p>
+                ${formattedMessage}
             </div>
         `;
 
@@ -828,13 +826,41 @@ class DeseoApp {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    formatMessage(message) {
+        if (!message) return '<p></p>';
+        
+        // Dividir en párrafos si hay saltos de línea
+        const paragraphs = message.split('\n').filter(p => p.trim());
+        
+        if (paragraphs.length === 1) {
+            return `<p>${this.escapeHtml(message)}</p>`;
+        }
+        
+        // Si hay múltiples párrafos, formatearlos
+        return paragraphs.map(p => `<p>${this.escapeHtml(p.trim())}</p>`).join('');
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     generateAIResponse(userMessage) {
         const lowerMessage = userMessage.toLowerCase();
         
-        // Detectar tipo de deseo y generar respuesta
+        // Verificar estado emocional
+        if (this.emotionalState.current === 'negative') {
+            return {
+                text: "Entiendo que no estás pasando por un buen momento. ¿Hay algo en lo que pueda ayudarte o prefieres hablar de otra cosa?",
+                wishData: null
+            };
+        }
+        
+        // Detectar tipo de deseo y generar respuesta más concisa
         if (lowerMessage.includes('café') || lowerMessage.includes('coffee') || lowerMessage.includes('bebida')) {
             return {
-                text: "¡Perfecto! Un deseo de comida. Basándome en tu solicitud, sugiero un precio de $8-12. ¿Te parece bien? También podrías especificar el tipo de café y la ubicación donde lo necesitas.",
+                text: "¡Perfecto! Un deseo de comida. Sugiero $8-12. ¿Qué tipo de café necesitas?",
                 wishData: {
                     title: "Comprar café",
                     description: userMessage,
@@ -846,7 +872,7 @@ class DeseoApp {
         
         if (lowerMessage.includes('perro') || lowerMessage.includes('mascota') || lowerMessage.includes('paseo')) {
             return {
-                text: "¡Excelente! Un servicio de cuidado de mascotas. Para pasear un perro, recomiendo un precio de $15-25 dependiendo del tiempo. ¿Cuánto tiempo necesitas que dure el paseo?",
+                text: "¡Excelente! Servicio de mascotas. Sugiero $15-25. ¿Cuánto tiempo necesitas?",
                 wishData: {
                     title: "Pasear mascota",
                     description: userMessage,
@@ -858,7 +884,7 @@ class DeseoApp {
         
         if (lowerMessage.includes('comprar') || lowerMessage.includes('tienda') || lowerMessage.includes('supermercado')) {
             return {
-                text: "¡Genial! Un deseo de compras. El precio dependerá de los productos, pero sugiero $15-30. ¿Podrías ser más específico sobre qué necesitas comprar?",
+                text: "¡Genial! Deseo de compras. Sugiero $15-30. ¿Qué necesitas comprar?",
                 wishData: {
                     title: "Comprar productos",
                     description: userMessage,
@@ -870,7 +896,7 @@ class DeseoApp {
         
         if (lowerMessage.includes('llevar') || lowerMessage.includes('entregar') || lowerMessage.includes('paquete')) {
             return {
-                text: "¡Perfecto! Un servicio de entrega. Para entregas locales, sugiero $10-20 dependiendo de la distancia. ¿A dónde necesitas que se entregue?",
+                text: "¡Perfecto! Servicio de entrega. Sugiero $10-20. ¿A dónde?",
                 wishData: {
                     title: "Servicio de entrega",
                     description: userMessage,
@@ -880,9 +906,9 @@ class DeseoApp {
             };
         }
         
-        // Respuesta genérica
+        // Respuesta genérica más concisa
         return {
-            text: "Interesante deseo. Para ayudarte mejor, ¿podrías ser más específico sobre qué necesitas? También me gustaría saber si tienes alguna preferencia de precio o si hay algo especial que deba considerar.",
+            text: "Interesante deseo. ¿Podrías ser más específico sobre qué necesitas?",
             wishData: null
         };
     }
@@ -929,10 +955,10 @@ class DeseoApp {
                 `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`
             ).join('\n');
             
-            const systemPrompt = `Eres un asistente amable y útil que ayuda a las personas a crear deseos cortos y claros para una plataforma de micro-deseos. 
-            Responde en español con un tono cercano y amigable. 
-            Ayuda a los usuarios a definir qué necesitan, sugiere precios justos y categorías apropiadas.
-            Mantén las respuestas concisas pero útiles.`;
+            const systemPrompt = `Eres un asistente de deseos. Responde en español de forma breve y directa (máximo 2-3 oraciones).
+            Ayuda a crear deseos claros y sugiere precios justos. 
+            Solo sugiere deseos cuando el usuario esté en un estado emocional positivo.
+            Si el usuario parece triste o negativo, ofrece apoyo emocional en lugar de sugerir deseos.`;
             
             const fullPrompt = `${systemPrompt}\n\nHistorial de conversación:\n${historyText}\n\nMensaje actual del usuario: ${userMessage}`;
 
@@ -996,6 +1022,88 @@ class DeseoApp {
         } catch {}
     }
 
+    // ===== EMOTIONAL STATE MANAGEMENT =====
+    loadEmotionalState() {
+        try {
+            const raw = localStorage.getItem('deseo_emotional_state');
+            return raw ? JSON.parse(raw) : {
+                current: 'neutral',
+                history: [],
+                positiveCount: 0,
+                negativeCount: 0,
+                neutralCount: 0
+            };
+        } catch (e) {
+            console.warn('Error loading emotional state:', e);
+            return {
+                current: 'neutral',
+                history: [],
+                positiveCount: 0,
+                negativeCount: 0,
+                neutralCount: 0
+            };
+        }
+    }
+
+    saveEmotionalState() {
+        try {
+            localStorage.setItem('deseo_emotional_state', JSON.stringify(this.emotionalState));
+        } catch (e) {
+            console.warn('Error saving emotional state:', e);
+        }
+    }
+
+    analyzeEmotionalState(text) {
+        const emotionalAnalysis = CONFIG.AI.EMOTIONAL_ANALYSIS;
+        const words = text.toLowerCase().split(/\s+/);
+        
+        let positiveScore = 0;
+        let negativeScore = 0;
+        let neutralScore = 0;
+        
+        words.forEach(word => {
+            if (emotionalAnalysis.positive.includes(word)) positiveScore++;
+            if (emotionalAnalysis.negative.includes(word)) negativeScore++;
+            if (emotionalAnalysis.neutral.includes(word)) neutralScore++;
+        });
+        
+        // Determinar el estado emocional predominante
+        let emotionalState = 'neutral';
+        if (positiveScore > negativeScore && positiveScore > neutralScore) {
+            emotionalState = 'positive';
+        } else if (negativeScore > positiveScore && negativeScore > neutralScore) {
+            emotionalState = 'negative';
+        }
+        
+        // Actualizar el estado emocional
+        this.emotionalState.current = emotionalState;
+        this.emotionalState.history.push({
+            text: text,
+            state: emotionalState,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Mantener solo los últimos 10 estados
+        if (this.emotionalState.history.length > 10) {
+            this.emotionalState.history = this.emotionalState.history.slice(-10);
+        }
+        
+        // Actualizar contadores
+        if (emotionalState === 'positive') this.emotionalState.positiveCount++;
+        else if (emotionalState === 'negative') this.emotionalState.negativeCount++;
+        else this.emotionalState.neutralCount++;
+        
+        this.saveEmotionalState();
+        
+        console.log('Emotional analysis:', {
+            text: text,
+            state: emotionalState,
+            scores: { positive: positiveScore, negative: negativeScore, neutral: neutralScore }
+        });
+        
+        return emotionalState;
+    }
+
     updateProfileFromText(text) {
         if (!text) return;
         const matches = this.extractCategories(text);
@@ -1031,6 +1139,12 @@ class DeseoApp {
     }
 
     maybeShowSuggestions() {
+        // Solo mostrar sugerencias si el estado emocional es positivo
+        if (this.emotionalState.current !== 'positive') {
+            console.log('Not showing suggestions due to emotional state:', this.emotionalState.current);
+            return;
+        }
+        
         const top = this.getTopInterests().filter(item => item.count > 0);
         if (top.length === 0) return;
         const main = top[0].category;
@@ -1434,6 +1548,71 @@ class DeseoApp {
                 entretenimiento: "Para entretenimiento, $15-40 es apropiado según la actividad."
             }
         };
+    }
+
+    // ===== TOGGLE DE TEMA =====
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('deseo-theme', newTheme);
+        
+        // Actualizar icono del botón
+        const themeIcon = document.querySelector('#themeToggle i');
+        if (newTheme === 'light') {
+            themeIcon.className = 'fas fa-sun';
+        } else {
+            themeIcon.className = 'fas fa-moon';
+        }
+        
+        this.showNotification(`Tema cambiado a ${newTheme === 'light' ? 'claro' : 'oscuro'}`, 'success');
+    }
+
+    // ===== CARGAR TEMA GUARDADO =====
+    loadSavedTheme() {
+        const savedTheme = localStorage.getItem('deseo-theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            const themeIcon = document.querySelector('#themeToggle i');
+            if (savedTheme === 'light') {
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                themeIcon.className = 'fas fa-moon';
+            }
+        }
+    }
+
+    // ===== INDICADOR DE TYPING =====
+    addTypingIndicator() {
+        const messagesContainer = document.getElementById('aiChatMessages');
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'ai-message typing-message';
+        typingDiv.innerHTML = `
+            <div class="ai-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <div class="typing-indicator">
+                    <span>IA está escribiendo</span>
+                    <div class="typing-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+        `;
+        messagesContainer.appendChild(typingDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // ===== REMOVER INDICADOR DE TYPING =====
+    removeTypingIndicator() {
+        const typingMessage = document.querySelector('.typing-message');
+        if (typingMessage) {
+            typingMessage.remove();
+        }
     }
 }
 

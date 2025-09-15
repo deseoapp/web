@@ -105,6 +105,13 @@ const CONFIG = {
             compras: ['comprar', 'compra', 'tienda', 'supermercado', 'pedido', 'producto', 'envío', 'entrega', 'mercado', 'regalo']
         },
         
+        // Análisis emocional
+        EMOTIONAL_ANALYSIS: {
+            positive: ['feliz', 'contento', 'alegre', 'emocionado', 'genial', 'perfecto', 'excelente', 'fantástico', 'increíble', 'maravilloso', 'bueno', 'bien', 'sí', 'claro', 'quiero', 'necesito', 'busco', 'deseo', 'me gusta', 'me encanta', 'me fascina', 'me interesa', 'me apetece', 'me gustaría', 'me encantaría', 'me fascinaría', 'me interesaría', 'me apetecería', 'genial', 'perfecto', 'excelente', 'fantástico', 'increíble', 'maravilloso', 'bueno', 'bien', 'sí', 'claro', 'quiero', 'necesito', 'busco', 'deseo', 'me gusta', 'me encanta', 'me fascina', 'me interesa', 'me apetece', 'me gustaría', 'me encantaría', 'me fascinaría', 'me interesaría', 'me apetecería'],
+            negative: ['triste', 'deprimido', 'mal', 'terrible', 'horrible', 'fatal', 'pésimo', 'odio', 'detesto', 'no', 'nunca', 'jamás', 'imposible', 'difícil', 'complicado', 'problema', 'error', 'fallo', 'fracaso', 'decepción', 'frustración', 'ira', 'enojo', 'molesto', 'irritado', 'furioso', 'enojado', 'molesto', 'irritado', 'furioso', 'enojado', 'estresado', 'ansioso', 'preocupado', 'nervioso', 'tenso', 'agobiado', 'abrumado', 'cansado', 'agotado', 'exhausto', 'frustrado', 'decepcionado', 'triste', 'deprimido', 'mal', 'terrible', 'horrible', 'fatal', 'pésimo', 'odio', 'detesto', 'no', 'nunca', 'jamás', 'imposible', 'difícil', 'complicado', 'problema', 'error', 'fallo', 'fracaso', 'decepción', 'frustración', 'ira', 'enojo', 'molesto', 'irritado', 'furioso', 'enojado', 'estresado', 'ansioso', 'preocupado', 'nervioso', 'tenso', 'agobiado', 'abrumado', 'cansado', 'agotado', 'exhausto', 'frustrado', 'decepcionado'],
+            neutral: ['ok', 'vale', 'bien', 'entendido', 'claro', 'sí', 'no', 'tal vez', 'quizás', 'posiblemente', 'probablemente', 'seguramente', 'ciertamente', 'efectivamente', 'exactamente', 'precisamente', 'justamente', 'exactamente', 'precisamente', 'justamente', 'puede ser', 'tal vez', 'quizás', 'posiblemente', 'probablemente', 'seguramente', 'ciertamente', 'efectivamente', 'exactamente', 'precisamente', 'justamente', 'puede ser', 'tal vez', 'quizás', 'posiblemente', 'probablemente', 'seguramente', 'ciertamente', 'efectivamente', 'exactamente', 'precisamente', 'justamente', 'puede ser']
+        },
+        
         // Respuestas predefinidas
         responses: {
             greetings: [

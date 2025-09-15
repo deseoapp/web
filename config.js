@@ -148,7 +148,7 @@ const CONFIG = {
         publishableKey: 'pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ' // Reemplaza con tu clave publicable de Clerk
     },
 
-    // ===== CONFIGURACIÓN DE FIREBASE (Mantenemos por Firestore/Storage si se usa) =====
+    // ===== CONFIGURACIÓN DE FIREBASE (Realtime Database) =====
     FIREBASE: {
         enabled: true,
         config: {
@@ -159,17 +159,14 @@ const CONFIG = {
             projectId: "deseo-app",
             storageBucket: "deseo-app.appspot.com",
             messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
+            appId: "1:123456789:web:abcdef123456",
+            databaseURL: "https://deseo-app-default-rtdb.firebaseio.com"
         },
-        collections: {
+        database: {
             wishes: 'wishes',
             users: 'users',
             conversations: 'conversations'
-        },
-        // auth: { // Eliminada la configuración de autenticación de Firebase
-        //     providers: ['google', 'email'],
-        //     googleClientId: 'YOUR_GOOGLE_CLIENT_ID'
-        // }
+        }
     }
 };
 

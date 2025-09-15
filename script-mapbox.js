@@ -40,6 +40,10 @@ class DeseoApp {
         this.activeChat = null;
         this.userLocation = null;
         this.userLocationMarker = null;
+        // ===== FIREBASE =====
+        this.firebase = null;
+        this.database = null;
+        this.wishesRef = null;
         // ===== IA =====
         this.conversationHistory = [];
         this.userProfile = this.loadUserProfile();
@@ -157,6 +161,7 @@ class DeseoApp {
             this.loadSavedTheme();
             await this.initializeMapbox();
             this.setupEventListeners();
+            this.initializeFirebase();
             this.generateSampleWishes();
             this.renderWishesOnMap();
             
@@ -1637,9 +1642,9 @@ class DeseoApp {
     updateMapStyle(theme) {
         if (!this.map) {
             console.warn('⚠️ Map not initialized, cannot update style');
-            return;
-        }
-        
+        return;
+    }
+
         try {
             const mapStyle = theme === 'light' ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11';
             this.map.setStyle(mapStyle);
@@ -1671,6 +1676,303 @@ class DeseoApp {
             }
         } else {
             console.warn('⚠️ main-nav or sidebarToggle not found');
+        }
+    }
+
+    // ===== INICIALIZACIÓN DE FIREBASE =====
+    initializeFirebase() {
+        if (!CONFIG.FIREBASE.enabled) {
+            console.log('Firebase está deshabilitado en la configuración');
+            return;
+        }
+
+        // Verificar si Firebase está disponible
+        if (typeof firebase === 'undefined') {
+            console.warn('⚠️ Firebase SDK no está cargado, reintentando en 2 segundos...');
+            setTimeout(() => this.initializeFirebase(), 2000);
+            return;
+        }
+
+        try {
+            // Verificar si ya está inicializado
+            if (this.firebase) {
+                console.log('Firebase ya está inicializado');
+                return;
+            }
+
+            // Inicializar Firebase
+            this.firebase = firebase.initializeApp(CONFIG.FIREBASE.config);
+            this.database = firebase.database();
+            this.wishesRef = this.database.ref(CONFIG.FIREBASE.database.wishes);
+            
+            console.log('✅ Firebase Realtime Database inicializado');
+            
+            // Escuchar cambios en tiempo real
+            this.setupRealtimeListeners();
+            
+        } catch (error) {
+            console.error('❌ Error inicializando Firebase:', error);
+            this.showNotification('Error al conectar con la base de datos', 'error');
+        }
+    }
+
+    // ===== LISTENERS DE TIEMPO REAL =====
+    setupRealtimeListeners() {
+        if (!this.wishesRef) return;
+
+        // Escuchar nuevos deseos
+        this.wishesRef.on('child_added', (snapshot) => {
+            const wish = snapshot.val();
+            wish.id = snapshot.key;
+            
+            // Solo agregar si no existe ya
+            if (!this.wishes.find(w => w.id === wish.id)) {
+                this.wishes.push(wish);
+                this.addWishMarker(wish);
+                this.renderWishListInSidebar();
+                console.log('✅ Nuevo deseo agregado en tiempo real:', wish.title);
+            }
+        });
+
+        // Escuchar cambios en deseos existentes
+        this.wishesRef.on('child_changed', (snapshot) => {
+            const updatedWish = snapshot.val();
+            updatedWish.id = snapshot.key;
+            
+            const index = this.wishes.findIndex(w => w.id === updatedWish.id);
+            if (index !== -1) {
+                this.wishes[index] = updatedWish;
+                this.updateWishMarker(updatedWish);
+                this.renderWishListInSidebar();
+                console.log('✅ Deseo actualizado en tiempo real:', updatedWish.title);
+            }
+        });
+
+        // Escuchar eliminación de deseos
+        this.wishesRef.on('child_removed', (snapshot) => {
+            const wishId = snapshot.key;
+            const index = this.wishes.findIndex(w => w.id === wishId);
+            
+            if (index !== -1) {
+                this.wishes.splice(index, 1);
+                this.removeWishMarker(wishId);
+                this.renderWishListInSidebar();
+                console.log('✅ Deseo eliminado en tiempo real:', wishId);
+            }
+        });
+    }
+
+    // ===== CREACIÓN DE DESEOS =====
+    async createWish(wishData) {
+        if (!this.wishesRef) {
+            // Intentar inicializar Firebase si no está disponible
+            this.initializeFirebase();
+            
+            // Esperar un poco y verificar de nuevo
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (!this.wishesRef) {
+                throw new Error('Firebase no está disponible. Verifica tu conexión a internet.');
+            }
+        }
+
+        try {
+            // Obtener ubicación actual del usuario
+            const location = await this.getCurrentLocation();
+            
+            const wish = {
+                title: wishData.title,
+                description: wishData.description,
+                category: wishData.category,
+                price: parseInt(wishData.price),
+                priceFormatted: this.formatPrice(wishData.price),
+                address: wishData.address,
+                urgency: wishData.urgency,
+                location: {
+                    lat: location.lat,
+                    lng: location.lng
+                },
+                author: {
+                    id: this.currentUser?.id || 'anonymous',
+                    name: this.currentUser?.name || 'Usuario Anónimo',
+                    email: this.currentUser?.email || 'anonymous@example.com'
+                },
+                status: 'active', // active, completed, cancelled
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP,
+                acceptedBy: null,
+                completedAt: null
+            };
+
+            // Guardar en Firebase
+            const newWishRef = this.wishesRef.push();
+            await newWishRef.set(wish);
+            
+            console.log('✅ Deseo creado exitosamente:', wish.title);
+            this.showNotification(`¡Deseo "${wish.title}" creado exitosamente!`, 'success');
+            
+            return newWishRef.key;
+            
+        } catch (error) {
+            console.error('❌ Error creando deseo:', error);
+            this.showNotification('Error al crear el deseo. Inténtalo de nuevo.', 'error');
+            throw error;
+        }
+    }
+
+    // ===== OBTENER UBICACIÓN ACTUAL =====
+    async getCurrentLocation() {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                // Ubicación por defecto (Bogotá, Colombia)
+                resolve({ lat: 4.6097, lng: -74.0817 });
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resolve({
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.warn('No se pudo obtener ubicación:', error);
+                    // Ubicación por defecto
+                    resolve({ lat: 4.6097, lng: -74.0817 });
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 300000
+                }
+            );
+        });
+    }
+
+    // ===== FORMATEO DE PRECIOS =====
+    formatPrice(price) {
+        const numPrice = parseInt(price);
+        return new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(numPrice);
+    }
+
+    // ===== MANEJO DEL MODAL DE CREACIÓN =====
+    openCreateWishModal() {
+        const modal = document.getElementById('createWishModal');
+        if (modal) {
+            modal.classList.add('active');
+            this.setupCreateWishModal();
+        }
+    }
+
+    setupCreateWishModal() {
+        const form = document.getElementById('createWishForm');
+        const useCurrentLocationBtn = document.getElementById('useCurrentLocation');
+        const priceInput = document.getElementById('wishPrice');
+        const cancelBtn = document.getElementById('cancelCreateWish');
+        const closeBtn = document.getElementById('closeCreateModal');
+
+        // Formatear precio en tiempo real
+        if (priceInput) {
+            priceInput.addEventListener('input', (e) => {
+                const value = e.target.value;
+                if (value) {
+                    const formatted = this.formatPrice(value);
+                    e.target.title = formatted;
+                }
+            });
+        }
+
+        // Usar ubicación actual
+        if (useCurrentLocationBtn) {
+            useCurrentLocationBtn.addEventListener('click', async () => {
+                try {
+                    // Mostrar estado de carga
+                    useCurrentLocationBtn.disabled = true;
+                    useCurrentLocationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Obteniendo ubicación...';
+                    
+                    this.showNotification('Obteniendo tu ubicación...', 'info');
+                    const location = await this.getCurrentLocation();
+                    
+                    // Usar geocodificación inversa para obtener dirección
+                    const address = await this.reverseGeocode(location.lat, location.lng);
+                    document.getElementById('wishAddress').value = address;
+                    
+                    this.showNotification('Ubicación actual obtenida', 'success');
+                } catch (error) {
+                    console.error('Error obteniendo ubicación:', error);
+                    this.showNotification('Error al obtener ubicación', 'error');
+                } finally {
+                    // Restaurar botón
+                    useCurrentLocationBtn.disabled = false;
+                    useCurrentLocationBtn.innerHTML = '<i class="fas fa-map-marker-alt"></i> Usar mi ubicación actual';
+                }
+            });
+        }
+
+        // Enviar formulario
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                const wishData = {
+                    title: formData.get('wishTitle') || document.getElementById('wishTitle').value,
+                    description: formData.get('wishDescription') || document.getElementById('wishDescription').value,
+                    category: formData.get('wishCategory') || document.getElementById('wishCategory').value,
+                    price: formData.get('wishPrice') || document.getElementById('wishPrice').value,
+                    address: formData.get('wishAddress') || document.getElementById('wishAddress').value,
+                    urgency: formData.get('wishUrgency') || document.getElementById('wishUrgency').value
+                };
+
+                try {
+                    await this.createWish(wishData);
+                    this.closeCreateWishModal();
+                } catch (error) {
+                    console.error('Error creando deseo:', error);
+                }
+            });
+        }
+
+        // Botones de cerrar
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.closeCreateWishModal());
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeCreateWishModal());
+        }
+    }
+
+    closeCreateWishModal() {
+        const modal = document.getElementById('createWishModal');
+        if (modal) {
+            modal.classList.remove('active');
+            // Limpiar formulario
+            const form = document.getElementById('createWishForm');
+            if (form) form.reset();
+        }
+    }
+
+    // ===== GEOCODIFICACIÓN INVERSА =====
+    async reverseGeocode(lat, lng) {
+        try {
+            const response = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}`
+            );
+            const data = await response.json();
+            
+            if (data.features && data.features.length > 0) {
+                return data.features[0].place_name;
+            }
+            return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        } catch (error) {
+            console.error('Error en geocodificación inversa:', error);
+            return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
         }
     }
 

@@ -126,46 +126,66 @@
     <!-- Modal de Autenticación (se reemplazará por Clerk UI) -->
     <div id="authContainer" class="modal"></div> <!-- Aseguramos que sea un modal para que Clerk pueda renderizar -->
 
-    <!-- Modal para crear deseo con IA -->
+    <!-- Modal para crear deseo -->
     <div class="modal" id="createWishModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Crear tu Deseo</h2>
+                <h2><i class="fas fa-star"></i> Crear Nuevo Deseo</h2>
                 <button class="close-btn" id="closeCreateModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="ai-chat-container">
-                    <div class="ai-chat-messages" id="aiChatMessages">
-                        <div class="ai-message">
-                            <div class="ai-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="message-content">
-                                <p>¡Hola! Soy tu asistente de deseos. Cuéntame qué te gustaría que alguien haga por ti y te ayudo a crear el deseo perfecto con un precio justo.</p>
-                            </div>
-                        </div>
+                <form id="createWishForm">
+                    <div class="form-group">
+                        <label for="wishTitle">Título del deseo:</label>
+                        <input type="text" id="wishTitle" placeholder="¿Qué deseas hacer?" required>
                     </div>
-                    <div class="ai-chat-input">
-                        <input type="text" id="aiChatInput" placeholder="Describe tu deseo...">
-                        <button id="sendAiMessage">
-                            <i class="fas fa-paper-plane"></i>
+                    <div class="form-group">
+                        <label for="wishDescription">Descripción:</label>
+                        <textarea id="wishDescription" placeholder="Describe tu deseo en detalle..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="wishCategory">Categoría:</label>
+                        <select id="wishCategory" required>
+                            <option value="">Selecciona una categoría</option>
+                            <option value="comida">Comida</option>
+                            <option value="servicios">Servicios</option>
+                            <option value="compras">Compras</option>
+                            <option value="transporte">Transporte</option>
+                            <option value="entretenimiento">Entretenimiento</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="wishPrice">Precio máximo (COP):</label>
+                        <input type="number" id="wishPrice" min="1000" max="1000000" value="25000" required>
+                        <small class="price-hint">El precio se formateará automáticamente (ej: 25.000)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="wishAddress">Dirección:</label>
+                        <input type="text" id="wishAddress" placeholder="¿Dónde quieres hacerlo?" required>
+                        <button type="button" id="useCurrentLocation" class="btn-secondary">
+                            <i class="fas fa-map-marker-alt"></i> Usar mi ubicación actual
                         </button>
                     </div>
-                </div>
-                <div class="wish-preview" id="wishPreview" style="display: none;">
-                    <h3>Vista previa de tu deseo:</h3>
-                    <div class="wish-card">
-                        <h4 id="previewTitle"></h4>
-                        <p id="previewDescription"></p>
-                        <div class="wish-meta">
-                            <span class="price" id="previewPrice"></span>
-                            <span class="category" id="previewCategory"></span>
-                        </div>
+                    <div class="form-group">
+                        <label for="wishUrgency">Urgencia:</label>
+                        <select id="wishUrgency">
+                            <option value="low">Baja (1-3 días)</option>
+                            <option value="medium" selected>Media (Hoy o mañana)</option>
+                            <option value="high">Alta (Inmediata)</option>
+                        </select>
                     </div>
-                    <button class="btn-primary" id="publishWish">Publicar Deseo</button>
-                </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancelCreateWish">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn-primary" id="submitCreateWish">
+                            <i class="fas fa-plus"></i>
+                            Crear Deseo
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -307,6 +327,10 @@
     <!-- Scripts -->
     <script src="config.js"></script>
     <script src="script-mapbox.js"></script> <!-- Mover script-mapbox.js antes del script de inicialización de Clerk -->
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <!-- Clerk SDKs -->
     <script

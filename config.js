@@ -158,13 +158,6 @@ function getCategoryName(category) {
 }
 
 /**
- * Obtiene el icono de una categoría
- */
-function getCategoryIcon(category) {
-    return getCategoryConfig(category).icon;
-}
-
-/**
  * Obtiene el color de una categoría
  */
 function getCategoryColor(category) {
@@ -218,7 +211,6 @@ if (typeof module !== 'undefined' && module.exports) {
     window.CONFIG = CONFIG;
     window.getCategoryConfig = getCategoryConfig;
     window.getCategoryName = getCategoryName;
-    window.getCategoryIcon = getCategoryIcon;
     window.getCategoryColor = getCategoryColor;
     window.getCategoryPriceRange = getCategoryPriceRange;
     window.isMapboxTokenConfigured = isMapboxTokenConfigured;

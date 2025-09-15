@@ -269,7 +269,7 @@ if (typeof mapboxgl === 'undefined') {
 class DeseoApp {
     constructor() {
         this.map = null;
-        this.wishes = [];
+        this.wishes = []; // Vuelve a ser 'wishes'
         this.markers = [];
         this.currentUser = { id: 'user1', name: 'Usuario Actual' };
         this.activeChat = null;
@@ -280,10 +280,10 @@ class DeseoApp {
         this.userProfile = this.loadUserProfile();
         this.gemini = null; // Se inicializará después
         this.filters = {
-            maxPrice: 1000,
+            maxPrice: 1000, // Filtro de precio para deseos
             category: '',
             distance: 10
-        };
+        }; // Revertidos los filtros para deseos
         this.aiResponses = this.initializeAIResponses();
         this.exposeGetTopInterests();
         this.initializeApp();
@@ -294,8 +294,8 @@ class DeseoApp {
         try {
             await this.initializeMapbox();
             this.setupEventListeners();
-            this.generateSampleWishes();
-            this.renderWishesOnMap();
+            this.generateSampleWishes(); // Vuelve a generateSampleWishes
+            this.renderWishesOnMap();    // Vuelve a renderWishesOnMap
             
             // Inicializar Gemini después de que todo esté cargado
             setTimeout(() => {
@@ -368,18 +368,28 @@ class DeseoApp {
     // ===== CONFIGURACIÓN DE EVENT LISTENERS (DeseoApp) =====
     setupEventListeners() {
         // Botones principales
-        document.getElementById('createWishBtn').addEventListener('click', () => this.openCreateWishModal());
-        document.getElementById('floatingCreateBtn').addEventListener('click', () => this.openCreateWishModal());
-        document.getElementById('filterBtn').addEventListener('click', () => this.openFilterModal());
+        document.getElementById('floatingCreateWishBtn').addEventListener('click', () => this.openCreateWishModal()); // Botón flotante para crear deseos
 
-        // Controles del mapa
-        document.getElementById('locateBtn').addEventListener('click', () => this.locateUser());
-        document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
-        document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
+        // Sidebar - Búsqueda y filtros
+        document.getElementById('wishSearchInput').addEventListener('input', (e) => {
+            // Implementar lógica de búsqueda de deseos aquí
+            console.log('Buscando deseos:', e.target.value);
+            // this.filterWishesBySearch(e.target.value);
+            this.renderWishListInSidebar();
+            this.renderWishesOnMap();
+        });
+        document.getElementById('categoryFilterSidebar').addEventListener('change', () => this.applySidebarFilters());
+        document.getElementById('priceFilterSidebar').addEventListener('input', (e) => {
+            document.getElementById('priceValueSidebar').textContent = `$${e.target.value}`;
+        });
+        document.getElementById('applySidebarFiltersBtn').addEventListener('click', () => this.applySidebarFilters());
 
-        // Modales - botones de cerrar
+        // Controles del mapa (mantener los controles de Mapbox GL JS por defecto)
+        // Los botones de zoom y localización ya son manejados por Mapbox directamente
+
+        // Modales - botones de cerrar (adaptados si los IDs cambiaron)
         document.getElementById('closeCreateModal').addEventListener('click', () => this.closeModal('createWishModal'));
-        document.getElementById('closeDetailsModal').addEventListener('click', () => this.closeModal('wishDetailsModal'));
+        // document.getElementById('closeDetailsModal').addEventListener('click', () => this.closeModal('wishDetailsModal')); // Obsoleto, la tarjeta flotante se cierra con su propio botón
         document.getElementById('closeChatModal').addEventListener('click', () => this.closeModal('privateChatModal'));
         document.getElementById('closeRatingModal').addEventListener('click', () => this.closeModal('ratingModal'));
         document.getElementById('closeFilterModal').addEventListener('click', () => this.closeModal('filterModal'));
@@ -393,9 +403,9 @@ class DeseoApp {
         // Publicar deseo
         document.getElementById('publishWish').addEventListener('click', () => this.publishWish());
 
-        // Detalles del deseo
-        document.getElementById('acceptWishBtn').addEventListener('click', () => this.acceptWish());
-        document.getElementById('viewDetailsBtn').addEventListener('click', () => this.viewWishDetails());
+        // Tarjeta de detalles del deseo (botones de acción)
+        document.getElementById('acceptWishBtnCard').addEventListener('click', () => this.acceptWishFromCard());
+        document.getElementById('viewChatBtnCard').addEventListener('click', () => this.openPrivateChatForCurrentWish());
 
         // Chat privado
         document.getElementById('sendPrivateMessage').addEventListener('click', () => this.sendPrivateMessage());
@@ -418,7 +428,7 @@ class DeseoApp {
         });
         document.getElementById('starRating').addEventListener('mouseleave', () => this.resetStarHighlight());
 
-        // Filtros
+        // Filtros (del modal, si se sigue usando el modal de filtros avanzados)
         document.getElementById('priceFilter').addEventListener('input', (e) => {
             document.getElementById('priceValue').textContent = `$${e.target.value}`;
         });
@@ -554,9 +564,9 @@ class DeseoApp {
         this.userLocationMarker.setPopup(popup);
     }
 
-    // ===== GENERACIÓN DE DATOS DE PRUEBA =====
-    generateSampleWishes() {
-        const sampleWishes = [
+    // ===== GENERACIÓN DE DATOS DE PRUEBA (ADAPTADO PARA DESEOS) =====
+    generateSampleWishes() { // Renombrado de generateSampleStores a generateSampleWishes
+        this.wishes = [
             {
                 id: 'wish1',
                 title: 'Comprar café en Starbucks',
@@ -613,20 +623,18 @@ class DeseoApp {
                 createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000)
             }
         ];
-
-        this.wishes = sampleWishes;
     }
 
     // ===== RENDERIZADO DEL MAPA =====
-    renderWishesOnMap() {
+    renderWishesOnMap() { // Renombrado de renderStoresOnMap a renderWishesOnMap
         // Limpiar marcadores existentes
         this.clearMarkers();
 
         this.wishes
-            .filter(wish => wish.status === 'active')
-            .filter(wish => this.passesFilters(wish))
+            .filter(wish => wish.status === 'active') // Filtrar deseos activos
+            .filter(wish => this.passesWishFilters(wish)) // Cambiado de passesStoreFilters a passesWishFilters
             .forEach(wish => {
-                this.addWishMarker(wish);
+                this.addWishMarker(wish); // Cambiado de addStoreMarker a addWishMarker
             });
     }
 
@@ -635,13 +643,13 @@ class DeseoApp {
         this.markers = [];
     }
 
-    addWishMarker(wish) {
+    addWishMarker(wish) { // Renombrado de addStoreMarker a addWishMarker
         // Crear elemento HTML para el marcador
         const markerElement = document.createElement('div');
-        markerElement.className = 'custom-marker';
+        markerElement.className = 'wish-marker'; // Nueva clase para marcadores de deseos
         
-        // Icono según categoría
-        const categoryIcon = getCategoryIcon(wish.category);
+        // Icono según categoría y precio
+        const categoryIcon = this.getCategoryIcon(wish.category); // Usar la función de icono de categoría
 
         markerElement.innerHTML = `
             <i class="${categoryIcon}"></i>
@@ -649,44 +657,35 @@ class DeseoApp {
         `;
 
         // Crear marcador de Mapbox
-        const marker = new mapboxgl.Marker(markerElement)
+        const marker = new mapboxgl.Marker({
+            element: markerElement,
+            anchor: 'bottom'
+        })
             .setLngLat(wish.coordinates)
             .addTo(this.map);
 
-        // Crear popup
+        // Crear popup (simple, la tarjeta flotante es para detalles)
         const popup = new mapboxgl.Popup({
             offset: 25,
-            closeButton: true,
+            closeButton: false,
             closeOnClick: false
-        }).setHTML(this.createPopupHTML(wish));
+        }).setHTML(this.createWishPopupHTML(wish)); // Cambiado de createStorePopupHTML a createWishPopupHTML
 
         marker.setPopup(popup);
 
-        // Evento de clic en el marcador
+        // Evento de clic en el marcador para mostrar la tarjeta de detalles del deseo
         markerElement.addEventListener('click', () => {
-            this.showWishDetails(wish);
+            this.showWishDetails(wish); // Mostrar detalles del deseo en la tarjeta flotante
         });
 
         this.markers.push(marker);
     }
 
-    createPopupHTML(wish) {
+    createWishPopupHTML(wish) { // Renombrado de createStorePopupHTML a createWishPopupHTML
         return `
-            <div class="wish-popup">
+            <div class="wish-marker-popup">
                 <h3>${wish.title}</h3>
-                <p>${wish.description}</p>
-                <div class="popup-meta">
-                    <span class="price">$${wish.price}</span>
-                    <span class="category">${this.getCategoryName(wish.category)}</span>
-                </div>
-                <div class="popup-actions">
-                    <button class="btn-secondary" onclick="window.deseoApp.viewWishDetails('${wish.id}')">
-                        Ver Detalles
-                    </button>
-                    <button class="btn-primary" onclick="window.deseoApp.acceptWish('${wish.id}')">
-                        Aceptar
-                    </button>
-                </div>
+                <p>$${wish.price} • ${this.getCategoryName(wish.category)}</p>
             </div>
         `;
     }
@@ -798,12 +797,12 @@ class DeseoApp {
         } else {
             console.log('Using local AI fallback...');
             // Fallback inmediato
-            setTimeout(() => {
-                const aiResponse = this.generateAIResponse(message);
-                this.addMessageToChat('ai', aiResponse.text);
-                if (aiResponse.wishData) {
-                    this.showWishPreview(aiResponse.wishData);
-                }
+        setTimeout(() => {
+            const aiResponse = this.generateAIResponse(message);
+            this.addMessageToChat('ai', aiResponse.text);
+            if (aiResponse.wishData) {
+                this.showWishPreview(aiResponse.wishData);
+            }
                 this.maybeShowSuggestions();
             }, CONFIG.AI.responseDelay || 1000);
         }
@@ -1085,33 +1084,68 @@ class DeseoApp {
         this.showNotification('¡Tu deseo ha sido publicado exitosamente!', 'success');
     }
 
-    // ===== DETALLES DEL DESEO =====
+    // ===== DETALLES DEL DESEO (TARJETA FLOTANTE) =====
     showWishDetails(wish) {
-        if (typeof wish === 'string') {
-            wish = this.wishes.find(w => w.id === wish);
+        if (!wish) return;
+
+        const wishDetailsCard = document.getElementById('wishDetailsCard'); // Usar el ID correcto
+        if (!wishDetailsCard) return;
+
+        // Guardar el deseo actual para acciones futuras
+        this.currentWish = wish;
+
+        // Actualizar el contenido de la tarjeta con los detalles del deseo
+        document.getElementById('wishDetailsCardLogo').src = this.getCategoryLogo(wish.category);
+        document.getElementById('wishDetailsCardLogo').alt = wish.category;
+        document.getElementById('wishDetailsCardTitle').textContent = wish.title;
+        document.getElementById('wishDetailsCardCategoryPrice').textContent = `$${wish.price} • ${this.getCategoryName(wish.category)}`;
+        document.getElementById('wishDetailsCardPrice').textContent = `$${wish.price}`;
+        document.getElementById('wishDetailsCardDescription').textContent = wish.description;
+        document.getElementById('wishDetailsCardAuthor').textContent = `Autor: ${wish.author ? wish.author.name : 'Anónimo'}`;
+
+        // Mostrar u ocultar el botón de chatear/aceptar según el estado y si es el autor
+        const acceptBtn = document.getElementById('acceptWishBtnCard');
+        const viewChatBtn = document.getElementById('viewChatBtnCard');
+
+        if (wish.status === 'active' && wish.author.id !== this.currentUser.id) {
+            acceptBtn.style.display = 'block';
+            viewChatBtn.style.display = 'none';
+        } else if (wish.status === 'in_progress' && (wish.author.id === this.currentUser.id || wish.acceptedBy.id === this.currentUser.id)) {
+            acceptBtn.style.display = 'none';
+            viewChatBtn.style.display = 'block';
+        } else {
+            acceptBtn.style.display = 'none';
+            viewChatBtn.style.display = 'none';
         }
         
-        if (!wish) return;
+        wishDetailsCard.classList.add('active');
 
-        document.getElementById('wishDetailsTitle').textContent = wish.title;
-        document.getElementById('wishDetailsDescription').textContent = wish.description;
-        document.getElementById('wishDetailsPrice').textContent = `$${wish.price}`;
-        document.getElementById('wishDetailsCategory').textContent = this.getCategoryName(wish.category);
-        document.getElementById('wishDetailsLocation').textContent = 'Ubicación en el mapa';
-        
-        this.currentWish = wish;
-        this.openModal('wishDetailsModal');
+        // Centrar el mapa en la ubicación del deseo
+        this.map.flyTo({
+            center: wish.coordinates,
+            essential: true,
+            duration: 900 // animación suave
+        });
     }
 
-    acceptWish(wishId) {
-        const wish = typeof wishId === 'string' ? 
-            this.wishes.find(w => w.id === wishId) : 
-            this.currentWish;
-            
+    acceptWishFromCard() {
+        if (!this.currentWish) return;
+        this.acceptWish(this.currentWish.id);
+        // Después de aceptar, la tarjeta de detalles debería actualizarse o cerrarse y abrir el chat
+        document.getElementById('wishDetailsCard').classList.remove('active');
+    }
+
+    openPrivateChatForCurrentWish() {
+        if (!this.currentWish) return;
+        this.openPrivateChat(this.currentWish.id); // Reutilizar la función existente o adaptarla si es necesario
+        document.getElementById('wishDetailsCard').classList.remove('active');
+    }
+
+    // ===== CHAT PRIVADO =====
+    openPrivateChat(wishId) { // Modificar para aceptar un ID de deseo
+        const wish = this.wishes.find(w => w.id === wishId);
         if (!wish) return;
 
-        wish.status = 'in_progress';
-        wish.acceptedBy = this.currentUser;
         this.activeChat = {
             wishId: wish.id,
             otherUser: wish.author,
@@ -1124,17 +1158,6 @@ class DeseoApp {
             ]
         };
 
-        this.closeModal('wishDetailsModal');
-        this.openPrivateChat();
-        this.renderWishesOnMap();
-        this.showNotification('¡Deseo aceptado! Puedes coordinar los detalles en el chat.', 'success');
-    }
-
-    // ===== CHAT PRIVADO =====
-    openPrivateChat() {
-        if (!this.activeChat) return;
-
-        document.getElementById('chatUserName').textContent = this.activeChat.otherUser.name;
         this.renderPrivateChatMessages();
         this.openModal('privateChatModal');
     }
@@ -1153,16 +1176,16 @@ class DeseoApp {
                 '<div class="user-avatar"><i class="fas fa-user"></i></div>' :
                 '<div class="ai-avatar"><i class="fas fa-user"></i></div>';
 
-        messageDiv.innerHTML = `
-            ${avatar}
-            <div class="message-content">
-                <p>${msg.message}</p>
-                <small>${this.formatTime(msg.timestamp)}</small>
-            </div>
-        `;
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="message-content">
+                    <p>${msg.message}</p>
+                    <small>${this.formatTime(msg.timestamp)}</small>
+                </div>
+            `;
 
             messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
         });
     }
 
@@ -1280,8 +1303,9 @@ class DeseoApp {
         this.renderWishesOnMap();
     }
 
-    // ===== FILTROS =====
+    // ===== FILTROS (ADAPTADO PARA DESEOS) =====
     openFilterModal() {
+        // Adaptar para filtros de deseos si se usa un modal de filtros avanzados
         document.getElementById('priceFilter').value = this.filters.maxPrice;
         document.getElementById('priceValue').textContent = `$${this.filters.maxPrice}`;
         document.getElementById('categoryFilter').value = this.filters.category;
@@ -1294,12 +1318,24 @@ class DeseoApp {
         this.filters.category = document.getElementById('categoryFilter').value;
         this.filters.distance = parseInt(document.getElementById('distanceFilter').value);
 
-        this.renderWishesOnMap();
+        this.renderWishesOnMap(); // Renderizar deseos con los nuevos filtros
         this.closeModal('filterModal');
         this.showNotification('Filtros aplicados correctamente.', 'success');
+        this.renderWishListInSidebar(); // Actualizar la lista de deseos en el sidebar
     }
 
-    passesFilters(wish) {
+    applySidebarFilters() {
+        this.filters.maxPrice = parseInt(document.getElementById('priceFilterSidebar').value);
+        this.filters.category = document.getElementById('categoryFilterSidebar').value;
+        // La distancia no se aplica directamente desde el sidebar para deseos aún, podría ser un filtro futuro
+        // this.filters.distance = parseInt(document.getElementById('distanceFilter').value);
+
+        this.renderWishesOnMap();
+        this.renderWishListInSidebar();
+        this.showNotification('Filtros de sidebar aplicados correctamente.', 'success');
+    }
+
+    passesWishFilters(wish) { // Renombrado de passesStoreFilters a passesWishFilters
         if (wish.price > this.filters.maxPrice) return false;
         if (this.filters.category && wish.category !== this.filters.category) return false;
         
@@ -1316,8 +1352,40 @@ class DeseoApp {
     }
 
     // ===== UTILIDADES =====
+    getCategoryIcon(category) {
+        // Helper para obtener ícono según la categoría (re-introducido y adaptado)
+        switch (category) {
+            case 'comida': return 'fas fa-utensils';
+            case 'servicios': return 'fas fa-handshake';
+            case 'compras': return 'fas fa-shopping-bag';
+            case 'transporte': return 'fas fa-car';
+            case 'entretenimiento': return 'fas fa-gamepad';
+            default: return 'fas fa-map-marker-alt';
+        }
+    }
+
+    getCategoryLogo(category) {
+        // Helper para obtener un logo por categoría (si se usa en la tarjeta de detalles)
+        switch (category) {
+            case 'comida': return 'https://www.flaticon.es/svg/vstatic/svg/1046/1046788.svg?token=1646788';
+            case 'servicios': return 'https://www.flaticon.es/svg/vstatic/svg/2923/2923946.svg?token=1646788';
+            case 'compras': return 'https://www.flaticon.es/svg/vstatic/svg/3002/3002046.svg?token=1646788';
+            case 'transporte': return 'https://www.flaticon.es/svg/vstatic/svg/2972/2972986.svg?token=1646788';
+            case 'entretenimiento': return 'https://www.flaticon.es/svg/vstatic/svg/2917/2917714.svg?token=1646788';
+            default: return 'https://www.flaticon.es/svg/vstatic/svg/3082/3082000.svg?token=1646788'; // Icono por defecto
+        }
+    }
+
     getCategoryName(category) {
-        return getCategoryName(category);
+        // Función para obtener el nombre de la categoría (ya existente)
+        switch (category) {
+            case 'comida': return 'Comida';
+            case 'servicios': return 'Servicios';
+            case 'compras': return 'Compras';
+            case 'transporte': return 'Transporte';
+            case 'entretenimiento': return 'Entretenimiento';
+            default: return 'General';
+        }
     }
 
     formatTime(date) {
@@ -1413,12 +1481,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Asegurarse de que el botón de autenticación muestre el estado correcto incluso sin Firebase activo
         updateAuthButton(null);
     }
+    
+    // Inicializar la lista de deseos en el sidebar
+    window.deseoApp.renderWishListInSidebar(); // Cambiado de updateStoreList
 
-    console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
-    console.log('📱 Plataforma de micro-deseos con mapa real');
-    console.log('🤖 IA simulada activa');
-    console.log('🗺️ Mapa interactivo de Mapbox funcionando');
-    console.log('💬 Sistema de chat implementado');
-    console.log('⭐ Sistema de calificaciones activo');
+    // Inicializar listeners de filtros del sidebar
+    document.getElementById('priceFilterSidebar').addEventListener('input', (e) => {
+        document.getElementById('priceValueSidebar').textContent = `$${e.target.value}`;
+    });
+
+    // Asegurarse de que el rango de precio se inicialice correctamente en el sidebar
+    const priceFilterSidebar = document.getElementById('priceFilterSidebar');
+    const priceValueSidebar = document.getElementById('priceValueSidebar');
+    if (priceFilterSidebar && priceValueSidebar) {
+        priceValueSidebar.textContent = `$${priceFilterSidebar.value}`;
+    }
+
+console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
+console.log('📱 Plataforma de micro-deseos con mapa real');
+console.log('🤖 IA simulada activa');
+console.log('🗺️ Mapa interactivo de Mapbox funcionando');
+console.log('💬 Sistema de chat implementado');
+console.log('⭐ Sistema de calificaciones activo');
     console.log('🔥 Sistema de autenticación implementado');
 });

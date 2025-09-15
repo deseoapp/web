@@ -120,6 +120,7 @@ body {
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
+    white-space: nowrap; /* Evita que el texto se rompa */
 }
 
 .sidebar-toggle {
@@ -198,9 +199,11 @@ body {
 .filters .filter-group span {
     color: var(--text-secondary);
     font-size: 0.875rem;
+    white-space: nowrap;
 }
 
-.filters select {
+.filters select,
+.filters input[type="range"] {
     background: var(--background-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-sm);
@@ -211,10 +214,45 @@ body {
     cursor: pointer;
     transition: var(--transition);
     appearance: none;
+}
+
+.filters select {
     background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23a8a8a8%22%20d%3D%22M287%20146.2c0%202-1.2%203.8-2.6%205.2L150.2%20288.7c-2.4%202.4-5.8%203.8-9.2%203.8s-6.8-1.4-9.2-3.8l-134.6-134.6c-1.4-1.4-2.6-3.2-2.6-5.2s1.2-3.8%202.6-5.2L131.8%203.7c2.4-2.4%205.8-3.8%209.2-3.8s6.8%201.4%209.2%203.8l134.6%20134.6c1.4%201.4%202.6%203.2%202.6%205.2z%22%2F%3E%3C%2Fsvg%3E');
     background-repeat: no-repeat;
     background-position: right 0.75rem center;
     background-size: 0.6em auto;
+    padding-right: 2.25rem; /* Make space for the arrow */
+}
+
+.filters input[type="range"] {
+    padding: 0;
+    width: 80px;
+    -webkit-appearance: none; /* Remove default styling */
+    height: 8px; /* Specify a height */
+    background: var(--border-color); /* Grey background */
+    outline: none; /* Remove outline */
+    opacity: 0.7; /* Set transparency (for hover effect) */
+    transition: opacity .2s;
+}
+
+.filters input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; /* Override default look */
+    appearance: none;
+    width: 16px; /* Set a specific slider handle width */
+    height: 16px; /* Slider handle height */
+    border-radius: 50%; /* Fully rounded slider handle */
+    background: var(--primary-color); /* Green background */
+    cursor: pointer; /* Cursor on hover */
+    border: 1px solid var(--text-primary);
+}
+
+.filters input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: 1px solid var(--text-primary);
 }
 
 .filters select:hover {
@@ -240,7 +278,8 @@ body {
     border-color: var(--primary-color);
 }
 
-.store-list {
+/* Renombrado de .store-list a .wish-list */
+.wish-list {
     flex: 1;
     padding: 0 1.5rem 1.5rem 1.5rem;
     overflow-y: auto;
@@ -249,7 +288,8 @@ body {
     gap: 1rem;
 }
 
-.store-item {
+/* Renombrado de .store-item a .wish-item */
+.wish-item {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -262,14 +302,15 @@ body {
     border: 1px solid var(--border-color);
 }
 
-.store-item:hover {
+.wish-item:hover {
     background: var(--background-tertiary);
     border-color: var(--primary-color);
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
 }
 
-.store-logo {
+/* Renombrado de .store-logo a .wish-logo */
+.wish-logo {
     width: 48px;
     height: 48px;
     border-radius: 50%;
@@ -279,43 +320,44 @@ body {
     justify-content: center;
     flex-shrink: 0;
     overflow: hidden;
+    font-size: 1.5rem;
+    color: var(--primary-color);
 }
 
-.store-logo img {
+.wish-logo img {
     width: 70%;
     height: 70%;
     object-fit: contain;
 }
 
-.store-info {
+/* Renombrado de .store-info a .wish-info */
+.wish-info {
     flex: 1;
 }
 
-.store-info h3 {
+.wish-info h3 {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.2rem;
 }
 
-.store-info p {
+.wish-info p {
     font-size: 0.875rem;
     color: var(--text-secondary);
 }
 
-.store-info .open-status {
-    color: var(--primary-color);
-    font-weight: 500;
-}
+/* Removido .open-status, adaptado a p.wish-info */
 
-.store-actions i {
+/* Renombrado de .store-actions a .wish-actions */
+.wish-actions i {
     color: var(--text-light);
     font-size: 1.1rem;
     cursor: pointer;
     transition: var(--transition);
 }
 
-.store-actions i:hover {
+.wish-actions i:hover {
     color: var(--accent-color);
 }
 
@@ -359,53 +401,68 @@ body {
     background-color: var(--hover-bg);
 }
 
-/* Marcadores personalizados para tiendas en el mapa */
-.store-marker {
+/* Botón flotante para crear deseos */
+.floating-btn {
+    position: absolute;
+    bottom: 2rem;
+    right: 2rem;
     width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    z-index: 1000;
+    transition: var(--transition);
+}
+
+.floating-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+/* Marcadores personalizados para deseos en el mapa */
+.wish-marker {
+    width: auto; /* Ancho automático para ajustarse al contenido */
     height: 30px;
     background: var(--background-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 15px;
+    border-radius: 15px; /* Más redondeado */
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
+    padding: 0 10px; /* Espaciado interno */
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: var(--transition);
 }
 
-.store-marker:hover {
+.wish-marker:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
     border-color: var(--primary-color);
 }
 
-.store-marker .logo-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+.wish-marker i {
+    color: var(--primary-color);
+    font-size: 1rem;
 }
 
-.store-marker .logo-icon img {
-    width: 70%;
-    height: 70%;
-    object-fit: contain;
-}
-
-.store-marker .rating-count {
+.wish-marker .marker-price {
     color: var(--text-primary);
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     font-weight: 600;
 }
 
-/* Tarjeta de detalles de la tienda en el mapa */
-.store-details-card {
+/* Tarjeta de detalles del deseo en el mapa */
+.wish-details-card {
     position: absolute;
     bottom: 2rem;
     left: 50%;
@@ -423,20 +480,41 @@ body {
     gap: 1rem;
 }
 
-.store-details-card.active {
+.wish-details-card.active {
     display: flex;
 }
 
-.store-details-card .card-header {
+.wish-details-card .close-details-card {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--text-light);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: var(--transition);
+    z-index: 10;
+}
+
+.wish-details-card .close-details-card:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.wish-details-card .card-header {
     display: flex;
     align-items: center;
     gap: 1rem;
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 1rem;
     margin-bottom: 1rem;
+    position: relative; /* Para posicionar el botón de cerrar */
 }
 
-.store-details-card .store-logo-small {
+.wish-details-card .wish-logo-small {
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -448,29 +526,29 @@ body {
     overflow: hidden;
 }
 
-.store-details-card .store-logo-small img {
+.wish-details-card .wish-logo-small img {
     width: 70%;
     height: 70%;
     object-fit: contain;
 }
 
-.store-details-card .store-info-small {
+.wish-details-card .wish-info-small {
     flex: 1;
 }
 
-.store-details-card .store-info-small h3 {
+.wish-details-card .wish-info-small h3 {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 0.2rem;
 }
 
-.store-details-card .store-info-small p {
+.wish-details-card .wish-info-small p {
     font-size: 0.9rem;
     color: var(--text-secondary);
 }
 
-.store-details-card .store-meta {
+.wish-details-card .wish-meta {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -478,37 +556,44 @@ body {
     color: var(--text-secondary);
 }
 
-.store-details-card .rating {
+.wish-details-card .location {
     font-size: 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.25rem;
 }
 
-.store-details-card .rating i {
+.wish-details-card .location i {
     color: var(--primary-color);
 }
 
-.store-details-card .price-range {
+.wish-details-card .price-tag {
     font-size: 0.9rem;
-    color: var(--text-light);
+    color: var(--primary-color);
+    font-weight: 600;
 }
 
-.store-details-card .card-body h4 {
+.wish-details-card .card-body h4 {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 0.5rem;
 }
 
-.store-details-card .card-body p {
+.wish-details-card .card-body .wish-author {
     font-size: 0.95rem;
     line-height: 1.6;
     color: var(--text-secondary);
     margin-bottom: 1.5rem;
 }
 
-.store-details-card .btn-more-details {
+.wish-details-card .card-body .btn-primary,
+.wish-details-card .card-body .btn-secondary {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.wish-details-card .card-body .btn-primary {
     background: var(--primary-color);
     color: white;
     border: none;
@@ -518,12 +603,29 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
-    align-self: flex-start;
 }
 
-.store-details-card .btn-more-details:hover {
+.wish-details-card .card-body .btn-primary:hover {
     background: var(--primary-hover);
     box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+}
+
+.wish-details-card .card-body .btn-secondary {
+    background: var(--background-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.wish-details-card .card-body .btn-secondary:hover {
+    background: var(--hover-bg);
+    border-color: var(--primary-color);
     transform: translateY(-1px);
 }
 
@@ -728,14 +830,14 @@ body {
         width: 300px;
     }
     
-    .store-details-card {
+    .wish-details-card {
         width: 350px;
     }
 }
 
 @media (max-width: 768px) {
     .app-container {
-        flex-direction: column;
+    flex-direction: column;
     }
 
     .sidebar {
@@ -759,21 +861,27 @@ body {
         align-items: flex-start;
     }
 
-    .store-details-card {
+    .wish-details-card {
         width: 90%;
         left: 50%;
         transform: translateX(-50%);
         bottom: 1rem;
     }
-
+    
     .modal-content {
         width: 95%;
         margin: 1rem;
     }
-
+    
     .modal-header,
     .modal-body {
         padding: 1rem;
+    }
+
+    /* Flotante siempre visible en móvil para crear deseos */
+    .floating-btn {
+        bottom: 1rem;
+        right: 1rem;
     }
 }
 
@@ -785,34 +893,34 @@ body {
     .sidebar .logo h1 {
         font-size: 1.25rem;
     }
-
+    
     .search-bar,
     .filters {
         padding: 0.75rem 1rem;
     }
 
-    .store-item {
+    .wish-item {
         padding: 0.75rem;
     }
 
-    .store-logo {
+    .wish-logo {
         width: 40px;
         height: 40px;
     }
 
-    .store-info h3 {
+    .wish-info h3 {
         font-size: 0.9rem;
     }
 
-    .store-info p {
+    .wish-info p {
         font-size: 0.8rem;
     }
 
-    .store-details-card {
+    .wish-details-card {
         padding: 1rem;
     }
 
-    .store-details-card .card-header {
+    .wish-details-card .card-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
@@ -820,33 +928,27 @@ body {
         margin-bottom: 0.5rem;
     }
 
-    .store-details-card .store-meta {
+    .wish-details-card .wish-meta {
         flex-direction: row;
         width: 100%;
         justify-content: space-around;
         margin-top: 0.5rem;
     }
 
-    .store-details-card .card-body h4 {
+    .wish-details-card .card-body h4 {
         font-size: 1rem;
     }
 
-    .store-details-card .card-body p {
+    .wish-details-card .card-body .wish-author {
         font-size: 0.85rem;
-    }
-
-    .store-details-card .btn-more-details {
-        padding: 0.6rem 1rem;
-        font-size: 0.9rem;
     }
 }
 
-/* Eliminar estilos no usados del diseño anterior */
+/* Eliminar estilos no usados del diseño anterior (o que interfieran) */
 .header,
 .main-container,
 .map-overlay,
 .map-controls,
-.floating-btn,
 .wish-popup,
 .wish-pin,
 .user-location-marker {

@@ -1686,12 +1686,24 @@ class DeseoApp {
 
     // ===== INICIALIZACIÓN DE FIREBASE =====
     initializeFirebase() {
+        console.log('🔍 [DEBUG] Iniciando Firebase...');
+        console.log('🔍 [DEBUG] CONFIG disponible:', typeof CONFIG);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE disponible:', typeof CONFIG.FIREBASE);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE.enabled:', CONFIG.FIREBASE.enabled);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE.config disponible:', typeof CONFIG.FIREBASE.config);
+        
+        // Log completo de la configuración para debug
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE completo:', CONFIG.FIREBASE);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE.config completo:', CONFIG.FIREBASE.config);
+        console.log('🔍 [DEBUG] databaseURL desde CONFIG:', CONFIG.FIREBASE.config.databaseURL);
+        
         if (!CONFIG.FIREBASE.enabled) {
-            console.log('Firebase está deshabilitado en la configuración');
+            console.log('❌ Firebase está deshabilitado en la configuración');
             return;
         }
 
         // Verificar si Firebase está disponible
+        console.log('🔍 [DEBUG] typeof firebase:', typeof firebase);
         if (typeof firebase === 'undefined') {
             console.warn('⚠️ Firebase SDK no está cargado, reintentando en 2 segundos...');
             setTimeout(() => this.initializeFirebase(), 2000);
@@ -1701,18 +1713,53 @@ class DeseoApp {
         try {
             // Verificar si ya está inicializado
             if (this.firebase) {
-                console.log('Firebase ya está inicializado');
+                console.log('✅ Firebase ya está inicializado');
                 return;
             }
 
             // Verificar que firebase.database esté disponible
+            console.log('🔍 [DEBUG] typeof firebase.database:', typeof firebase.database);
             if (typeof firebase.database === 'undefined') {
                 console.warn('⚠️ Firebase Database no está cargado, reintentando en 2 segundos...');
                 setTimeout(() => this.initializeFirebase(), 2000);
                 return;
             }
 
+            // Verificar configuración
+            console.log('🔍 [DEBUG] Configuración Firebase:', CONFIG.FIREBASE.config);
+            console.log('🔍 [DEBUG] databaseURL:', CONFIG.FIREBASE.config.databaseURL);
+            console.log('🔍 [DEBUG] CONFIG.FIREBASE completo:', CONFIG.FIREBASE);
+            console.log('🔍 [DEBUG] Verificando estructura de CONFIG:', {
+                'CONFIG.FIREBASE': CONFIG.FIREBASE,
+                'CONFIG.FIREBASE.config': CONFIG.FIREBASE.config,
+                'CONFIG.FIREBASE.config.databaseURL': CONFIG.FIREBASE.config.databaseURL,
+                'typeof CONFIG.FIREBASE.config.databaseURL': typeof CONFIG.FIREBASE.config.databaseURL
+            });
+            
+            // Verificar si la configuración es válida
+            if (!CONFIG.FIREBASE.config.databaseURL) {
+                console.warn('⚠️ databaseURL no está definido en la configuración');
+                console.warn('⚠️ databaseURL:', CONFIG.FIREBASE.config.databaseURL);
+                console.log('🔍 [DEBUG] Firebase deshabilitado por databaseURL faltante, usando modo local');
+                this.showNotification('Configuración de Firebase incompleta. Usando modo local.', 'warning');
+                return;
+            }
+            
+            // Verificar si es una configuración válida
+            if (CONFIG.FIREBASE.config.databaseURL.includes('parcero-6b971')) {
+                console.log('🔍 [DEBUG] Usando configuración de Firebase real del proyecto parcero');
+            } else if (CONFIG.FIREBASE.config.databaseURL.includes('samplep-d6b68')) {
+                console.log('🔍 [DEBUG] Usando configuración de Firebase de prueba válida');
+            } else if (CONFIG.FIREBASE.config.databaseURL.includes('firebaseio.com')) {
+                console.warn('⚠️ Configuración de Firebase parece ser placeholder/falsa');
+                console.warn('⚠️ databaseURL:', CONFIG.FIREBASE.config.databaseURL);
+                console.log('🔍 [DEBUG] Firebase deshabilitado por configuración placeholder, usando modo local');
+                this.showNotification('Configuración de Firebase no válida. Usando modo local.', 'warning');
+                return;
+            }
+
             // Inicializar Firebase
+            console.log('🔍 [DEBUG] Intentando inicializar Firebase...');
             this.firebase = firebase.initializeApp(CONFIG.FIREBASE.config);
             this.database = firebase.database();
             this.wishesRef = this.database.ref(CONFIG.FIREBASE.database.wishes);
@@ -1725,8 +1772,13 @@ class DeseoApp {
             
         } catch (error) {
             console.error('❌ Error inicializando Firebase:', error);
-            console.error('Configuración Firebase:', CONFIG.FIREBASE.config);
-            this.showNotification('Error al conectar con la base de datos', 'error');
+            console.error('🔍 [DEBUG] Error details:', error.message);
+            console.error('🔍 [DEBUG] Error code:', error.code);
+            console.error('🔍 [DEBUG] Error stack:', error.stack);
+            console.error('🔍 [DEBUG] Configuración Firebase:', CONFIG.FIREBASE.config);
+            console.error('🔍 [DEBUG] Firebase object:', firebase);
+            console.error('🔍 [DEBUG] firebase.database:', firebase.database);
+            this.showNotification(`Error Firebase: ${error.message} (${error.code || 'Sin código'})`, 'error');
         }
     }
 
@@ -1778,8 +1830,19 @@ class DeseoApp {
 
     // ===== CREACIÓN DE DESEOS =====
     async createWish(wishData) {
+        console.log('🔍 [DEBUG] createWish llamado con:', wishData);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE.enabled:', CONFIG.FIREBASE.enabled);
+        console.log('🔍 [DEBUG] this.wishesRef:', this.wishesRef);
+        
+        // Si Firebase está deshabilitado, ir directamente al modo local
+        if (!CONFIG.FIREBASE.enabled) {
+            console.log('🔍 [DEBUG] Firebase deshabilitado en configuración, usando modo local');
+            return this.createWishLocally(wishData);
+        }
+        
+        // Si Firebase está habilitado pero no inicializado, intentar inicializar
         if (!this.wishesRef) {
-            // Intentar inicializar Firebase si no está disponible
+            console.log('🔍 [DEBUG] Firebase habilitado pero no inicializado, intentando inicializar...');
             this.initializeFirebase();
             
             // Esperar un poco y verificar de nuevo
@@ -1787,14 +1850,18 @@ class DeseoApp {
             
             if (!this.wishesRef) {
                 // Modo fallback: crear deseo localmente sin Firebase
-                console.warn('⚠️ Firebase no disponible, creando deseo localmente');
+                console.warn('⚠️ Firebase no disponible después de intentar inicializar, creando deseo localmente');
                 return this.createWishLocally(wishData);
             }
         }
 
         try {
+            console.log('🔍 [DEBUG] Iniciando creación de deseo en Firebase...');
+            
             // Obtener ubicación actual del usuario
+            console.log('🔍 [DEBUG] Obteniendo ubicación del usuario...');
             const location = await this.getCurrentLocation();
+            console.log('🔍 [DEBUG] Ubicación obtenida:', location);
             
             const wish = {
                 title: wishData.title,
@@ -1820,9 +1887,16 @@ class DeseoApp {
                 completedAt: null
             };
 
+            console.log('🔍 [DEBUG] Deseo creado:', wish);
+            console.log('🔍 [DEBUG] this.wishesRef:', this.wishesRef);
+            console.log('🔍 [DEBUG] Intentando guardar en Firebase...');
+
             // Guardar en Firebase
             const newWishRef = this.wishesRef.push();
+            console.log('🔍 [DEBUG] Referencia creada:', newWishRef);
+            
             await newWishRef.set(wish);
+            console.log('🔍 [DEBUG] Deseo guardado exitosamente en Firebase');
             
             console.log('✅ Deseo creado exitosamente:', wish.title);
             this.showNotification(`¡Deseo "${wish.title}" creado exitosamente!`, 'success');
@@ -1831,7 +1905,14 @@ class DeseoApp {
             
         } catch (error) {
             console.error('❌ Error creando deseo:', error);
-            this.showNotification('Error al crear el deseo. Inténtalo de nuevo.', 'error');
+            console.error('🔍 [DEBUG] Error details:', error.message);
+            console.error('🔍 [DEBUG] Error code:', error.code);
+            console.error('🔍 [DEBUG] Error stack:', error.stack);
+            console.error('🔍 [DEBUG] Firebase error details:', error.details);
+            console.error('🔍 [DEBUG] this.wishesRef:', this.wishesRef);
+            console.error('🔍 [DEBUG] this.database:', this.database);
+            console.error('🔍 [DEBUG] this.firebase:', this.firebase);
+            this.showNotification(`Error Firebase: ${error.message} (${error.code || 'Sin código'})`, 'error');
             throw error;
         }
     }
@@ -1994,9 +2075,13 @@ class DeseoApp {
 
     // ===== MODO FALLBACK - CREAR DESEO LOCALMENTE =====
     async createWishLocally(wishData) {
+        console.log('🔍 [DEBUG] createWishLocally llamado con:', wishData);
+        
         try {
             // Obtener ubicación actual del usuario
+            console.log('🔍 [DEBUG] Obteniendo ubicación actual...');
             const location = await this.getCurrentLocation();
+            console.log('🔍 [DEBUG] Ubicación obtenida:', location);
             
             const wish = {
                 id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
@@ -2023,18 +2108,29 @@ class DeseoApp {
                 completedAt: null
             };
 
+            console.log('🔍 [DEBUG] Deseo creado:', wish);
+
             // Agregar localmente
             this.wishes.push(wish);
+            console.log('🔍 [DEBUG] Deseo agregado a la lista local');
+            
+            // Agregar marcador al mapa
             this.addWishMarker(wish);
+            console.log('🔍 [DEBUG] Marcador agregado al mapa');
+            
+            // Actualizar lista en sidebar
             this.renderWishListInSidebar();
+            console.log('🔍 [DEBUG] Lista actualizada en sidebar');
             
             console.log('✅ Deseo creado localmente:', wish.title);
-            this.showNotification(`¡Deseo "${wish.title}" creado localmente! (Sin sincronización)`, 'success');
+            this.showNotification(`¡Deseo "${wish.title}" creado exitosamente!`, 'success');
             
             return wish.id;
             
         } catch (error) {
             console.error('❌ Error creando deseo localmente:', error);
+            console.error('🔍 [DEBUG] Error details:', error.message);
+            console.error('🔍 [DEBUG] Error stack:', error.stack);
             this.showNotification('Error al crear el deseo localmente', 'error');
             throw error;
         }

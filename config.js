@@ -1,7 +1,11 @@
 /**
  * CONFIGURACIÓN DE DESEO APP
  * Archivo de configuración para la plataforma de micro-deseos
+ * VERSIÓN 2.0 - Proyecto parcero
  */
+
+console.log('🔥 [CONFIG] Cargando configuración Firebase - VERSIÓN 3.0 - Proyecto parcero');
+console.log('🔥 [CONFIG] Timestamp:', new Date().toISOString());
 
 // ===== CONFIGURACIÓN DE MAPBOX =====
 const CONFIG = {
@@ -149,26 +153,38 @@ const CONFIG = {
     },
 
     // ===== CONFIGURACIÓN DE FIREBASE (Realtime Database) =====
+    // CONFIGURACIÓN REAL - Proyecto parcero - VERSIÓN 2.0
     FIREBASE: {
-        enabled: true,
+        enabled: true, // Habilitado para usar Firebase Realtime Database
         config: {
-            // IMPORTANTE: Reemplaza con tu configuración real de Firebase
-            // Obtén esta configuración en: https://console.firebase.google.com/
-            apiKey: "AIzaSyCIwYtCIlFQMOZGEP3VqEhQ0kycBIFfBMc",
-            authDomain: "deseo-app.firebaseapp.com",
-            projectId: "deseo-app",
-            storageBucket: "deseo-app.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456",
-            databaseURL: "https://deseo-app-default-rtdb.firebaseio.com"
+            // CONFIGURACIÓN REAL - Proyecto parcero
+            apiKey: "AIzaSyCcM6jTBDMl_Ax3tAhbv7OAVaTSAnzFUXw",
+            authDomain: "parcero-6b971.firebaseapp.com",
+            databaseURL: "https://parcero-6b971-default-rtdb.firebaseio.com",
+            projectId: "parcero-6b971",
+            storageBucket: "parcero-6b971.firebasestorage.app",
+            messagingSenderId: "855329582875",
+            appId: "1:855329582875:web:e2926159a49d196cb36dbe",
+            measurementId: "G-604T468RBK"
         },
         database: {
             wishes: 'wishes',
-            users: 'users',
+            users: 'users',     
             conversations: 'conversations'
         }
     }
 };
+
+// ===== VERIFICACIÓN DE CONFIGURACIÓN =====
+console.log('🔥 [CONFIG] Firebase config cargada:', CONFIG.FIREBASE.config);
+console.log('🔥 [CONFIG] databaseURL:', CONFIG.FIREBASE.config.databaseURL);
+console.log('🔥 [CONFIG] projectId:', CONFIG.FIREBASE.config.projectId);
+console.log('🔥 [CONFIG] Verificando configuración completa:', {
+    enabled: CONFIG.FIREBASE.enabled,
+    databaseURL: CONFIG.FIREBASE.config.databaseURL,
+    projectId: CONFIG.FIREBASE.config.projectId,
+    apiKey: CONFIG.FIREBASE.config.apiKey
+});
 
 // ===== FUNCIONES DE UTILIDAD =====
 
@@ -252,30 +268,7 @@ if (typeof module !== 'undefined' && module.exports) {
     window.debugLog = debugLog;
 }
 
-// ===== CONFIGURACIÓN DE FIREBASE =====
-CONFIG.FIREBASE = {
-    enabled: true,
-    config: {
-        // IMPORTANTE: Reemplaza con tu configuración real de Firebase
-        // Obtén esta configuración en: https://console.firebase.google.com/
-        apiKey: "AIzaSyCIwYtCIlFQMOZGEP3VqEhQ0kycBIFfBMc",
-        authDomain: "deseo-app.firebaseapp.com",
-        projectId: "deseo-app",
-        storageBucket: "deseo-app.appspot.com",
-        messagingSenderId: "123456789",
-        appId: "1:123456789:web:abcdef123456"
-    },
-    collections: {
-        wishes: 'wishes',
-        users: 'users',
-        conversations: 'conversations'
-    },
-    auth: {
-        providers: ['google', 'email'],
-        googleClientId: 'YOUR_GOOGLE_CLIENT_ID'
-    }
-};
-
+// ===== LOGS FINALES =====
 console.log('⚙️ Configuración de Deseo App cargada');
 console.log('🗺️ Token de Mapbox:', isMapboxTokenConfigured() ? '✅ Configurado' : '❌ No configurado');
 console.log('🔥 Firebase:', CONFIG.FIREBASE.enabled ? '✅ Habilitado' : '❌ Deshabilitado');

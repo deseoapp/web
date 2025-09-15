@@ -69,10 +69,6 @@ class DeseoApp {
         const authContainer = document.getElementById('authContainer');
         if (authContainer) {
             authContainer.classList.remove('active');
-            // Desmontar el componente de Clerk para limpiar la UI
-            if (window.Clerk && window.Clerk.isSignInStaged()) {
-                window.Clerk.unmountSignIn();
-            }
         }
         this.updateAuthUI(); // Actualizar la UI de tu app (e.g., botón de login/logout, mostrar datos de usuario)
     }
@@ -109,20 +105,49 @@ class DeseoApp {
         }
     }
 
-    showAuthUI() {
+    async showAuthUI() {
         console.log('🚀 showAuthUI called.');
-        const authContainer = document.getElementById('authContainer');
-        if (authContainer && window.Clerk) {
-            console.log('Auth container and Clerk available. Showing modal...');
-            authContainer.classList.add('active'); // Mostrar el modal
-            // Montar el componente de Clerk para SignIn dentro del contenedor
-            window.Clerk.mountSignIn({
-                el: authContainer, // Montar en el authContainer
-                appearance: {},
-                // Puedes añadir más opciones de apariencia o redirección aquí
-            });
-        } else {
-            console.warn('❌ Auth container or Clerk not available. Cannot show UI.', { authContainer: !!authContainer, Clerk: !!window.Clerk });
+        
+        if (!window.Clerk) {
+            console.warn('❌ Clerk SDK not available. Waiting for it to load...');
+            this.showNotification('Cargando sistema de autenticación...', 'info');
+            
+            // Intentar esperar un poco más para que Clerk se cargue
+            setTimeout(() => {
+                if (window.Clerk) {
+                    console.log('✅ Clerk SDK now available, retrying...');
+                    this.showAuthUI();
+                } else {
+                    console.error('❌ Clerk SDK still not available after retry');
+                    this.showNotification('Error: Sistema de autenticación no disponible', 'error');
+                }
+            }, 2000);
+            return;
+        }
+        
+        console.log('✅ Clerk available. Opening sign-in...');
+        
+        try {
+            // Asegurar que Clerk esté completamente cargado
+            if (typeof window.Clerk.load === 'function') {
+                try {
+                    await window.Clerk.load();
+                } catch (e) {
+                    console.warn('⚠️ Clerk.load() lanzó un aviso, continuando:', e);
+                }
+            }
+            
+            // Usar openSignIn() que maneja su propio modal y evita conflictos de DOM
+            if (typeof window.Clerk.openSignIn === 'function') {
+                console.log('✅ Abriendo modal de sign-in con Clerk...');
+                window.Clerk.openSignIn();
+            } else {
+                throw new Error('Clerk.openSignIn no está disponible');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error opening Clerk sign-in:', error);
+            this.showNotification('Error al abrir el formulario de autenticación', 'error');
         }
     }
 

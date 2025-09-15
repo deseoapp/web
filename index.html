@@ -310,13 +310,12 @@
     
     <!-- Clerk SDKs -->
     <script
-      async
-      crossorigin="anonymous"
-      data-clerk-publishable-key="pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ"
-      id="clerk-js"
-      src="https://cdnjs.cloudflare.com/ajax/libs/clerk-js/5.88.0/clerk.min.js"
-      type="application/javascript"
-    ></script>
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
+    </script>
+
 
     <!-- Inicialización GLOBAL de la aplicación y Clerk -->
     <script type="module">
@@ -331,44 +330,67 @@
                 console.log('DeseoApp ya estaba inicializada.');
             }
             
+            // Función para esperar a que Clerk esté disponible
+            async function waitForClerk() {
+                let attempts = 0;
+                const maxAttempts = 50; // 5 segundos máximo
+                
+                while (attempts < maxAttempts) {
+                    if (window.Clerk) {
+                        console.log('✅ Clerk SDK detected after', attempts * 100, 'ms');
+                        return true;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                return false;
+            }
+            
             // Inicializar Clerk
-            if (CONFIG.CLERK.enabled && window.Clerk) {
-                try {
-                    await window.Clerk.load();
-                    console.log('Clerk SDK loaded successfully.');
+            if (CONFIG.CLERK.enabled) {
+                console.log('⏳ Waiting for Clerk SDK to load...');
+                const clerkAvailable = await waitForClerk();
+                
+                if (clerkAvailable) {
+                    try {
+                        await window.Clerk.load();
+                        console.log('✅ Clerk SDK loaded successfully.');
 
-                    window.Clerk.addListener(({ user }) => {
-                        if (user) {
-                            console.log('👤 Usuario autenticado con Clerk:', user);
-                            if (window.deseoApp) {
-                                window.deseoApp.handleClerkSignIn(user);
+                        window.Clerk.addListener(({ user }) => {
+                            if (user) {
+                                console.log('👤 Usuario autenticado con Clerk:', user);
+                                if (window.deseoApp) {
+                                    window.deseoApp.handleClerkSignIn(user);
+                                }
+                            } else {
+                                console.log('👤 Usuario no autenticado con Clerk');
+                                if (window.deseoApp) {
+                                    window.deseoApp.handleClerkSignOut();
+                                }
                             }
-                        } else {
-                            console.log('👤 Usuario no autenticado con Clerk');
-                            if (window.deseoApp) {
-                                window.deseoApp.handleClerkSignOut();
-                            }
+                        });
+
+                        // Verificar el estado inicial después de que Clerk se cargue
+                        if (window.Clerk.user && window.deseoApp) {
+                            window.deseoApp.handleClerkSignIn(window.Clerk.user);
+                        } else if (window.deseoApp) {
+                            console.log('Clerk Ready, pero no hay usuario autenticado. Esperando interacción.');
+                            window.deseoApp.handleClerkSignOut(); // Asegurar que la UI se actualice al estado de no logueado
                         }
-                    });
+                        
+                        // Forzar actualización de UI para el botón de auth después de que Clerk se haya cargado
+                        if (window.deseoApp) {
+                            window.deseoApp.updateAuthUI();
+                        }
 
-                    // Verificar el estado inicial después de que Clerk se cargue
-                    if (window.Clerk.user && window.deseoApp) {
-                        window.deseoApp.handleClerkSignIn(window.Clerk.user);
-                    } else if (window.deseoApp) {
-                        console.log('Clerk Ready, pero no hay usuario autenticado. Esperando interacción.');
-                        window.deseoApp.handleClerkSignOut(); // Asegurar que la UI se actualice al estado de no logueado
+                    } catch (err) {
+                        console.error("❌ Error loading Clerk:", err);
                     }
-                    
-                    // Forzar actualización de UI para el botón de auth después de que Clerk se haya cargado
-                    if (window.deseoApp) {
-                        window.deseoApp.updateAuthUI();
-                    }
-
-                } catch (err) {
-                    console.error("Error loading Clerk:", err);
+                } else {
+                    console.error("❌ Clerk SDK no se pudo cargar después de 5 segundos");
                 }
             } else {
-                console.log("Clerk no está habilitado o el SDK no está disponible.");
+                console.log("Clerk no está habilitado.");
             }
 
             // Llamadas iniciales que dependen de DeseoApp y el DOM

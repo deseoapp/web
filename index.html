@@ -19,22 +19,31 @@
             <div class="sidebar-header">
                 <div class="logo">
                     <i class="fas fa-compass"></i>
-                    <h1>Deseos</h1> <!-- Cambiado de outletbuddy a Deseos -->
+                    <h1>Deseos</h1>
                 </div>
                 <button class="sidebar-toggle" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="#" onclick="window.deseoApp.showAuthUI()" id="authButton"><i class="fas fa-user"></i> Iniciar Sesión</a></li> <!-- Botón de Auth -->
+                    <li><a href="#"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li><a href="#"><i class="fas fa-wallet"></i> Billetera</a></li>
+                    <li><a href="#"><i class="fas fa-cog"></i> Configuración</a></li>
+                    <li><a href="#" id="themeToggle"><i class="fas fa-moon"></i> Tema</a></li> <!-- Botón de alternar tema -->
+                </ul>
+            </nav>
 
             <div class="search-bar">
-                <input type="text" placeholder="Buscar deseos..." id="wishSearchInput"> <!-- Cambiado placeholder e ID -->
+                <input type="text" placeholder="Buscar deseos..." id="wishSearchInput">
                 <button><i class="fas fa-search"></i></button>
             </div>
 
             <div class="filters">
                 <div class="filter-group">
                     <span>Categoría:</span>
-                    <select id="categoryFilterSidebar"> <!-- Nuevo ID para evitar conflicto con modal -->
+                    <select id="categoryFilterSidebar">
                         <option value="">Todas</option>
                         <option value="comida">Comida</option>
                         <option value="servicios">Servicios</option>
@@ -51,7 +60,7 @@
                 <button class="btn-filter" id="applySidebarFiltersBtn"><i class="fas fa-filter"></i> Aplicar Filtros</button>
             </div>
 
-            <div class="wish-list" id="wishList"> <!-- Cambiado de store-list a wish-list -->
+            <div class="wish-list" id="wishList">
                 <!-- Los items de deseos se cargarán dinámicamente aquí -->
                 <div class="wish-item">
                     <div class="wish-logo"><i class="fas fa-utensils"></i></div>
@@ -86,24 +95,24 @@
             </button>
 
             <!-- Tarjeta de detalles del deseo (oculta por defecto) -->
-            <div class="wish-details-card" id="wishDetailsCard"> <!-- Cambiado de store-details-card a wish-details-card -->
+            <div class="wish-details-card" id="wishDetailsCard">
                 <button class="close-details-card" onclick="document.getElementById('wishDetailsCard').classList.remove('active');">
                     <i class="fas fa-times"></i>
                 </button>
                 <div class="card-header">
-                    <div class="wish-logo-small"><img src="" alt="" id="wishDetailsCardLogo"></div> <!-- Adaptado para logo de deseo -->
+                    <div class="wish-logo-small"><img src="" alt="" id="wishDetailsCardLogo"></div>
                     <div class="wish-info-small">
                         <h3 id="wishDetailsCardTitle"></h3>
                         <p id="wishDetailsCardCategoryPrice"></p>
                     </div>
                     <div class="wish-meta">
-                        <span class="location"><i class="fas fa-map-marker-alt"></i> Ubicación</span> <!-- Adaptado a ubicación -->
+                        <span class="location"><i class="fas fa-map-marker-alt"></i> Ubicación</span>
                         <span class="price-tag" id="wishDetailsCardPrice"></span>
                     </div>
                 </div>
                 <div class="card-body">
                     <h4 id="wishDetailsCardDescription"></h4>
-                    <p class="wish-author" id="wishDetailsCardAuthor"></p> <!-- Para mostrar autor -->
+                    <p class="wish-author" id="wishDetailsCardAuthor"></p>
                     <button class="btn-primary" id="acceptWishBtnCard">Aceptar Deseo</button>
                     <button class="btn-secondary" id="viewChatBtnCard" style="display: none;">Ver Chat</button>
                 </div>
@@ -114,69 +123,8 @@
     <!-- Notificaciones y Modales (mantener existentes) -->
     <div class="notification-container" id="notificationContainer"></div>
 
-    <!-- Modal de Autenticación (mantener tal cual) -->
-    <div class="modal" id="authModal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2><i class="fas fa-user"></i> Iniciar Sesión</h2>
-                <button class="close-btn" onclick="closeAuthModal()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <!-- Tabs de login/registro -->
-                <div class="auth-tabs">
-                    <button class="auth-tab active" onclick="switchAuthTab('login')">Iniciar Sesión</button>
-                    <button class="auth-tab" onclick="switchAuthTab('register')">Registrarse</button>
-                </div>
-                
-                <!-- Formulario de login -->
-                <div id="loginForm" class="auth-form">
-                    <form onsubmit="handleEmailLogin(event)">
-                        <div class="form-group">
-                            <label for="loginEmail">Correo:</label>
-                            <input type="email" id="loginEmail" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="loginPassword">Contraseña:</label>
-                            <input type="password" id="loginPassword" required>
-                        </div>
-                        <button type="submit" class="btn-primary">Iniciar Sesión</button>
-                    </form>
-                </div>
-                
-                <!-- Formulario de registro -->
-                <div id="registerForm" class="auth-form" style="display: none;">
-                    <form onsubmit="handleEmailRegister(event)">
-                        <div class="form-group">
-                            <label for="registerEmail">Correo:</label>
-                            <input type="email" id="registerEmail" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerPassword">Contraseña:</label>
-                            <input type="password" id="registerPassword" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="registerName">Nombre completo:</label>
-                            <input type="text" id="registerName" required>
-                        </div>
-                        <button type="submit" class="btn-primary">Registrarse</button>
-                    </form>
-                </div>
-                
-                <!-- Divider -->
-                <div class="auth-divider">
-                    <span>o</span>
-                </div>
-                
-                <!-- Google Sign-In -->
-                <button class="btn-google" onclick="handleGoogleSignIn()">
-                    <i class="fab fa-google"></i>
-                    Continuar con Google
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Modal de Autenticación (se reemplazará por Clerk UI) -->
+    <div id="authContainer" class="modal"></div> <!-- Aseguramos que sea un modal para que Clerk pueda renderizar -->
 
     <!-- Modal para crear deseo con IA -->
     <div class="modal" id="createWishModal">
@@ -223,7 +171,7 @@
     </div>
 
     <!-- Modal para detalles del deseo (Este modal ahora es la tarjeta flotante, su uso directo debería ser mínimo) -->
-    <div class="modal" id="wishDetailsModal" style="display:none;"> <!-- Ocultar este modal, se usa la tarjeta flotante -->
+    <div class="modal" id="wishDetailsModal" style="display:none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="wishDetailsTitle"></h2>
@@ -359,37 +307,44 @@
     <!-- Scripts -->
     <script src="config.js"></script>
     
-    <!-- Firebase SDKs -->
+    <!-- Clerk SDKs -->
+    <script
+      async
+      data-clerk-publishable-key="pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ"
+      id="clerk-js"
+      src="https://js.clerk.com/v1/clerk.browser.js" <!-- URL DE CLERK SDK CORREGIDA -->
+      type="application/javascript"
+    ></script>
+
+    <!-- Inicialización de Clerk y renderizado de componentes -->
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-        import { getStorage, ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
-        
-        // Inicializar Firebase
-        if (CONFIG.FIREBASE.enabled) {
-            const app = initializeApp(CONFIG.FIREBASE.config);
-            const db = getFirestore(app);
-            const auth = getAuth(app);
-            const storage = getStorage(app);
-            
-            // Hacer disponible globalmente
-            window.firebaseApp = app;
-            window.firebaseDB = db;
-            window.firebaseAuth = auth;
-            window.firebaseStorage = storage;
-            window.firebaseCollections = CONFIG.FIREBASE.collections;
-            window.firebaseFunctions = { 
-                collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
-                signInWithEmailAndPassword, createUserWithEmailAndPassword, 
-                signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
-                ref, uploadBytes, getDownloadURL
-            };
-            
-            console.log('🔥 Firebase inicializado correctamente');
+        if (CONFIG.CLERK.enabled && window.Clerk) {
+            window.Clerk.load().then(() => {
+                window.Clerk.addListener(({ user }) => {
+                    if (user) {
+                        console.log('👤 Usuario autenticado con Clerk:', user);
+                        window.deseoApp.handleClerkSignIn(user);
+                    } else {
+                        console.log('👤 Usuario no autenticado con Clerk');
+                        window.deseoApp.handleClerkSignOut();
+                    }
+                });
+
+                if (window.Clerk.user) {
+                    window.deseoApp.handleClerkSignIn(window.Clerk.user);
+                } else {
+                    console.log('Clerk Ready, pero no hay usuario autenticado. Esperando interacción.');
+                }
+                // Asegurarse de que la UI de autenticación se inicialice
+                window.deseoApp.updateAuthUI();
+
+            }).catch(err => {
+                console.error("Error loading Clerk:", err);
+            });
+        } else {
+            console.log("Clerk no está habilitado o el SDK no está disponible.");
         }
     </script>
-    
-    <!-- No SDK needed - using REST API directly -->
+
     <script src="script-mapbox.js"></script>
 </body>

@@ -10,241 +10,6 @@
  * - Filtros y búsqueda
  */
 
-// ===== FUNCIONES DE AUTENTICACIÓN (GLOBALES) =====
-
-// Función para mostrar el modal de autenticación
-function showAuthModal() {
-    const authModal = document.getElementById('authModal');
-    if (authModal) {
-        authModal.style.display = 'flex';
-    }
-}
-
-// Función para cerrar el modal de autenticación
-function closeAuthModal() {
-    const authModal = document.getElementById('authModal');
-    if (authModal) {
-        authModal.style.display = 'none';
-    }
-}
-
-// Función para cambiar entre tabs de login/registro
-function switchAuthTab(tab) {
-    document.querySelectorAll('.auth-form').forEach(form => {
-        form.style.display = 'none';
-    });
-    document.querySelectorAll('.auth-tab').forEach(t => {
-        t.classList.remove('active');
-    });
-
-    if (tab === 'login') {
-        const loginForm = document.getElementById('loginForm');
-        const loginTab = document.querySelector('.auth-tab[onclick*="login"]');
-        if (loginForm) loginForm.style.display = 'block';
-        if (loginTab) loginTab.classList.add('active');
-    } else {
-        const registerForm = document.getElementById('registerForm');
-        const registerTab = document.querySelector('.auth-tab[onclick*="register"]');
-        if (registerForm) registerForm.style.display = 'block';
-        if (registerTab) registerTab.classList.add('active');
-    }
-}
-
-// Función para manejar login con email y contraseña
-async function handleEmailLogin(event) {
-    event.preventDefault();
-    const emailInput = document.getElementById('loginEmail');
-    const passwordInput = document.getElementById('loginPassword');
-
-    if (!emailInput || !passwordInput) return;
-
-    const email = emailInput.value;
-    const password = passwordInput.value;
-
-    try {
-        if (!window.firebaseAuth || !window.firebaseFunctions) {
-            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
-        }
-        
-        const userCredential = await window.firebaseFunctions.signInWithEmailAndPassword(
-            window.firebaseAuth, email, password
-        );
-        
-        console.log('✅ Login exitoso:', userCredential.user);
-        closeAuthModal();
-        window.deseoApp.showNotification('¡Bienvenido!', 'success');
-        
-        emailInput.value = '';
-        passwordInput.value = '';
-        
-    } catch (error) {
-        console.error('❌ Error en login:', error);
-        let errorMessage = 'Error en el login';
-        
-        if (error.code === 'auth/user-not-found') {
-            errorMessage = 'No existe una cuenta con este correo.';
-        } else if (error.code === 'auth/wrong-password') {
-            errorMessage = 'Contraseña incorrecta.';
-        } else if (error.code === 'auth/invalid-email') {
-            errorMessage = 'Correo inválido.';
-        } else if (error.code === 'auth/too-many-requests') {
-            errorMessage = 'Demasiados intentos. Intenta más tarde.';
-        } else {
-            errorMessage = error.message;
-        }
-        
-        window.deseoApp.showNotification(errorMessage, 'error');
-    }
-}
-
-// Función para manejar registro con email y contraseña
-async function handleEmailRegister(event) {
-    event.preventDefault();
-    const emailInput = document.getElementById('registerEmail');
-    const passwordInput = document.getElementById('registerPassword');
-    const nameInput = document.getElementById('registerName');
-
-    if (!emailInput || !passwordInput || !nameInput) return;
-
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    const name = nameInput.value;
-    
-    try {
-        if (!window.firebaseAuth || !window.firebaseFunctions) {
-            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
-        }
-        
-        const userCredential = await window.firebaseFunctions.createUserWithEmailAndPassword(
-            window.firebaseAuth, email, password
-        );
-        
-        // Guardar datos adicionales del usuario en Firestore
-        if (window.firebaseDB && userCredential.user) {
-            await window.firebaseFunctions.addDoc(
-                window.firebaseFunctions.collection(window.firebaseDB, window.firebaseCollections.users),
-                {
-                    uid: userCredential.user.uid,
-                    email: userCredential.user.email,
-                    fullName: name,
-                    createdAt: new Date().toISOString(),
-                    lastLogin: new Date().toISOString()
-                }
-            );
-        }
-        
-        console.log('✅ Registro exitoso:', userCredential.user);
-        closeAuthModal();
-        window.deseoApp.showNotification('¡Cuenta creada exitosamente!', 'success');
-        
-        emailInput.value = '';
-        passwordInput.value = '';
-        nameInput.value = '';
-        
-    } catch (error) {
-        console.error('❌ Error en registro:', error);
-        let errorMessage = 'Error en el registro';
-        
-        if (error.code === 'auth/email-already-in-use') {
-            errorMessage = 'Ya existe una cuenta con este correo.';
-        } else if (error.code === 'auth/weak-password') {
-            errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
-        } else if (error.code === 'auth/invalid-email') {
-            errorMessage = 'Correo inválido.';
-        } else {
-            errorMessage = error.message;
-        }
-        
-        window.deseoApp.showNotification(errorMessage, 'error');
-    }
-}
-
-// Función para manejar Google Sign-In
-async function handleGoogleSignIn() {
-    try {
-        if (!window.firebaseAuth || !window.firebaseFunctions) {
-            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
-        }
-        
-        const provider = new window.firebaseFunctions.GoogleAuthProvider();
-        provider.setCustomParameters({
-            prompt: 'select_account'
-        });
-        
-        const result = await window.firebaseFunctions.signInWithPopup(
-            window.firebaseAuth, provider
-        );
-        
-        // Guardar datos del usuario en Firestore si es nuevo
-        if (window.firebaseDB && result.additionalUserInfo.isNewUser) {
-            await window.firebaseFunctions.addDoc(
-                window.firebaseFunctions.collection(window.firebaseDB, window.firebaseCollections.users),
-                {
-                    uid: result.user.uid,
-                    email: result.user.email,
-                    fullName: result.user.displayName,
-                    photoURL: result.user.photoURL,
-                    createdAt: new Date().toISOString(),
-                    lastLogin: new Date().toISOString(),
-                    provider: 'google'
-                }
-            );
-        }
-        
-        console.log('✅ Google Sign-In exitoso:', result.user);
-        closeAuthModal();
-        window.deseoApp.showNotification('¡Bienvenido con Google!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error en Google Sign-In:', error);
-        let errorMessage = 'Error en Google Sign-In';
-        
-        if (error.code === 'auth/popup-closed-by-user') {
-            errorMessage = 'Inicio de sesión cancelado por el usuario.';
-        } else if (error.code === 'auth/popup-blocked') {
-            errorMessage = 'Popup bloqueado. Por favor, permite las ventanas emergentes para continuar.';
-        } else if (error.code === 'auth/cancelled-popup-request') {
-            errorMessage = 'La solicitud de popup fue cancelada. Intenta de nuevo.';
-        } else {
-            errorMessage = error.message;
-        }
-        
-        window.deseoApp.showNotification(errorMessage, 'error');
-    }
-}
-
-// Función para manejar logout
-async function handleLogout() {
-    try {
-        if (!window.firebaseAuth || !window.firebaseFunctions) {
-            throw new Error('Firebase no está configurado o no se ha inicializado correctamente.');
-        }
-        
-        await window.firebaseFunctions.signOut(window.firebaseAuth);
-        window.deseoApp.showNotification('Sesión cerrada exitosamente.', 'info');
-        
-    } catch (error) {
-        console.error('❌ Error al cerrar sesión:', error);
-        window.deseoApp.showNotification('Error al cerrar sesión: ' + error.message, 'error');
-    }
-}
-
-// Función para actualizar el botón de autenticación en la UI
-function updateAuthButton(user) {
-    const authButton = document.getElementById('authButton');
-    if (!authButton) return;
-    
-    if (user) {
-        authButton.innerHTML = `<i class="fas fa-user"></i> ${user.displayName || user.email}`;
-        authButton.onclick = handleLogout;
-        authButton.title = 'Cerrar sesión';
-    } else {
-        authButton.innerHTML = '<i class="fas fa-user"></i> Iniciar Sesión';
-        authButton.onclick = showAuthModal;
-        authButton.title = 'Iniciar sesión';
-    }
-}
-
 // ===== CONFIGURACIÓN DE MAPBOX (REQUIERE CONFIG.JS) =====
 // La configuración se carga desde config.js
 const MAPBOX_TOKEN = CONFIG.MAPBOX_TOKEN;
@@ -271,7 +36,7 @@ class DeseoApp {
         this.map = null;
         this.wishes = []; // Vuelve a ser 'wishes'
         this.markers = [];
-        this.currentUser = { id: 'user1', name: 'Usuario Actual' };
+        this.currentUser = null; // Inicialmente null, se establecerá con Clerk
         this.activeChat = null;
         this.userLocation = null;
         this.userLocationMarker = null;
@@ -290,21 +55,82 @@ class DeseoApp {
         this.initializeApp();
     }
 
+    // ===== MANEJO DE AUTENTICACIÓN CON CLERK =====
+    handleClerkSignIn(user) {
+        console.log('Clerk Sign In - User:', user);
+        this.currentUser = {
+            id: user.id,
+            name: user.fullName || user.emailAddresses[0].emailAddress, // Clerk proporciona fullName
+            email: user.emailAddresses[0].emailAddress,
+            profileImageUrl: user.profileImageUrl
+        };
+        this.showNotification(`¡Bienvenido, ${this.currentUser.name}!`, 'success');
+        // Cerrar el modal de autenticación si está abierto
+        const authContainer = document.getElementById('authContainer');
+        if (authContainer) {
+            authContainer.classList.remove('active');
+            // Desmontar el componente de Clerk para limpiar la UI
+            if (window.Clerk.isSignInStaged()) {
+                window.Clerk.unmountSignIn();
+            }
+        }
+        this.updateAuthUI(); // Actualizar la UI de tu app (e.g., botón de login/logout, mostrar datos de usuario)
+    }
+
+    handleClerkSignOut() {
+        console.log('Clerk Sign Out');
+        this.currentUser = null;
+        this.showNotification('Sesión cerrada exitosamente.', 'info');
+        this.updateAuthUI();
+    }
+
+    updateAuthUI() {
+        const authButton = document.getElementById('authButton');
+        if (!authButton) return; 
+        
+        // Limpiar onclick previo para evitar múltiples listeners
+        authButton.onclick = null;
+
+        if (this.currentUser) {
+            authButton.innerHTML = `<img src="${this.currentUser.profileImageUrl}" alt="${this.currentUser.name}" class="user-avatar-small"> ${this.currentUser.name}`;
+            authButton.onclick = () => window.Clerk.signOut(); 
+            authButton.title = 'Cerrar sesión';
+        } else {
+            authButton.innerHTML = '<i class="fas fa-user"></i> Iniciar Sesión';
+            authButton.onclick = () => this.showAuthUI(); // Llama a la nueva función
+            authButton.title = 'Iniciar sesión';
+        }
+    }
+
+    showAuthUI() {
+        const authContainer = document.getElementById('authContainer');
+        if (authContainer && window.Clerk) {
+            authContainer.classList.add('active'); // Mostrar el modal
+            // Montar el componente de Clerk para SignIn dentro del contenedor
+            window.Clerk.mountSignIn({
+                el: authContainer, // Montar en el authContainer
+                appearance: {},
+                // Puedes añadir más opciones de apariencia o redirección aquí
+            });
+        }
+    }
+
     // ===== INICIALIZACIÓN DE LA APLICACIÓN =====
     async initializeApp() {
         try {
             this.loadSavedTheme();
             await this.initializeMapbox();
             this.setupEventListeners();
-            this.generateSampleWishes(); // Vuelve a generateSampleWishes
-            this.renderWishesOnMap();    // Vuelve a renderWishesOnMap
+            this.generateSampleWishes(); 
+            this.renderWishesOnMap();    
             
-            // Inicializar Gemini después de que todo esté cargado
             setTimeout(() => {
                 this.gemini = this.initializeGeminiClient();
                 console.log('Gemini client initialized:', !!this.gemini);
             }, 1000);
             
+            this.updateAuthUI();
+
             this.showNotification('¡Bienvenido a Deseo! Explora deseos cerca de ti.', 'success');
         } catch (error) {
             console.error('Error inicializando la aplicación:', error);
@@ -388,8 +214,9 @@ class DeseoApp {
         });
         document.getElementById('applySidebarFiltersBtn').addEventListener('click', () => this.applySidebarFilters());
 
-        // Modales - botones de cerrar (adaptados si los IDs cambiaron)
+        // Modales - botones de cerrar
         document.getElementById('closeCreateModal').addEventListener('click', () => this.closeModal('createWishModal'));
+        // document.getElementById('closeDetailsModal').addEventListener('click', () => this.closeModal('wishDetailsModal')); // Obsoleto, la tarjeta flotante se cierra con su propio botón
         document.getElementById('closeChatModal').addEventListener('click', () => this.closeModal('privateChatModal'));
         document.getElementById('closeRatingModal').addEventListener('click', () => this.closeModal('ratingModal'));
         document.getElementById('closeFilterModal').addEventListener('click', () => this.closeModal('filterModal'));
@@ -1572,13 +1399,22 @@ class DeseoApp {
     // ===== CARGAR TEMA GUARDADO =====
     loadSavedTheme() {
         const savedTheme = localStorage.getItem('deseo-theme');
+        const themeToggle = document.querySelector('#themeToggle i'); // Seleccionar el icono dentro del botón
+
         if (savedTheme) {
             document.documentElement.setAttribute('data-theme', savedTheme);
-            const themeIcon = document.querySelector('#themeToggle i');
-            if (savedTheme === 'light') {
-                themeIcon.className = 'fas fa-sun';
-            } else {
-                themeIcon.className = 'fas fa-moon';
+            if (themeToggle) {
+                if (savedTheme === 'light') {
+                    themeToggle.className = 'fas fa-sun';
+                } else {
+                    themeToggle.className = 'fas fa-moon';
+                }
+            }
+        } else {
+            // Si no hay tema guardado, aplicar el tema por defecto (oscuro) y actualizar el icono
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (themeToggle) {
+                themeToggle.className = 'fas fa-moon';
             }
         }
     }
@@ -1633,7 +1469,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h1>Error de Carga</h1>
                 <p>Mapbox GL JS no se pudo cargar. Verifica tu conexión a internet.</p>
                 <button onclick="location.reload()" style="padding: 10px 20px; margin-top: 20px; background: #6366f1; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Recargar Página
+                Recargar Página
                 </button>
             </div>
         `;
@@ -1643,26 +1479,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializar la aplicación principal
     window.deseoApp = new DeseoApp();
 
-    // Escuchar cambios de estado de autenticación de Firebase
-    // Este listener se adjunta una vez que el DOM está listo y firebaseAuth debería estar inicializado.
-    if (window.firebaseAuth && window.firebaseFunctions) {
-        window.firebaseFunctions.onAuthStateChanged(window.firebaseAuth, (user) => {
-            if (user) {
-                console.log('👤 Usuario autenticado:', user);
-                updateAuthButton(user);
-            } else {
-                console.log('👤 Usuario no autenticado');
-                updateAuthButton(null);
-            }
-        });
-    } else {
-        console.log('⚠️ Firebase Auth no disponible. Algunas funcionalidades pueden estar limitadas.');
-        // Asegurarse de que el botón de autenticación muestre el estado correcto incluso sin Firebase activo
-        updateAuthButton(null);
-    }
+    // Este listener ya no es necesario con Clerk
+    // if (window.firebaseAuth && window.firebaseFunctions) {
+    //     window.firebaseFunctions.onAuthStateChanged(window.firebaseAuth, (user) => {
+    //         if (user) {
+    //             console.log('👤 Usuario autenticado:', user);
+    //             updateAuthButton(user);
+    //         } else {
+    //             console.log('👤 Usuario no autenticado');
+    //             updateAuthButton(null);
+    //         }
+    //     });
+    // } else {
+    //     console.log('⚠️ Firebase Auth no disponible. Algunas funcionalidades pueden estar limitadas.');
+    //     updateAuthButton(null);
+    // }
     
     // Inicializar la lista de deseos en el sidebar
-    window.deseoApp.renderWishListInSidebar(); // Cambiado de updateStoreList
+    window.deseoApp.renderWishListInSidebar();
 
     // Inicializar listeners de filtros del sidebar
     document.getElementById('priceFilterSidebar').addEventListener('input', (e) => {
@@ -1676,11 +1510,16 @@ document.addEventListener('DOMContentLoaded', () => {
         priceValueSidebar.textContent = `$${priceFilterSidebar.value}`;
     }
 
-console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
-console.log('📱 Plataforma de micro-deseos con mapa real');
-console.log('🤖 IA simulada activa');
-console.log('🗺️ Mapa interactivo de Mapbox funcionando');
-console.log('💬 Sistema de chat implementado');
-console.log('⭐ Sistema de calificaciones activo');
+    // Montar el UserButton de Clerk si el usuario ya está autenticado al cargar la página.
+    // Esto es solo si deseas un UserButton en un lugar fijo en lugar de siempre el SignIn.
+    // Si el usuario está autenticado, la UI se actualiza con updateAuthUI().
+    // Si no, showAuthUI() es llamada por el click en #authButton.
+
+    console.log('🗺️ Deseo App con Mapbox cargada exitosamente!');
+    console.log('📱 Plataforma de micro-deseos con mapa real');
+    console.log('🤖 IA simulada activa');
+    console.log('🗺️ Mapa interactivo de Mapbox funcionando');
+    console.log('💬 Sistema de chat implementado');
+    console.log('⭐ Sistema de calificaciones activo');
     console.log('🔥 Sistema de autenticación implementado');
 });

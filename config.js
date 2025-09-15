@@ -140,6 +140,36 @@ const CONFIG = {
     DEBUG: {
         enabled: false,
         logLevel: 'info' // 'debug', 'info', 'warn', 'error'
+    },
+
+    // CLERK AUTHENTICATION CONFIGURATION
+    CLERK: {
+        enabled: true,
+        publishableKey: 'pk_test_bWVycnktamF5LTExLmNsZXJrLmFjY291bnRzLmRldiQ' // Reemplaza con tu clave publicable de Clerk
+    },
+
+    // ===== CONFIGURACIÓN DE FIREBASE (Mantenemos por Firestore/Storage si se usa) =====
+    FIREBASE: {
+        enabled: true,
+        config: {
+            // IMPORTANTE: Reemplaza con tu configuración real de Firebase
+            // Obtén esta configuración en: https://console.firebase.google.com/
+            apiKey: "AIzaSyCIwYtCIlFQMOZGEP3VqEhQ0kycBIFfBMc",
+            authDomain: "deseo-app.firebaseapp.com",
+            projectId: "deseo-app",
+            storageBucket: "deseo-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        },
+        collections: {
+            wishes: 'wishes',
+            users: 'users',
+            conversations: 'conversations'
+        },
+        // auth: { // Eliminada la configuración de autenticación de Firebase
+        //     providers: ['google', 'email'],
+        //     googleClientId: 'YOUR_GOOGLE_CLIENT_ID'
+        // }
     }
 };
 

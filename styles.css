@@ -138,6 +138,56 @@ body {
     background: var(--hover-bg);
 }
 
+/* Estilos para la navegación principal */
+.main-nav {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.main-nav ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.main-nav ul li a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-sm);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.main-nav ul li a:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.main-nav ul li a i {
+    font-size: 1.1rem;
+    color: var(--text-light);
+}
+
+.main-nav ul li a:hover i {
+    color: var(--primary-color);
+}
+
+/* Estilo específico para el botón de autenticación cuando el usuario está logueado (avatar) */
+.user-avatar-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
 .search-bar {
     display: flex;
     padding: 1rem 1.5rem;
@@ -953,4 +1003,23 @@ body {
 .wish-pin,
 .user-location-marker {
     display: none !important;
+}
+
+/* Ajustes para el authContainer de Clerk (para que se comporte como un modal) */
+#authContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Fondo oscuro semitransparente */
+    display: none; /* Oculto por defecto */
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+}
+
+#authContainer.active {
+    display: flex;
 }

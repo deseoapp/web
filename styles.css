@@ -1065,7 +1065,7 @@ body {
     .modal-body {
         padding: 1rem;
     }
-
+    
     /* Flotante siempre visible en móvil para crear deseos */
     .floating-btn {
         bottom: 1rem;

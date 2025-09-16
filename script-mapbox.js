@@ -1239,23 +1239,27 @@ class DeseoApp {
         // Guardar el deseo actual para acciones futuras
         this.currentWish = wish;
 
+        // Asegurar que wish.author existe y tiene la estructura correcta
+        const author = wish.author || { id: 'anonymous', name: 'Usuario Anónimo' };
+        const currentUserId = this.currentUser?.id || 'anonymous';
+
         // Actualizar el contenido de la tarjeta con los detalles del deseo
         document.getElementById('wishDetailsCardLogo').src = this.getCategoryLogo(wish.category);
         document.getElementById('wishDetailsCardLogo').alt = wish.category;
         document.getElementById('wishDetailsCardTitle').textContent = wish.title;
-        document.getElementById('wishDetailsCardCategoryPrice').textContent = `$${wish.price} • ${this.getCategoryName(wish.category)}`;
-        document.getElementById('wishDetailsCardPrice').textContent = `$${wish.price}`;
+        document.getElementById('wishDetailsCardCategoryPrice').textContent = `${wish.priceFormatted || '$' + wish.price} • ${this.getCategoryName(wish.category)}`;
+        document.getElementById('wishDetailsCardPrice').textContent = wish.priceFormatted || '$' + wish.price;
         document.getElementById('wishDetailsCardDescription').textContent = wish.description;
-        document.getElementById('wishDetailsCardAuthor').textContent = `Autor: ${wish.author ? wish.author.name : 'Anónimo'}`;
+        document.getElementById('wishDetailsCardAuthor').textContent = `Autor: ${author.name}`;
 
         // Mostrar u ocultar el botón de chatear/aceptar según el estado y si es el autor
         const acceptBtn = document.getElementById('acceptWishBtnCard');
         const viewChatBtn = document.getElementById('viewChatBtnCard');
 
-        if (wish.status === 'active' && wish.author.id !== this.currentUser.id) {
+        if (wish.status === 'active' && author.id !== currentUserId) {
             acceptBtn.style.display = 'block';
             viewChatBtn.style.display = 'none';
-        } else if (wish.status === 'in_progress' && (wish.author.id === this.currentUser.id || wish.acceptedBy.id === this.currentUser.id)) {
+        } else if (wish.status === 'in_progress' && (author.id === currentUserId || (wish.acceptedBy && wish.acceptedBy.id === currentUserId))) {
             acceptBtn.style.display = 'none';
             viewChatBtn.style.display = 'block';
         } else {
@@ -1782,6 +1786,39 @@ class DeseoApp {
         }
     }
 
+    // ===== NORMALIZACIÓN DE DATOS =====
+    normalizeWishData(wish) {
+        // Asegurar que el deseo tenga la estructura correcta
+        if (!wish.author) {
+            wish.author = { id: 'anonymous', name: 'Usuario Anónimo' };
+        }
+        
+        if (!wish.author.id) {
+            wish.author.id = 'anonymous';
+        }
+        
+        if (!wish.author.name) {
+            wish.author.name = 'Usuario Anónimo';
+        }
+        
+        if (!wish.status) {
+            wish.status = 'active';
+        }
+        
+        if (!wish.priceFormatted && wish.price) {
+            wish.priceFormatted = this.formatPrice(wish.price);
+        }
+        
+        if (!wish.location && wish.coordinates) {
+            wish.location = {
+                lat: wish.coordinates[1],
+                lng: wish.coordinates[0]
+            };
+        }
+        
+        return wish;
+    }
+
     // ===== LISTENERS DE TIEMPO REAL =====
     setupRealtimeListeners() {
         if (!this.wishesRef) return;
@@ -1790,6 +1827,9 @@ class DeseoApp {
         this.wishesRef.on('child_added', (snapshot) => {
             const wish = snapshot.val();
             wish.id = snapshot.key;
+            
+            // Asegurar que el deseo tenga la estructura correcta
+            this.normalizeWishData(wish);
             
             // Solo agregar si no existe ya
             if (!this.wishes.find(w => w.id === wish.id)) {
@@ -1804,6 +1844,9 @@ class DeseoApp {
         this.wishesRef.on('child_changed', (snapshot) => {
             const updatedWish = snapshot.val();
             updatedWish.id = snapshot.key;
+            
+            // Asegurar que el deseo tenga la estructura correcta
+            this.normalizeWishData(updatedWish);
             
             const index = this.wishes.findIndex(w => w.id === updatedWish.id);
             if (index !== -1) {
@@ -1833,6 +1876,13 @@ class DeseoApp {
         console.log('🔍 [DEBUG] createWish llamado con:', wishData);
         console.log('🔍 [DEBUG] CONFIG.FIREBASE.enabled:', CONFIG.FIREBASE.enabled);
         console.log('🔍 [DEBUG] this.wishesRef:', this.wishesRef);
+        
+        // Validar que el usuario esté autenticado
+        if (!this.currentUser || !this.currentUser.id) {
+            this.showNotification('Debes iniciar sesión para crear un deseo', 'error');
+            this.showAuthUI();
+            return;
+        }
         
         // Si Firebase está deshabilitado, ir directamente al modo local
         if (!CONFIG.FIREBASE.enabled) {

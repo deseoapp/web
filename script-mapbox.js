@@ -50,7 +50,7 @@ class DeseoApp {
         this.emotionalState = this.loadEmotionalState();
         this.gemini = null; // Se inicializará después
         this.filters = {
-            maxPrice: 1000, // Filtro de precio para deseos
+            maxPrice: 1000000, // Filtro de precio para deseos (COP)
             category: '',
             distance: 10
         }; // Revertidos los filtros para deseos
@@ -162,7 +162,12 @@ class DeseoApp {
             await this.initializeMapbox();
             this.setupEventListeners();
             this.initializeFirebase();
-            this.generateSampleWishes();
+            
+            // Solo generar deseos de muestra si Firebase no está habilitado
+            if (!CONFIG.FIREBASE.enabled) {
+                this.generateSampleWishes();
+            }
+            
             this.renderWishesOnMap();
             
             setTimeout(() => {
@@ -1771,6 +1776,9 @@ class DeseoApp {
             console.log('✅ Firebase Realtime Database inicializado');
             console.log('📊 Database URL:', CONFIG.FIREBASE.config.databaseURL);
             
+            // Cargar deseos existentes
+            this.loadExistingWishes();
+            
             // Escuchar cambios en tiempo real
             this.setupRealtimeListeners();
             
@@ -1783,6 +1791,47 @@ class DeseoApp {
             console.error('🔍 [DEBUG] Firebase object:', firebase);
             console.error('🔍 [DEBUG] firebase.database:', firebase.database);
             this.showNotification(`Error Firebase: ${error.message} (${error.code || 'Sin código'})`, 'error');
+        }
+    }
+
+    // ===== CARGA INICIAL DE DESEOS =====
+    async loadExistingWishes() {
+        if (!this.wishesRef) return;
+        
+        try {
+            console.log('🔍 Cargando deseos existentes desde Firebase...');
+            
+            const snapshot = await this.wishesRef.once('value');
+            const wishesData = snapshot.val();
+            
+            if (wishesData) {
+                // Limpiar array de deseos existente
+                this.wishes = [];
+                
+                // Procesar cada deseo
+                Object.keys(wishesData).forEach(key => {
+                    const wish = wishesData[key];
+                    wish.id = key;
+                    
+                    // Normalizar datos del deseo
+                    this.normalizeWishData(wish);
+                    
+                    // Agregar al array
+                    this.wishes.push(wish);
+                });
+                
+                console.log(`✅ Cargados ${this.wishes.length} deseos desde Firebase`);
+                
+                // Renderizar en el mapa y sidebar
+                this.renderWishesOnMap();
+                this.renderWishListInSidebar();
+            } else {
+                console.log('ℹ️ No hay deseos en Firebase aún');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error cargando deseos existentes:', error);
+            this.showNotification('Error cargando deseos existentes', 'error');
         }
     }
 

@@ -5,31 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billetera - Deseo</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="wallet-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="logo">
-                <i class="fas fa-star"></i>
-                <h1>Deseo</h1>
-            </div>
-            <div class="header-actions">
-                <button class="menu-toggle" id="menuToggle" onclick="app.toggleNavMenu()">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <button class="theme-toggle" id="themeToggle" title="Cambiar tema">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button class="btn-secondary" onclick="window.location.href='index.html'">
-                    <i class="fas fa-home"></i>
-                    Inicio
-                </button>
-            </div>
-        </div>
-    </header>
+<body class="wallet-page">
 
     <!-- Navigation Menu -->
     <nav class="nav-menu" id="navMenu" style="display: none;">
@@ -177,6 +157,25 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
+    <!-- Bold Payment Gateway SDK -->
+    <script src="https://js.bold.co/v1"></script>
     <script src="script-wallet.js"></script>
+    
+    <!-- Debug Script -->
+    <script>
+        console.log('🔍 Debug: Página de billetera cargada');
+        console.log('🔍 Debug: CONFIG disponible:', typeof window.CONFIG !== 'undefined');
+        console.log('🔍 Debug: Bold disponible:', typeof window.Bold !== 'undefined');
+        console.log('🔍 Debug: WalletManager disponible:', typeof window.walletManager !== 'undefined');
+        
+        // Verificar elementos del DOM
+        setTimeout(() => {
+            const balanceElement = document.getElementById('totalBalance');
+            const transactionsList = document.getElementById('transactionsList');
+            console.log('🔍 Debug: Elemento balance:', balanceElement);
+            console.log('🔍 Debug: Lista transacciones:', transactionsList);
+            console.log('🔍 Debug: WalletManager:', window.walletManager);
+        }, 1000);
+    </script>
 </body>
 </html>

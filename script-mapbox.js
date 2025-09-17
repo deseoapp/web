@@ -165,7 +165,7 @@ class DeseoApp {
             
             // Solo generar deseos de muestra si Firebase no está habilitado
             if (!CONFIG.FIREBASE.enabled) {
-                this.generateSampleWishes();
+            this.generateSampleWishes();
             }
             
             this.renderWishesOnMap();

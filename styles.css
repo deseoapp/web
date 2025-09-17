@@ -1133,14 +1133,34 @@ body {
 }
 
 /* Eliminar estilos no usados del diseño anterior (o que interfieran) */
-.header,
-.main-container,
 .map-overlay,
 .map-controls,
 .wish-popup,
 .wish-pin,
 .user-location-marker {
     display: none !important;
+}
+
+/* Asegurar que main-container sea visible en billetera */
+body.wallet-page .main-container {
+    display: block !important;
+    margin-top: 80px;
+    height: auto;
+    min-height: calc(100vh - 80px);
+}
+
+/* Asegurar que el header sea visible en billetera */
+body.wallet-page .header {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 /* Ajustes para el authContainer de Clerk (para que se comporte como un modal) */
@@ -1161,3 +1181,5 @@ body {
 #authContainer.active {
     display: flex;
 }
+
+

@@ -3,6 +3,7 @@ class WalletManager {
     constructor() {
         this.balance = 0;
         this.transactions = [];
+        this.boldClient = null;
         this.init();
     }
 
@@ -12,6 +13,24 @@ class WalletManager {
         this.renderBalance();
         this.renderTransactions();
         this.setupEventListeners();
+        await this.initializeBold();
+    }
+
+    async initializeBold() {
+        try {
+            // Inicializar Bold con la configuración
+            if (typeof Bold !== 'undefined' && window.CONFIG && window.CONFIG.BOLD) {
+                this.boldClient = new Bold({
+                    apiKey: window.CONFIG.BOLD.API_KEY,
+                    environment: window.CONFIG.BOLD.ENVIRONMENT
+                });
+                console.log('✅ Bold payment gateway initialized');
+            } else {
+                console.warn('⚠️ Bold SDK not loaded or config missing, using fallback payment simulation');
+            }
+        } catch (error) {
+            console.error('❌ Error initializing Bold:', error);
+        }
     }
 
     async loadBalance() {
@@ -208,41 +227,49 @@ class WalletManager {
         }
 
         try {
-            // Simular procesamiento de pago
-            await this.simulatePaymentProcessing();
+            // Mostrar indicador de carga
+            this.showNotification('Procesando pago...', 'info');
 
-            // Agregar dinero al balance
-            this.balance += amount;
+            // Procesar pago con Bold o simulación
+            const paymentResult = await this.processPayment(amount, method, 'deposit');
 
-            // Crear transacción
-            const transaction = {
-                id: Date.now(),
-                type: 'income',
-                amount: amount,
-                description: `Depósito via ${method}`,
-                method: method,
-                date: new Date().toISOString(),
-                status: 'completed'
-            };
+            if (paymentResult.success) {
+                // Agregar dinero al balance
+                this.balance += amount;
 
-            this.transactions.unshift(transaction);
+                // Crear transacción
+                const transaction = {
+                    id: Date.now(),
+                    type: 'income',
+                    amount: amount,
+                    description: `Depósito via ${method}`,
+                    method: method,
+                    date: new Date().toISOString(),
+                    status: 'completed',
+                    boldTransactionId: paymentResult.transactionId
+                };
 
-            // Guardar cambios
-            this.saveBalance();
-            this.saveTransactions();
+                this.transactions.unshift(transaction);
 
-            // Actualizar UI
-            this.renderBalance();
-            this.renderTransactions();
+                // Guardar cambios
+                this.saveBalance();
+                this.saveTransactions();
 
-            // Cerrar modal y limpiar formulario
-            this.closeModal('addMoneyModal');
-            document.getElementById('addMoneyForm').reset();
+                // Actualizar UI
+                this.renderBalance();
+                this.renderTransactions();
 
-            this.showNotification(`$${amount.toFixed(2)} agregados exitosamente`, 'success');
+                // Cerrar modal y limpiar formulario
+                this.closeModal('addMoneyModal');
+                document.getElementById('addMoneyForm').reset();
+
+                this.showNotification(`$${amount.toFixed(2)} agregados exitosamente`, 'success');
+            } else {
+                throw new Error(paymentResult.error || 'Error en el procesamiento del pago');
+            }
         } catch (error) {
             console.error('Error adding money:', error);
-            this.showNotification('Error al procesar el pago', 'error');
+            this.showNotification(error.message || 'Error al procesar el pago', 'error');
         }
     }
 
@@ -266,41 +293,115 @@ class WalletManager {
         }
 
         try {
-            // Simular procesamiento de retiro
-            await this.simulatePaymentProcessing();
+            // Mostrar indicador de carga
+            this.showNotification('Procesando retiro...', 'info');
 
-            // Retirar dinero del balance
-            this.balance -= amount;
+            // Procesar retiro con Bold o simulación
+            const paymentResult = await this.processPayment(amount, method, 'withdraw');
 
-            // Crear transacción
-            const transaction = {
-                id: Date.now(),
-                type: 'expense',
-                amount: amount,
-                description: `Retiro via ${method}`,
-                method: method,
-                date: new Date().toISOString(),
-                status: 'completed'
-            };
+            if (paymentResult.success) {
+                // Retirar dinero del balance
+                this.balance -= amount;
 
-            this.transactions.unshift(transaction);
+                // Crear transacción
+                const transaction = {
+                    id: Date.now(),
+                    type: 'expense',
+                    amount: amount,
+                    description: `Retiro via ${method}`,
+                    method: method,
+                    date: new Date().toISOString(),
+                    status: 'completed',
+                    boldTransactionId: paymentResult.transactionId
+                };
 
-            // Guardar cambios
-            this.saveBalance();
-            this.saveTransactions();
+                this.transactions.unshift(transaction);
 
-            // Actualizar UI
-            this.renderBalance();
-            this.renderTransactions();
+                // Guardar cambios
+                this.saveBalance();
+                this.saveTransactions();
 
-            // Cerrar modal y limpiar formulario
-            this.closeModal('withdrawModal');
-            document.getElementById('withdrawForm').reset();
+                // Actualizar UI
+                this.renderBalance();
+                this.renderTransactions();
 
-            this.showNotification(`$${amount.toFixed(2)} retirados exitosamente`, 'success');
+                // Cerrar modal y limpiar formulario
+                this.closeModal('withdrawModal');
+                document.getElementById('withdrawForm').reset();
+
+                this.showNotification(`$${amount.toFixed(2)} retirados exitosamente`, 'success');
+            } else {
+                throw new Error(paymentResult.error || 'Error en el procesamiento del retiro');
+            }
         } catch (error) {
             console.error('Error withdrawing money:', error);
-            this.showNotification('Error al procesar el retiro', 'error');
+            this.showNotification(error.message || 'Error al procesar el retiro', 'error');
+        }
+    }
+
+    async processPayment(amount, method, type) {
+        try {
+            // Si Bold está disponible, usarlo
+            if (this.boldClient) {
+                return await this.processBoldPayment(amount, method, type);
+            } else {
+                // Fallback a simulación
+                return await this.simulatePayment(amount, method, type);
+            }
+        } catch (error) {
+            console.error('Payment processing error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async processBoldPayment(amount, method, type) {
+        try {
+            // Crear transacción con Bold
+            const paymentData = {
+                amount: amount * 100, // Bold usa centavos
+                currency: 'USD',
+                description: `${type === 'deposit' ? 'Depósito' : 'Retiro'} via ${method}`,
+                payment_method: method,
+                metadata: {
+                    type: type,
+                    user_id: 'current_user', // Reemplazar con ID real del usuario
+                    app: 'deseo'
+                }
+            };
+
+            const result = await this.boldClient.payments.create(paymentData);
+            
+            return {
+                success: true,
+                transactionId: result.id,
+                boldResponse: result
+            };
+        } catch (error) {
+            console.error('Bold payment error:', error);
+            return {
+                success: false,
+                error: `Error de Bold: ${error.message}`
+            };
+        }
+    }
+
+    async simulatePayment(amount, method, type) {
+        // Simular delay de procesamiento
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Simular éxito/fallo (90% éxito)
+        const success = Math.random() > 0.1;
+        
+        if (success) {
+            return {
+                success: true,
+                transactionId: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            };
+        } else {
+            return {
+                success: false,
+                error: 'Simulación de error de pago'
+            };
         }
     }
 
@@ -348,16 +449,80 @@ class WalletManager {
 // ===== INICIALIZACIÓN =====
 let walletManager;
 
-document.addEventListener('DOMContentLoaded', () => {
-    walletManager = new WalletManager();
+// Función de inicialización mejorada
+function initializeWallet() {
+    console.log('🚀 Inicializando billetera...');
     
-    // Hacer disponible globalmente
-    window.walletManager = walletManager;
-});
+    try {
+        walletManager = new WalletManager();
+        window.walletManager = walletManager;
+        console.log('✅ Billetera inicializada correctamente');
+    } catch (error) {
+        console.error('❌ Error inicializando billetera:', error);
+    }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', initializeWallet);
+
+// También inicializar si el DOM ya está listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWallet);
+} else {
+    initializeWallet();
+}
 
 // ===== FUNCIONES GLOBALES =====
 window.app = window.app || {};
 
-window.app.showAddMoneyModal = () => walletManager.showAddMoneyModal();
-window.app.showWithdrawModal = () => walletManager.showWithdrawModal();
-window.app.closeModal = (modalId) => walletManager.closeModal(modalId);
+window.app.showAddMoneyModal = () => {
+    if (walletManager) {
+        walletManager.showAddMoneyModal();
+    } else {
+        console.error('WalletManager no está disponible');
+    }
+};
+
+window.app.showWithdrawModal = () => {
+    if (walletManager) {
+        walletManager.showWithdrawModal();
+    } else {
+        console.error('WalletManager no está disponible');
+    }
+};
+
+window.app.closeModal = (modalId) => {
+    if (walletManager) {
+        walletManager.closeModal(modalId);
+    } else {
+        // Fallback básico
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+};
+
+// Funciones de navegación
+window.app.toggleNavMenu = () => {
+    const navMenu = document.getElementById('navMenu');
+    if (navMenu) {
+        navMenu.style.display = navMenu.style.display === 'none' ? 'block' : 'none';
+    }
+};
+
+window.app.closeNavMenu = () => {
+    const navMenu = document.getElementById('navMenu');
+    if (navMenu) {
+        navMenu.style.display = 'none';
+    }
+};
+
+window.app.logout = () => {
+    // Simular logout
+    localStorage.removeItem('deseo_user_profile');
+    localStorage.removeItem('deseo_balance');
+    localStorage.removeItem('deseo_transactions');
+    alert('Sesión cerrada');
+    window.location.href = 'index.html';
+};

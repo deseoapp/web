@@ -133,6 +133,16 @@ const CONFIG = {
         }
     },
     
+    // Configuración de Bold Payment Gateway
+    BOLD: {
+        // IMPORTANTE: Reemplaza con tu API key real de Bold
+        // Obtén tu API key en: https://dashboard.bold.co/
+        API_KEY: 'YOUR_BOLD_API_KEY', // Reemplaza con tu API key real
+        ENVIRONMENT: 'sandbox', // 'sandbox' para pruebas, 'production' para producción
+        CURRENCY: 'USD',
+        WEBHOOK_URL: 'https://tu-dominio.com/webhooks/bold' // URL para webhooks de Bold
+    },
+    
     // Configuración de geolocalización
     GEOLOCATION: {
         enableHighAccuracy: true,

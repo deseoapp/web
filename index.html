@@ -331,7 +331,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
-    <script src="script-mapbox.js"></script>
+    <script src="script-mapbox.js" onload="console.log('✅ script-mapbox.js loaded successfully')" onerror="console.error('❌ Failed to load script-mapbox.js')"></script>
     
     <!-- Clerk SDKs -->
     <script
@@ -346,6 +346,16 @@
     <script type="module">
         window.addEventListener('load', async function () {
             console.log('🏁 Window fully loaded. Initializing Deseo App and Clerk...');
+
+            // Esperar un momento para asegurar que todos los scripts estén cargados
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Verificar que DeseoApp esté disponible
+            if (typeof DeseoApp === 'undefined') {
+                console.error('❌ DeseoApp class not found. Script loading issue.');
+                console.log('Available globals:', Object.keys(window).filter(k => k.includes('Deseo') || k.includes('App')));
+                return;
+            }
 
             // Inicializar la aplicación principal
             if (!window.deseoApp) {

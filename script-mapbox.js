@@ -1799,11 +1799,7 @@ class DeseoApp {
         if (!this.wishesRef) return;
         
         try {
-<<<<<<< HEAD
             console.log('🔍 Cargando deseos existentes desde Firebase...');
-=======
-            console.log('🔍 [DEBUG] Cargando deseos existentes desde Firebase...');
->>>>>>> 71558215da6339c54d053b202814114a1efb5158
             
             const snapshot = await this.wishesRef.once('value');
             const wishesData = snapshot.val();

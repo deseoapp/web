@@ -120,23 +120,9 @@
                         </div>
                     </div>
                     <div class="bold-payment-container">
-                        <script
-                            data-bold-button
-                            data-api-key="H-HdPzurw8OPki3Fv8_WU-qFOAPQ9SarD_HV36Fp4_I"
-                            data-description="Recarga de billetera Deseo"
-                            data-redirection-url="https://simon990520.github.io/deseo/wallet.html?payment=success"
-                            data-render-mode="embedded"
-                            data-currency="COP"
-                            data-amount=""
-                            data-order-id=""
-                            data-customer-data=""
-                            data-billing-address=""
-                            data-tax=""
-                            data-expiration-date=""
-                            data-origin-url="https://simon990520.github.io/deseo/wallet.html"
-                            data-extra-data-1="wallet_recharge"
-                            data-extra-data-2="deseo_app"
-                        ></script>
+                        <div id="boldButtonPlaceholder">
+                            <p>Ingresa una cantidad para habilitar el pago</p>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -183,15 +169,29 @@
         console.log('🔍 Debug: Página de billetera cargada');
         console.log('🔍 Debug: CONFIG disponible:', typeof window.CONFIG !== 'undefined');
         console.log('🔍 Debug: Bold disponible:', typeof window.Bold !== 'undefined');
+        console.log('🔍 Debug: BoldPaymentButton disponible:', typeof window.BoldPaymentButton !== 'undefined');
         console.log('🔍 Debug: WalletManager disponible:', typeof window.walletManager !== 'undefined');
         
         // Verificar elementos del DOM
         setTimeout(() => {
             const balanceElement = document.getElementById('totalBalance');
             const transactionsList = document.getElementById('transactionsList');
+            const addAmountInput = document.getElementById('addAmount');
+            const boldContainer = document.querySelector('.bold-payment-container');
+            
             console.log('🔍 Debug: Elemento balance:', balanceElement);
             console.log('🔍 Debug: Lista transacciones:', transactionsList);
+            console.log('🔍 Debug: Input cantidad:', addAmountInput);
+            console.log('🔍 Debug: Contenedor Bold:', boldContainer);
             console.log('🔍 Debug: WalletManager:', window.walletManager);
+            
+            // Verificar si Bold está realmente cargado
+            if (typeof window.BoldPaymentButton !== 'undefined') {
+                console.log('✅ BoldPaymentButton está disponible');
+            } else {
+                console.error('❌ BoldPaymentButton NO está disponible');
+                console.log('🔍 Debug: Objetos disponibles en window:', Object.keys(window).filter(k => k.toLowerCase().includes('bold')));
+            }
         }, 1000);
     </script>
 </body>

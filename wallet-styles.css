@@ -458,6 +458,21 @@ body.wallet-page .main-container {
     margin: 0 auto;
 }
 
+#boldButtonPlaceholder {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+    font-style: italic;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+}
+
+#boldButtonPlaceholder p {
+    margin: 0;
+    font-size: 1rem;
+}
+
 /* ===== NOTIFICACIONES ===== */
 .notification {
     position: fixed;

@@ -139,7 +139,15 @@ const CONFIG = {
         API_KEY: 'H-HdPzurw8OPki3Fv8_WU-qFOAPQ9SarD_HV36Fp4_I',
         ENVIRONMENT: 'sandbox', // 'sandbox' para pruebas, 'production' para producción
         CURRENCY: 'COP', // Pesos colombianos
-        WEBHOOK_URL: 'https://simon990520.github.io/deseo/webhooks/bold' // URL para webhooks de Bold
+        WEBHOOK_URL: 'https://simon990520.github.io/deseo/webhooks/bold', // URL para webhooks de Bold
+        // Endpoint backend que devuelve la firma de integridad (HMAC) requerida por Bold
+        // Debe implementarse en tu servidor usando tu Secret Key (NO en el frontend)
+        SIGNATURE_ENDPOINT: 'https://server-eo9ez6okm-koddio999s-projects.vercel.app/api/bold/integrity-signature',
+        // Endpoint para crear links de pago (proxy para evitar CORS)
+        PAYMENT_LINK_ENDPOINT: 'https://server-eo9ez6okm-koddio999s-projects.vercel.app/api/bold/create-payment-link',
+        // Opcional: token para saltar Vercel Deployment Protection en el endpoint
+        // Genera uno en: Project → Settings → Deployment Protection → Generate Bypass Token
+        VERCEL_BYPASS_TOKEN: ''
     },
     
     // Configuración de geolocalización

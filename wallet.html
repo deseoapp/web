@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="wallet-page">
+<body class="wallet-page">  
 
     <!-- Navigation Menu -->
     <nav class="nav-menu" id="navMenu" style="display: none;">
@@ -108,19 +108,36 @@
             <div class="modal-body">
                 <form id="addMoneyForm">
                     <div class="form-group">
-                        <label for="addAmount">Cantidad:</label>
-                        <input type="number" id="addAmount" min="1" step="0.01" required>
+                        <label for="addAmount">Cantidad (COP):</label>
+                        <input type="number" id="addAmount" min="1000" step="1000" placeholder="10000" required>
+                        <small class="form-help">Monto mínimo: $1,000 COP</small>
                     </div>
                     <div class="form-group">
-                        <label for="addMethod">Método de pago:</label>
-                        <select id="addMethod" required>
-                            <option value="">Seleccionar método</option>
-                            <option value="card">Tarjeta de crédito</option>
-                            <option value="bank">Transferencia bancaria</option>
-                            <option value="paypal">PayPal</option>
-                        </select>
+                        <label>Método de pago:</label>
+                        <div class="payment-method-info">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Pago seguro con Bold</span>
+                        </div>
                     </div>
-                    <button type="submit" class="btn-primary">Agregar Dinero</button>
+                    <div class="bold-payment-container">
+                        <script
+                            data-bold-button
+                            data-api-key="H-HdPzurw8OPki3Fv8_WU-qFOAPQ9SarD_HV36Fp4_I"
+                            data-description="Recarga de billetera Deseo"
+                            data-redirection-url="https://simon990520.github.io/deseo/wallet.html?payment=success"
+                            data-render-mode="embedded"
+                            data-currency="COP"
+                            data-amount=""
+                            data-order-id=""
+                            data-customer-data=""
+                            data-billing-address=""
+                            data-tax=""
+                            data-expiration-date=""
+                            data-origin-url="https://simon990520.github.io/deseo/wallet.html"
+                            data-extra-data-1="wallet_recharge"
+                            data-extra-data-2="deseo_app"
+                        ></script>
+                    </div>
                 </form>
             </div>
         </div>
@@ -157,8 +174,8 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
-    <!-- Bold Payment Gateway SDK -->
-    <script src="https://js.bold.co/v1"></script>
+    <!-- Bold Payment Button SDK -->
+    <script src="https://checkout.bold.co/library/boldPaymentButton.js"></script>
     <script src="script-wallet.js"></script>
     
     <!-- Debug Script -->

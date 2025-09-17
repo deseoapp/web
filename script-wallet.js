@@ -214,24 +214,122 @@ class WalletManager {
 
     async handleAddMoney() {
         const amount = parseFloat(document.getElementById('addAmount').value);
-        const method = document.getElementById('addMethod').value;
 
-        if (!amount || amount <= 0) {
-            this.showNotification('Por favor ingresa una cantidad válida', 'error');
-            return;
-        }
-
-        if (!method) {
-            this.showNotification('Por favor selecciona un método de pago', 'error');
+        if (!amount || amount < 1000) {
+            this.showNotification('Por favor ingresa una cantidad válida (mínimo $1,000 COP)', 'error');
             return;
         }
 
         try {
+            // Actualizar el botón de Bold con el monto
+            this.updateBoldButton(amount);
+            
+            this.showNotification('Configurando pago con Bold...', 'info');
+        } catch (error) {
+            console.error('Error configuring Bold payment:', error);
+            this.showNotification('Error al configurar el pago', 'error');
+        }
+    }
+
+    updateBoldButton(amount) {
+        // Generar un ID único para la orden
+        const orderId = `deseo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Obtener datos del usuario si están disponibles
+        const userData = this.getUserData();
+        
+        // Actualizar los atributos del script de Bold
+        const boldScript = document.querySelector('script[data-bold-button]');
+        if (boldScript) {
+            boldScript.setAttribute('data-amount', amount.toString());
+            boldScript.setAttribute('data-order-id', orderId);
+            boldScript.setAttribute('data-customer-data', JSON.stringify(userData));
+            
+            // Recargar el script para aplicar los cambios
+            this.reloadBoldScript();
+        }
+    }
+
+    getUserData() {
+        // Obtener datos del usuario desde localStorage o el sistema de autenticación
+        const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+        return {
+            email: user.email || '',
+            fullName: user.name || '',
+            phone: user.phone || '',
+            dialCode: '+57',
+            documentNumber: user.documentNumber || '',
+            documentType: 'CC'
+        };
+    }
+
+    reloadBoldScript() {
+        // Remover el script actual
+        const oldScript = document.querySelector('script[data-bold-button]');
+        if (oldScript) {
+            oldScript.remove();
+        }
+        
+        // Crear nuevo script con los datos actualizados
+        const newScript = document.createElement('script');
+        newScript.setAttribute('data-bold-button', '');
+        newScript.setAttribute('data-api-key', 'H-HdPzurw8OPki3Fv8_WU-qFOAPQ9SarD_HV36Fp4_I');
+        newScript.setAttribute('data-description', 'Recarga de billetera Deseo');
+        newScript.setAttribute('data-redirection-url', 'https://simon990520.github.io/deseo/wallet.html?payment=success');
+        newScript.setAttribute('data-render-mode', 'embedded');
+        newScript.setAttribute('data-currency', 'COP');
+        newScript.setAttribute('data-amount', document.getElementById('addAmount').value);
+        newScript.setAttribute('data-order-id', `deseo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+        newScript.setAttribute('data-customer-data', JSON.stringify(this.getUserData()));
+        newScript.setAttribute('data-billing-address', '');
+        newScript.setAttribute('data-tax', '');
+        newScript.setAttribute('data-expiration-date', '');
+        newScript.setAttribute('data-origin-url', 'https://simon990520.github.io/deseo/wallet.html');
+        newScript.setAttribute('data-extra-data-1', 'wallet_recharge');
+        newScript.setAttribute('data-extra-data-2', 'deseo_app');
+        
+        // Agregar el nuevo script al contenedor
+        const container = document.querySelector('.bold-payment-container');
+        if (container) {
+            container.appendChild(newScript);
+        }
+    }
+
+    // Función para procesar el resultado del pago (llamada desde la URL de redirección)
+    processPaymentResult() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentStatus = urlParams.get('payment');
+        
+        if (paymentStatus === 'success') {
+            this.showNotification('¡Pago procesado exitosamente!', 'success');
+            
+            // Aquí podrías obtener los detalles de la transacción desde Bold
+            // y actualizar el balance y las transacciones
+            this.loadBalance();
+            this.loadTransactions();
+            this.renderBalance();
+            this.renderTransactions();
+        } else if (paymentStatus === 'error') {
+            this.showNotification('Error en el procesamiento del pago', 'error');
+        }
+    }
+
+    // Función para simular el procesamiento de pago (fallback)
+    async processPayment(amount, method, type) {
+        try {
             // Mostrar indicador de carga
             this.showNotification('Procesando pago...', 'info');
 
-            // Procesar pago con Bold o simulación
-            const paymentResult = await this.processPayment(amount, method, 'deposit');
+            // Simular procesamiento de pago
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Simular resultado exitoso
+            const paymentResult = {
+                success: true,
+                transactionId: `sim_${Date.now()}`,
+                amount: amount,
+                method: method
+            };
 
             if (paymentResult.success) {
                 // Agregar dinero al balance
@@ -471,6 +569,13 @@ if (document.readyState === 'loading') {
 } else {
     initializeWallet();
 }
+
+// Procesar resultados de pago al cargar la página
+document.addEventListener('DOMContentLoaded', () => {
+    if (walletManager) {
+        walletManager.processPaymentResult();
+    }
+});
 
 // ===== FUNCIONES GLOBALES =====
 window.app = window.app || {};

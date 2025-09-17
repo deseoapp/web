@@ -1,11 +1,30 @@
 /* ===== BILLETERA - ESTILOS ESPECÍFICOS ===== */
 
+/* Variables CSS para temas */
+:root {
+    --bg-primary: #0f0f0f;
+    --bg-secondary: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --border-color: #333333;
+}
+
 /* Tema oscuro para la billetera */
 body.wallet-page {
-    background-color: #0f0f0f !important;
-    color: #ffffff !important;
+    background-color: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
     overflow-x: hidden;
     overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+/* Light mode */
+body.wallet-page:not(.dark-mode) {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f5f5f5;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --border-color: #e0e0e0;
 }
 
 /* Header consistente con el tema oscuro */
@@ -423,9 +442,9 @@ body.wallet-page .main-container {
 .bold-payment-container {
     margin-top: 1.5rem;
     padding: 1rem;
-    background: #f8f9fa;
+    background: #111111;
     border-radius: 8px;
-    border: 1px solid #e9ecef;
+    border: 1px solid #0f0f0f;
     text-align: center;
 }
 

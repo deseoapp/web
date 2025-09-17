@@ -193,6 +193,28 @@
                 console.log('🔍 Debug: Objetos disponibles en window:', Object.keys(window).filter(k => k.toLowerCase().includes('bold')));
             }
         }, 1000);
+        
+        // Procesar resultado de pago al cargar la página
+        window.addEventListener('load', async () => {
+            console.log('🔍 Debug - Página cargada, verificando resultado de pago...');
+            
+            // Esperar a que el WalletManager esté disponible
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            while (attempts < maxAttempts && !window.walletManager) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+                console.log(`🔍 Debug - Esperando WalletManager... intento ${attempts}`);
+            }
+            
+            if (window.walletManager) {
+                console.log('✅ WalletManager encontrado, procesando resultado de pago...');
+                await window.walletManager.processPaymentResult();
+            } else {
+                console.error('❌ WalletManager no disponible después de 10 intentos');
+            }
+        });
     </script>
 </body>
 </html>

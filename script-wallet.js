@@ -10,10 +10,67 @@ class WalletManager {
     async init() {
         await this.loadBalance();
         await this.loadTransactions();
+        this.initializeTheme();
         this.renderBalance();
         this.renderTransactions();
         this.setupEventListeners();
         await this.initializeBold();
+    }
+    
+    initializeTheme() {
+        // Sincronizar con el sistema de temas del index
+        this.syncWithMainTheme();
+        
+        // Escuchar cambios en el tema principal
+        this.observeThemeChanges();
+    }
+    
+    syncWithMainTheme() {
+        // Obtener el tema actual del sistema principal
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 
+                           localStorage.getItem('deseo-theme') || 'dark';
+        
+        console.log('🔍 Debug - Sincronizando tema de billetera con:', currentTheme);
+        this.applyWalletTheme(currentTheme === 'dark');
+    }
+    
+    observeThemeChanges() {
+        // Observar cambios en el atributo data-theme
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+                    const newTheme = document.documentElement.getAttribute('data-theme');
+                    const isDark = newTheme === 'dark';
+                    console.log('🔍 Debug - Tema cambiado a:', newTheme);
+                    this.applyWalletTheme(isDark);
+                }
+            });
+        });
+        
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-theme']
+        });
+    }
+    
+    applyWalletTheme(isDark) {
+        const root = document.documentElement;
+        if (isDark) {
+            root.style.setProperty('--bg-primary', '#0f0f0f');
+            root.style.setProperty('--bg-secondary', '#1a1a1a');
+            root.style.setProperty('--text-primary', '#ffffff');
+            root.style.setProperty('--text-secondary', '#cccccc');
+            root.style.setProperty('--border-color', '#333333');
+        } else {
+            root.style.setProperty('--bg-primary', '#ffffff');
+            root.style.setProperty('--bg-secondary', '#f5f5f5');
+            root.style.setProperty('--text-primary', '#333333');
+            root.style.setProperty('--text-secondary', '#666666');
+            root.style.setProperty('--border-color', '#e0e0e0');
+        }
+        
+        // Aplicar clase al body para compatibilidad
+        document.body.classList.toggle('dark-mode', isDark);
     }
 
     async initializeBold() {
@@ -324,8 +381,15 @@ class WalletManager {
         try {
             const orderId = `deseo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
+            // Guardar pago pendiente para procesar después
+            localStorage.setItem('pending_payment', JSON.stringify({
+                amount: amount,
+                orderId: orderId,
+                timestamp: Date.now()
+            }));
+            
             // Usar nuestro proxy en Vercel para evitar CORS
-            const proxyUrl = window.CONFIG.BOLD.PAYMENT_LINK_ENDPOINT || 'https://server-1qdo5okh5-koddio999s-projects.vercel.app/api/bold/create-payment-link';
+            const proxyUrl = window.CONFIG.BOLD.PAYMENT_LINK_ENDPOINT || 'https://server-eo9ez6okm-koddio999s-projects.vercel.app/api/bold/create-payment-link';
             
             const requestData = {
                 amount: amount,
@@ -356,6 +420,8 @@ class WalletManager {
             
         } catch (error) {
             console.error('❌ Error creando link de pago Bold:', error);
+            // Limpiar pago pendiente si hay error
+            localStorage.removeItem('pending_payment');
             throw error;
         }
     }
@@ -367,24 +433,68 @@ class WalletManager {
             console.error('❌ Error: No se encontró el contenedor .bold-payment-container');
             return;
         }
+
+        // Detectar si estamos en dark mode (sincronizado con el sistema principal)
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 
+                           localStorage.getItem('deseo-theme') || 'dark';
+        const isDarkMode = currentTheme === 'dark';
+        
+        const darkStyles = isDarkMode ? {
+            background: '#1a1a1a',
+            border: '2px solid #4CAF50',
+            textColor: '#ffffff',
+            textSecondary: '#cccccc',
+            buttonBg: '#4CAF50',
+            buttonHover: '#45a049',
+            idColor: '#888888'
+        } : {
+            background: '#f9f9f9',
+            border: '2px solid #4CAF50',
+            textColor: '#333333',
+            textSecondary: '#666666',
+            buttonBg: '#4CAF50',
+            buttonHover: '#45a049',
+            idColor: '#999999'
+        };
         
         container.innerHTML = `
-            <div class="payment-link-container" style="text-align: center; padding: 20px; border: 2px solid #4CAF50; border-radius: 10px; background: #f9f9f9;">
-                <h3 style="color: #4CAF50; margin-bottom: 15px;">💳 Pago Listo</h3>
-                <p style="margin-bottom: 15px; font-size: 18px;">
+            <div class="payment-link-container" style="
+                text-align: center; 
+                padding: 20px; 
+                border: ${darkStyles.border}; 
+                border-radius: 10px; 
+                background: ${darkStyles.background};
+                color: ${darkStyles.textColor};
+                transition: all 0.3s ease;
+            ">
+                <h3 style="color: #4CAF50; margin-bottom: 15px; font-size: 20px;">💳 Pago Listo</h3>
+                <p style="margin-bottom: 15px; font-size: 18px; color: ${darkStyles.textColor};">
                     <strong>Monto:</strong> $${amount.toLocaleString('es-CO')} COP
                 </p>
-                <p style="margin-bottom: 20px; color: #666;">
+                <p style="margin-bottom: 20px; color: ${darkStyles.textSecondary}; font-size: 14px;">
                     Haz clic en el botón para proceder con el pago
                 </p>
                 <a href="${paymentData.url}" 
                    target="_blank" 
                    class="bold-payment-button" 
-                   style="display: inline-block; background: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                   style="
+                       display: inline-block; 
+                       background: ${darkStyles.buttonBg}; 
+                       color: white; 
+                       padding: 15px 30px; 
+                       text-decoration: none; 
+                       border-radius: 8px; 
+                       font-size: 16px; 
+                       font-weight: bold; 
+                       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                       transition: all 0.3s ease;
+                   "
+                   onmouseover="this.style.background='${darkStyles.buttonHover}'; this.style.transform='translateY(-2px)';"
+                   onmouseout="this.style.background='${darkStyles.buttonBg}'; this.style.transform='translateY(0)';">
                     🚀 Pagar Ahora
                 </a>
-                <p style="margin-top: 15px; font-size: 12px; color: #999;">
-                    ID de transacción: ${paymentData.payment_link}
+                <p style="margin-top: 15px; font-size: 12px; color: ${darkStyles.idColor};">
+                    ID: ${paymentData.payment_link}
                 </p>
             </div>
         `;
@@ -510,22 +620,149 @@ class WalletManager {
 
 
     // Función para procesar el resultado del pago (llamada desde la URL de redirección)
-    processPaymentResult() {
+    async processPaymentResult() {
+        console.log('🔍 Debug - Iniciando processPaymentResult...');
+        console.log('🔍 Debug - URL actual:', window.location.href);
+        
         const urlParams = new URLSearchParams(window.location.search);
         const paymentStatus = urlParams.get('payment');
+        const paymentId = urlParams.get('bold-order-id');
+        const txStatus = urlParams.get('bold-tx-status');
         
-        if (paymentStatus === 'success') {
-            this.showNotification('¡Pago procesado exitosamente!', 'success');
+        console.log('🔍 Debug - Parámetros de URL:', {
+            paymentStatus,
+            paymentId,
+            txStatus,
+            allParams: Object.fromEntries(urlParams.entries())
+        });
+        
+        // Verificar si hay pago pendiente
+        const pendingPayment = JSON.parse(localStorage.getItem('pending_payment') || '{}');
+        console.log('🔍 Debug - Pago pendiente:', pendingPayment);
+        
+        if (paymentStatus === 'success' || txStatus === 'approved') {
+            console.log('✅ Pago exitoso detectado, procesando...');
+            await this.handleSuccessfulPayment(paymentId);
+        } else if (paymentStatus === 'error' || txStatus === 'rejected') {
+            console.log('❌ Pago fallido detectado');
+            this.showNotification('Error en el procesamiento del pago', 'error');
+        } else if (pendingPayment.amount) {
+            // Si no hay parámetros de URL pero hay pago pendiente, asumir éxito
+            console.log('⚠️ No hay parámetros de URL pero hay pago pendiente, asumiendo éxito...');
+            await this.handleSuccessfulPayment(pendingPayment.orderId);
+        } else {
+            console.log('ℹ️ No hay pago para procesar');
+        }
+    }
+    
+    async handleSuccessfulPayment(paymentId) {
+        try {
+            console.log('🔍 Debug - Iniciando handleSuccessfulPayment con paymentId:', paymentId);
             
-            // Aquí podrías obtener los detalles de la transacción desde Bold
-            // y actualizar el balance y las transacciones
-            this.loadBalance();
-            this.loadTransactions();
+            // Obtener el monto del pago desde localStorage (lo guardamos cuando se crea el link)
+            const pendingPayment = JSON.parse(localStorage.getItem('pending_payment') || '{}');
+            const amount = pendingPayment.amount;
+            
+            console.log('🔍 Debug - Pago pendiente encontrado:', pendingPayment);
+            console.log('🔍 Debug - Balance actual:', this.balance);
+            
+            if (!amount) {
+                console.warn('⚠️ No se encontró el monto del pago pendiente');
+                this.showNotification('¡Pago procesado! Recargando datos...', 'success');
+                await this.refreshWalletData();
+                return;
+            }
+            
+            // Actualizar balance
+            const newBalance = this.balance + amount;
+            console.log('🔍 Debug - Nuevo balance calculado:', newBalance);
+            
+            this.balance = newBalance;
+            
+            // Crear transacción
+            const transaction = {
+                id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                type: 'deposit',
+                amount: amount,
+                description: 'Recarga de billetera via Bold',
+                paymentId: paymentId,
+                timestamp: new Date().toISOString(),
+                status: 'completed'
+            };
+            
+            console.log('🔍 Debug - Transacción creada:', transaction);
+            
+            // Guardar en localStorage
+            localStorage.setItem('deseo_balance', newBalance.toString());
+            this.transactions.unshift(transaction);
+            localStorage.setItem('deseo_transactions', JSON.stringify(this.transactions));
+            
+            console.log('🔍 Debug - Datos guardados en localStorage');
+            console.log('🔍 Debug - Balance guardado:', localStorage.getItem('deseo_balance'));
+            console.log('🔍 Debug - Transacciones guardadas:', this.transactions.length);
+            
+            // Guardar en Firebase
+            await this.saveToFirebase(newBalance, transaction);
+            
+            // Limpiar pago pendiente
+            localStorage.removeItem('pending_payment');
+            console.log('🔍 Debug - Pago pendiente limpiado');
+            
+            // Actualizar UI
             this.renderBalance();
             this.renderTransactions();
-        } else if (paymentStatus === 'error') {
-            this.showNotification('Error en el procesamiento del pago', 'error');
+            
+            console.log('✅ Pago procesado exitosamente');
+            this.showNotification(`¡Pago exitoso! +$${amount.toLocaleString('es-CO')} COP`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Error procesando pago exitoso:', error);
+            this.showNotification('Pago procesado, pero hubo un error actualizando el saldo', 'warning');
         }
+    }
+    
+    async saveToFirebase(balance, transaction) {
+        try {
+            if (typeof window.firebase === 'undefined') {
+                console.warn('⚠️ Firebase no disponible, solo guardando en localStorage');
+                return;
+            }
+            
+            const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+            if (!user.uid) {
+                console.warn('⚠️ Usuario no autenticado, solo guardando en localStorage');
+                return;
+            }
+            
+            const db = window.firebase.firestore();
+            const userRef = db.collection('users').doc(user.uid);
+            
+            // Actualizar balance
+            await userRef.update({
+                balance: balance,
+                lastUpdated: new Date().toISOString()
+            });
+            
+            // Agregar transacción
+            await db.collection('transactions').add({
+                userId: user.uid,
+                ...transaction,
+                createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            console.log('✅ Datos guardados en Firebase');
+            
+        } catch (error) {
+            console.error('❌ Error guardando en Firebase:', error);
+            // No mostrar error al usuario, ya se guardó en localStorage
+        }
+    }
+    
+    async refreshWalletData() {
+        await this.loadBalance();
+        await this.loadTransactions();
+        this.renderBalance();
+        this.renderTransactions();
     }
 
     // Función para simular el procesamiento de pago (fallback)

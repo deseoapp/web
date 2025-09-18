@@ -92,74 +92,82 @@ class WalletManager {
 
     async loadBalance() {
         try {
-            // Cargar balance desde localStorage o Firebase
-            const savedBalance = localStorage.getItem('deseo_balance');
-            if (savedBalance) {
-                this.balance = parseFloat(savedBalance);
+            // Cargar balance SOLO desde Firebase por seguridad
+            if (typeof window.firebase === 'undefined') {
+                console.warn('⚠️ Firebase no disponible, balance inicializado en 0');
+                this.balance = 0;
+                return;
+            }
+            
+            const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+            if (!user.uid) {
+                console.warn('⚠️ Usuario no autenticado, balance inicializado en 0');
+                this.balance = 0;
+                return;
+            }
+            
+            // Usar Firebase Realtime Database
+            const db = window.firebase.database();
+            const userRef = db.ref(`users/${user.uid}`);
+            
+            const snapshot = await userRef.once('value');
+            const userData = snapshot.val();
+            
+            if (userData && userData.balance !== undefined) {
+                this.balance = parseFloat(userData.balance);
+                console.log('✅ Balance cargado desde Firebase:', this.balance);
             } else {
                 this.balance = 0;
+                console.log('ℹ️ Balance inicializado en 0 (primer uso)');
             }
         } catch (error) {
-            console.error('Error loading balance:', error);
+            console.error('❌ Error loading balance from Firebase:', error);
             this.balance = 0;
         }
     }
 
     async loadTransactions() {
         try {
-            const savedTransactions = localStorage.getItem('deseo_transactions');
-            if (savedTransactions) {
-                this.transactions = JSON.parse(savedTransactions);
+            // Cargar transacciones SOLO desde Firebase por seguridad
+            if (typeof window.firebase === 'undefined') {
+                console.warn('⚠️ Firebase no disponible, transacciones inicializadas vacías');
+                this.transactions = [];
+                return;
+            }
+            
+            const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+            if (!user.uid) {
+                console.warn('⚠️ Usuario no autenticado, transacciones inicializadas vacías');
+                this.transactions = [];
+                return;
+            }
+            
+            // Usar Firebase Realtime Database
+            const db = window.firebase.database();
+            const transactionsRef = db.ref(`transactions/${user.uid}`);
+            
+            const snapshot = await transactionsRef.once('value');
+            const transactionsData = snapshot.val();
+            
+            if (transactionsData) {
+                // Convertir objeto a array y ordenar por fecha
+                this.transactions = Object.values(transactionsData)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date));
+                console.log('✅ Transacciones cargadas desde Firebase:', this.transactions.length);
             } else {
-                // Generar transacciones de ejemplo
-                this.transactions = this.generateSampleTransactions();
-                this.saveTransactions();
+                this.transactions = [];
+                console.log('ℹ️ No hay transacciones previas (primer uso)');
             }
         } catch (error) {
-            console.error('Error loading transactions:', error);
+            console.error('❌ Error loading transactions from Firebase:', error);
             this.transactions = [];
         }
     }
 
-    generateSampleTransactions() {
-        return [
-            {
-                id: 1,
-                type: 'income',
-                amount: 50.00,
-                description: 'Pago por deseo completado',
-                method: 'Transferencia bancaria',
-                date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'completed'
-            },
-            {
-                id: 2,
-                type: 'expense',
-                amount: 15.00,
-                description: 'Compra de café',
-                method: 'Tarjeta de crédito',
-                date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-                status: 'completed'
-            },
-            {
-                id: 3,
-                type: 'income',
-                amount: 25.00,
-                description: 'Servicio de entrega',
-                method: 'PayPal',
-                date: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-                status: 'completed'
-            }
-        ];
-    }
+    // Función eliminada por seguridad - no se generan transacciones de ejemplo
 
-    saveBalance() {
-        localStorage.setItem('deseo_balance', this.balance.toString());
-    }
-
-    saveTransactions() {
-        localStorage.setItem('deseo_transactions', JSON.stringify(this.transactions));
-    }
+    // MÉTODOS DE GUARDADO ELIMINADOS POR SEGURIDAD
+    // Los datos se guardan directamente en Firebase en saveToFirebase()
 
     renderBalance() {
         const balanceElement = document.getElementById('totalBalance');
@@ -467,7 +475,6 @@ class WalletManager {
                 color: ${darkStyles.textColor};
                 transition: all 0.3s ease;
             ">
-                <h3 style="color: #4CAF50; margin-bottom: 15px; font-size: 20px;">💳 Pago Listo</h3>
                 <p style="margin-bottom: 15px; font-size: 18px; color: ${darkStyles.textColor};">
                     <strong>Monto:</strong> $${amount.toLocaleString('es-CO')} COP
                 </p>
@@ -491,7 +498,7 @@ class WalletManager {
                    "
                    onmouseover="this.style.background='${darkStyles.buttonHover}'; this.style.transform='translateY(-2px)';"
                    onmouseout="this.style.background='${darkStyles.buttonBg}'; this.style.transform='translateY(0)';">
-                    🚀 Pagar Ahora
+                     Pagar Ahora
                 </a>
                 <p style="margin-top: 15px; font-size: 12px; color: ${darkStyles.idColor};">
                     ID: ${paymentData.payment_link}
@@ -670,9 +677,9 @@ class WalletManager {
                 console.warn('⚠️ No se encontró el monto del pago pendiente');
                 this.showNotification('¡Pago procesado! Recargando datos...', 'success');
                 await this.refreshWalletData();
-                return;
-            }
-            
+            return;
+        }
+
             // Actualizar balance
             const newBalance = this.balance + amount;
             console.log('🔍 Debug - Nuevo balance calculado:', newBalance);
@@ -692,17 +699,15 @@ class WalletManager {
             
             console.log('🔍 Debug - Transacción creada:', transaction);
             
-            // Guardar en localStorage
-            localStorage.setItem('deseo_balance', newBalance.toString());
+            // Agregar transacción al array local
             this.transactions.unshift(transaction);
-            localStorage.setItem('deseo_transactions', JSON.stringify(this.transactions));
             
-            console.log('🔍 Debug - Datos guardados en localStorage');
-            console.log('🔍 Debug - Balance guardado:', localStorage.getItem('deseo_balance'));
-            console.log('🔍 Debug - Transacciones guardadas:', this.transactions.length);
-            
-            // Guardar en Firebase
+            // Guardar SEGURAMENTE en Firebase (NO en localStorage por seguridad)
             await this.saveToFirebase(newBalance, transaction);
+            
+            console.log('🔍 Debug - Datos guardados SEGURAMENTE en Firebase');
+            console.log('🔍 Debug - Balance actualizado:', newBalance);
+            console.log('🔍 Debug - Transacciones guardadas:', this.transactions.length);
             
             // Limpiar pago pendiente
             localStorage.removeItem('pending_payment');
@@ -724,37 +729,39 @@ class WalletManager {
     async saveToFirebase(balance, transaction) {
         try {
             if (typeof window.firebase === 'undefined') {
-                console.warn('⚠️ Firebase no disponible, solo guardando en localStorage');
-                return;
+                console.error('❌ Firebase no disponible - NO se pueden guardar datos sensibles');
+                throw new Error('Firebase no disponible');
             }
             
             const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
             if (!user.uid) {
-                console.warn('⚠️ Usuario no autenticado, solo guardando en localStorage');
-                return;
+                console.error('❌ Usuario no autenticado - NO se pueden guardar datos sensibles');
+                throw new Error('Usuario no autenticado');
             }
             
-            const db = window.firebase.firestore();
-            const userRef = db.collection('users').doc(user.uid);
+            // Usar Firebase Realtime Database (más seguro que Firestore para este caso)
+            const db = window.firebase.database();
             
-            // Actualizar balance
+            // Actualizar balance del usuario
+            const userRef = db.ref(`users/${user.uid}`);
             await userRef.update({
                 balance: balance,
                 lastUpdated: new Date().toISOString()
             });
             
-            // Agregar transacción
-            await db.collection('transactions').add({
-                userId: user.uid,
+            // Guardar transacción
+            const transactionRef = db.ref(`transactions/${user.uid}/${transaction.id}`);
+            await transactionRef.set({
                 ...transaction,
-                createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
+                userId: user.uid,
+                createdAt: new Date().toISOString()
             });
             
-            console.log('✅ Datos guardados en Firebase');
+            console.log('✅ Datos guardados SEGURAMENTE en Firebase Realtime Database');
             
         } catch (error) {
             console.error('❌ Error guardando en Firebase:', error);
-            // No mostrar error al usuario, ya se guardó en localStorage
+            throw error; // Re-lanzar error para que se maneje apropiadamente
         }
     }
     
@@ -800,9 +807,8 @@ class WalletManager {
 
             this.transactions.unshift(transaction);
 
-            // Guardar cambios
-            this.saveBalance();
-            this.saveTransactions();
+            // Guardar cambios SEGURAMENTE en Firebase
+            await this.saveToFirebase(this.balance, transaction);
 
             // Actualizar UI
             this.renderBalance();
@@ -866,9 +872,8 @@ class WalletManager {
 
             this.transactions.unshift(transaction);
 
-            // Guardar cambios
-            this.saveBalance();
-            this.saveTransactions();
+            // Guardar cambios SEGURAMENTE en Firebase
+            await this.saveToFirebase(this.balance, transaction);
 
             // Actualizar UI
             this.renderBalance();
@@ -1003,7 +1008,7 @@ function initializeWallet() {
     console.log('🚀 Inicializando billetera...');
     
     try {
-        walletManager = new WalletManager();
+    walletManager = new WalletManager();
         window.walletManager = walletManager;
         console.log('✅ Billetera inicializada correctamente');
     } catch (error) {

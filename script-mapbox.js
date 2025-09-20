@@ -60,7 +60,7 @@ class DeseoApp {
     }
 
     // ===== MANEJO DE AUTENTICACIÓN CON CLERK =====
-    handleClerkSignIn(user) {
+    async handleClerkSignIn(user) {
         console.log('Clerk Sign In - User:', user);
         this.currentUser = {
             id: user.id,
@@ -68,6 +68,10 @@ class DeseoApp {
             email: (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) || '',
             profileImageUrl: user.imageUrl || user.profileImageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
         };
+        
+        // Verificar si el perfil está completo
+        await this.checkProfileCompletion();
+        
         this.showNotification(`¡Bienvenido, ${this.currentUser.name}!`, 'success');
         // Cerrar el modal de autenticación si está abierto
         const authContainer = document.getElementById('authContainer');
@@ -82,6 +86,357 @@ class DeseoApp {
         this.currentUser = null;
         this.showNotification('Sesión cerrada exitosamente.', 'info');
         this.updateAuthUI();
+    }
+
+    // ===== VERIFICACIÓN DE PERFIL COMPLETO =====
+    async checkProfileCompletion() {
+        try {
+            if (!this.currentUser) {
+                console.log('No hay usuario autenticado');
+                return;
+            }
+
+            // Verificar si el perfil está completo en Firebase
+            const isProfileComplete = await this.isUserProfileComplete();
+            
+            if (!isProfileComplete) {
+                console.log('Perfil incompleto, redirigiendo a completar perfil...');
+                this.showProfileCompletionModal();
+            } else {
+                console.log('Perfil completo ✅');
+            }
+            
+        } catch (error) {
+            console.error('Error verificando perfil:', error);
+            // En caso de error, asumir que el perfil no está completo
+            this.showProfileCompletionModal();
+        }
+    }
+
+    async isUserProfileComplete() {
+        try {
+            if (!this.database) {
+                console.warn('Firebase no disponible');
+                return false;
+            }
+
+            const userRef = this.database.ref(`users/${this.currentUser.id}`);
+            const snapshot = await userRef.once('value');
+            const userData = snapshot.val();
+
+            if (!userData) {
+                console.log('Usuario no encontrado en Firebase');
+                return false;
+            }
+
+            // Verificar si tiene perfil completo
+            if (!userData.profileComplete) {
+                console.log('Perfil no marcado como completo');
+                return false;
+            }
+
+            // Verificar campos requeridos
+            const profile = userData.profile;
+            if (!profile) {
+                console.log('No hay datos de perfil');
+                return false;
+            }
+
+            const requiredFields = ['nickname', 'description', 'age', 'photos', 'sexualPoses'];
+            const hasAllFields = requiredFields.every(field => {
+                const value = profile[field];
+                if (field === 'photos') {
+                    return value && Object.keys(value).length >= 3;
+                }
+                if (field === 'sexualPoses') {
+                    return value && value.length >= 1;
+                }
+                return value && value.toString().trim() !== '';
+            });
+
+            console.log('Verificación de perfil:', {
+                hasAllFields,
+                profile: profile,
+                requiredFields: requiredFields.map(field => ({
+                    field,
+                    hasValue: !!profile[field],
+                    value: profile[field]
+                }))
+            });
+
+            return hasAllFields;
+
+        } catch (error) {
+            console.error('Error verificando perfil en Firebase:', error);
+            return false;
+        }
+    }
+
+    showProfileCompletionModal() {
+        // Crear modal de completar perfil
+        const modal = document.createElement('div');
+        modal.className = 'profile-completion-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>
+                            <i class="fas fa-user-plus"></i>
+                            Completa tu perfil
+                        </h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="profile-requirements">
+                            <div class="requirement-item">
+                                <i class="fas fa-user"></i>
+                                <span>Información básica (apodo, descripción, edad)</span>
+                            </div>
+                            <div class="requirement-item">
+                                <i class="fas fa-camera"></i>
+                                <span>3-6 fotos de perfil</span>
+                            </div>
+                            <div class="requirement-item">
+                                <i class="fas fa-heart"></i>
+                                <span>Poses sexuales favoritas</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" id="completeProfileBtn">
+                            <i class="fas fa-check"></i>
+                            Completar ahora
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Agregar estilos
+        const style = document.createElement('style');
+        style.textContent = `
+            .profile-completion-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .modal-overlay {
+                background: rgba(0, 0, 0, 0.85);
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+                backdrop-filter: blur(8px);
+            }
+            .modal-content {
+                background: var(--bg-secondary, #1a1a1a);
+                border-radius: 24px;
+                max-width: 520px;
+                width: 100%;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+                border: 1px solid var(--border-color, #333);
+                animation: slideUp 0.4s ease;
+                overflow: hidden;
+            }
+            @keyframes slideUp {
+                from { 
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                }
+                to { 
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+            .modal-header {
+                background: linear-gradient(135deg, #10b981, #059669);
+                padding: 2.5rem 2rem 2rem;
+                text-align: center;
+                position: relative;
+            }
+            .modal-header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+                pointer-events: none;
+            }
+            .modal-header h2 {
+                color: #ffffff;
+                margin: 0 0 0.75rem 0;
+                font-size: 1.75rem;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.75rem;
+                position: relative;
+                z-index: 1;
+            }
+            .modal-header h2 i {
+                font-size: 1.5rem;
+                color: rgba(255, 255, 255, 0.9);
+            }
+            .modal-header p {
+                color: rgba(255, 255, 255, 0.9);
+                margin: 0;
+                font-size: 1rem;
+                line-height: 1.5;
+                position: relative;
+                z-index: 1;
+            }
+            .modal-body {
+                padding: 2.5rem 2rem;
+                background: var(--bg-secondary, #1a1a1a);
+            }
+            .profile-requirements {
+                display: flex;
+                flex-direction: column;
+                gap: 1.25rem;
+            }
+            .requirement-item {
+                display: flex;
+                align-items: center;
+                gap: 1.25rem;
+                padding: 1.25rem;
+                background: var(--bg-tertiary, #2a2a2a);
+                border-radius: 12px;
+                border: 1px solid var(--border-color, #333);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            .requirement-item::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 4px;
+                background: linear-gradient(135deg, #10b981, #059669);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .requirement-item:hover {
+                transform: translateX(4px);
+                border-color: rgba(16, 185, 129, 0.3);
+            }
+            .requirement-item:hover::before {
+                opacity: 1;
+            }
+            .requirement-item i {
+                color: #10b981;
+                font-size: 1.3rem;
+                min-width: 24px;
+                text-align: center;
+            }
+            .requirement-item span {
+                color: var(--text-primary, #fff);
+                font-weight: 500;
+                font-size: 1rem;
+                line-height: 1.4;
+            }
+            .modal-footer {
+                padding: 1.5rem 2rem 2rem;
+                display: flex;
+                gap: 1rem;
+                justify-content: center;
+                background: var(--bg-secondary, #1a1a1a);
+                border-top: 1px solid var(--border-color, #333);
+            }
+            .btn {
+                padding: 0.875rem 2rem;
+                border: none;
+                border-radius: 12px;
+                font-weight: 600;
+                font-size: 1rem;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                transition: all 0.3s ease;
+                min-width: 160px;
+                justify-content: center;
+            }
+            .btn-primary {
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+                box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            }
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+                background: linear-gradient(135deg, #059669, #047857);
+            }
+            .btn-primary:active {
+                transform: translateY(0);
+            }
+            .btn-secondary {
+                background: var(--bg-tertiary, #2a2a2a);
+                color: var(--text-primary, #fff);
+                border: 2px solid var(--border-color, #333);
+            }
+            .btn-secondary:hover {
+                background: var(--bg-primary, #0f0f0f);
+                border-color: #10b981;
+                color: #10b981;
+            }
+            @media (max-width: 640px) {
+                .modal-content {
+                    margin: 1rem;
+                    max-width: none;
+                }
+                .modal-header {
+                    padding: 2rem 1.5rem 1.5rem;
+                }
+                .modal-body {
+                    padding: 2rem 1.5rem;
+                }
+                .modal-footer {
+                    padding: 1rem 1.5rem 1.5rem;
+                    flex-direction: column;
+                }
+                .btn {
+                    width: 100%;
+                }
+            }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(modal);
+
+        // Event listeners
+        document.getElementById('completeProfileBtn').addEventListener('click', () => {
+            window.location.href = 'profile-complete.html';
+        });
+
+        document.getElementById('skipProfileBtn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            document.head.removeChild(style);
+        });
+
+        // Cerrar con ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.head.removeChild(style);
+            }
+        });
     }
 
     updateAuthUI() {

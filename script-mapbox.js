@@ -231,14 +231,14 @@ class DeseoApp {
                 to { opacity: 1; }
             }
             .modal-overlay {
-                background: rgba(0, 0, 0, 0.85);
+                background: rgba(0, 0, 0, 0.3);
                 width: 100%;
                 height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 padding: 2rem;
-                backdrop-filter: blur(8px);
+                backdrop-filter: blur(2px);
             }
             .modal-content {
                 background: var(--bg-secondary, #1a1a1a);

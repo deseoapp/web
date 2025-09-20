@@ -189,7 +189,7 @@ class DeseoApp {
                         <div class="profile-requirements">
                             <div class="requirement-item">
                                 <i class="fas fa-user"></i>
-                                <span>Información básica (apodo, descripción, edad)</span>
+                                <span>Información básica </span>
                             </div>
                             <div class="requirement-item">
                                 <i class="fas fa-camera"></i>
@@ -197,7 +197,7 @@ class DeseoApp {
                             </div>
                             <div class="requirement-item">
                                 <i class="fas fa-heart"></i>
-                                <span>Poses sexuales favoritas</span>
+                                <span>Poses favoritas</span>
                             </div>
                         </div>
                     </div>
@@ -420,23 +420,75 @@ class DeseoApp {
         document.head.appendChild(style);
         document.body.appendChild(modal);
 
-        // Event listeners
-        document.getElementById('completeProfileBtn').addEventListener('click', () => {
-            window.location.href = 'profile-complete.html';
-        });
-
-        document.getElementById('skipProfileBtn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-            document.head.removeChild(style);
-        });
-
-        // Cerrar con ESC
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                document.body.removeChild(modal);
-                document.head.removeChild(style);
+        // Event listeners - Usar event delegation para mayor confiabilidad
+        modal.addEventListener('click', (e) => {
+            console.log('🔍 Click detectado en modal:', e.target);
+            
+            // Verificar si es el botón o un elemento dentro del botón
+            if (e.target.id === 'completeProfileBtn' || 
+                e.target.closest('#completeProfileBtn') || 
+                e.target.classList.contains('btn-primary') ||
+                e.target.closest('.btn-primary')) {
+                
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('✅ Botón de completar perfil clickeado - Redirigiendo...');
+                
+                // Cerrar modal primero
+                this.closeProfileModal(modal, style);
+                
+                // Redirigir después de un pequeño delay
+                setTimeout(() => {
+                    window.location.href = 'profile-complete.html';
+                }, 100);
             }
         });
+        
+        // También agregar event listener directo como backup
+        setTimeout(() => {
+            const completeBtn = document.getElementById('completeProfileBtn');
+            if (completeBtn) {
+                console.log('✅ Agregando event listener directo al botón');
+                completeBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('✅ Botón clickeado directamente - Redirigiendo...');
+                    this.closeProfileModal(modal, style);
+                    setTimeout(() => {
+                        window.location.href = 'profile-complete.html';
+                    }, 100);
+                });
+            }
+        }, 100);
+
+        // Cerrar con ESC
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                this.closeProfileModal(modal, style);
+            }
+        };
+        
+        document.addEventListener('keydown', handleEscape);
+        
+        // Cerrar al hacer clic fuera del modal
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal || e.target.classList.contains('modal-overlay')) {
+                this.closeProfileModal(modal, style);
+            }
+        });
+    }
+    
+    closeProfileModal(modal, style) {
+        try {
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+            if (style && style.parentNode) {
+                style.parentNode.removeChild(style);
+            }
+        } catch (error) {
+            console.error('Error cerrando modal:', error);
+        }
     }
 
     updateAuthUI() {

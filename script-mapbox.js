@@ -188,9 +188,6 @@ class DeseoApp {
                 <div class="modal-content">
                     <div class="modal-header">
                         <h2><i class="fas fa-user-plus"></i> Completa tu perfil</h2>
-                        <button class="close-btn" onclick="this.closest('.profile-completion-modal').remove()">
-                            <i class="fas fa-times"></i>
-                        </button>
                     </div>
                     <div class="modal-body">
                         <p class="modal-description">Para acceder a todas las funcionalidades de la plataforma</p>
@@ -210,12 +207,9 @@ class DeseoApp {
                         </div>
                     </div>
                     <div class="modal-actions">
-                        <button class="btn-secondary" onclick="this.closest('.profile-completion-modal').remove()">
-                            Cancelar
-                        </button>
                         <button class="btn-primary" id="completeProfileBtn">
                             <i class="fas fa-check"></i>
-                            Completar ahora
+                            Completar registro
                         </button>
                     </div>
                 </div>
@@ -273,7 +267,7 @@ class DeseoApp {
             }
             .profile-completion-modal .modal-header {
                 display: flex;
-                justify-content: space-between;
+                justify-content: center;
                 align-items: center;
                 padding: 1rem 1.5rem;
                 border-bottom: 1px solid var(--border-color);
@@ -288,20 +282,6 @@ class DeseoApp {
             }
             .profile-completion-modal .modal-header h2 i {
                 color: var(--primary-color);
-            }
-            .profile-completion-modal .close-btn {
-                background: none;
-                border: none;
-                font-size: 1.5rem;
-                color: var(--text-light);
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: 50%;
-                transition: var(--transition);
-            }
-            .profile-completion-modal .close-btn:hover {
-                background: var(--hover-bg);
-                color: var(--text-primary);
             }
             .profile-completion-modal .modal-body {
                 padding: 1.5rem;
@@ -343,13 +323,11 @@ class DeseoApp {
             }
             .profile-completion-modal .modal-actions {
                 display: flex;
-                gap: 12px;
-                justify-content: flex-end;
+                justify-content: center;
                 margin-top: 24px;
                 padding-top: 20px;
                 border-top: 1px solid var(--border-color);
             }
-            .profile-completion-modal .btn-secondary,
             .profile-completion-modal .btn-primary {
                 padding: 12px 24px;
                 border-radius: 8px;
@@ -360,15 +338,6 @@ class DeseoApp {
                 display: flex;
                 align-items: center;
                 gap: 8px;
-            }
-            .profile-completion-modal .btn-secondary {
-                background: var(--secondary-color);
-                color: var(--text-primary);
-            }
-            .profile-completion-modal .btn-secondary:hover {
-                background: var(--hover-bg);
-            }
-            .profile-completion-modal .btn-primary {
                 background: var(--primary-color);
                 color: white;
             }
@@ -380,10 +349,6 @@ class DeseoApp {
                     margin: 1rem;
                     max-width: none;
                 }
-                .profile-completion-modal .modal-actions {
-                    flex-direction: column;
-                }
-                .profile-completion-modal .btn-secondary,
                 .profile-completion-modal .btn-primary {
                     width: 100%;
                     justify-content: center;
@@ -435,21 +400,7 @@ class DeseoApp {
             }
         }, 100);
 
-        // Cerrar con ESC
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') {
-                this.closeProfileModal(modal, style);
-            }
-        };
-        
-        document.addEventListener('keydown', handleEscape);
-        
-        // Cerrar al hacer clic fuera del modal
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal || e.target.classList.contains('modal-overlay')) {
-                this.closeProfileModal(modal, style);
-            }
-        });
+        // Modal persistente - no se puede cerrar con ESC o click fuera
     }
     
     closeProfileModal(modal, style) {

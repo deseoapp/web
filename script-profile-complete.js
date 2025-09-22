@@ -478,21 +478,30 @@ class ProfileCompleteManager {
                 throw new Error('Firebase no disponible');
             }
             
-            // Obtener usuario actual del sistema principal
+            // Obtener usuario actual - múltiples métodos de detección
             let currentUser = null;
             
-            console.log('🔍 Debug - Verificando autenticación...');
-            console.log('🔍 Debug - window.deseoApp:', window.deseoApp);
-            console.log('🔍 Debug - window.deseoApp?.currentUser:', window.deseoApp?.currentUser);
+            console.log('🔍 Debug - Verificando autenticación en profile-complete.html...');
             
-            // Intentar obtener usuario de Clerk (sistema principal)
+            // Método 1: Intentar obtener de window.deseoApp (si viene del index)
             if (window.deseoApp && window.deseoApp.currentUser) {
                 currentUser = window.deseoApp.currentUser;
                 console.log('✅ Usuario obtenido del sistema principal:', currentUser);
-            } else {
-                console.log('⚠️ No se encontró usuario en window.deseoApp, intentando localStorage...');
-                
-                // Fallback: intentar obtener de localStorage
+            }
+            // Método 2: Intentar obtener de Clerk directamente
+            else if (window.Clerk && window.Clerk.user) {
+                const clerkUser = window.Clerk.user;
+                currentUser = {
+                    id: clerkUser.id,
+                    name: clerkUser.fullName || clerkUser.firstName || 'Usuario',
+                    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+                    profileImageUrl: clerkUser.imageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
+                };
+                console.log('✅ Usuario obtenido de Clerk:', currentUser);
+            }
+            // Método 3: Intentar obtener de localStorage
+            else {
+                console.log('⚠️ Intentando localStorage...');
                 const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
                 console.log('🔍 Debug - Usuario de localStorage:', user);
                 
@@ -501,6 +510,15 @@ class ProfileCompleteManager {
                     console.log('✅ Usuario obtenido de localStorage:', currentUser);
                 } else {
                     console.log('⚠️ No se encontró usuario en localStorage');
+                }
+            }
+            
+            // Método 4: Verificar si hay datos de autenticación en sessionStorage
+            if (!currentUser) {
+                const sessionUser = JSON.parse(sessionStorage.getItem('deseo_user') || '{}');
+                if (sessionUser.uid || sessionUser.id) {
+                    currentUser = sessionUser;
+                    console.log('✅ Usuario obtenido de sessionStorage:', currentUser);
                 }
             }
             

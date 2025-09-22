@@ -69,6 +69,11 @@ class DeseoApp {
             profileImageUrl: user.imageUrl || user.profileImageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
         };
         
+        // Guardar datos de usuario en localStorage para que estén disponibles en otras páginas
+        localStorage.setItem('deseo_user', JSON.stringify(this.currentUser));
+        sessionStorage.setItem('deseo_user', JSON.stringify(this.currentUser));
+        console.log('✅ Datos de usuario guardados en localStorage y sessionStorage');
+        
         // Verificar si el perfil está completo
         await this.checkProfileCompletion();
         
@@ -84,6 +89,12 @@ class DeseoApp {
     handleClerkSignOut() {
         console.log('Clerk Sign Out');
         this.currentUser = null;
+        
+        // Limpiar datos de autenticación
+        localStorage.removeItem('deseo_user');
+        sessionStorage.removeItem('deseo_user');
+        console.log('✅ Datos de usuario eliminados de localStorage y sessionStorage');
+        
         this.showNotification('Sesión cerrada exitosamente.', 'info');
         this.updateAuthUI();
     }

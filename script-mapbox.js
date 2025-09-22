@@ -88,13 +88,148 @@ class DeseoApp {
         this.updateAuthUI();
     }
 
+    // ===== MODAL DE AUTENTICACIÓN =====
+    showAuthModal() {
+        console.log('Mostrando modal de autenticación...');
+        
+        // Crear modal de autenticación
+        const modal = document.createElement('div');
+        modal.className = 'auth-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-lock"></i> Iniciar Sesión</h2>
+                        <button class="close-btn" onclick="this.closest('.auth-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Para contactar con este servicio, necesitas iniciar sesión o registrarte.</p>
+                        <div class="auth-options">
+                            <button class="btn btn-primary" onclick="this.closest('.auth-modal').remove(); window.location.href='#auth'">
+                                <i class="fas fa-sign-in-alt"></i>
+                                Iniciar Sesión / Registrarse
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Agregar estilos
+        const style = document.createElement('style');
+        style.textContent = `
+            .auth-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: modalFadeIn 0.3s ease;
+            }
+            .auth-modal .modal-overlay {
+                background: rgba(0, 0, 0, 0.7);
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+                backdrop-filter: blur(5px);
+            }
+            .auth-modal .modal-content {
+                background: var(--background);
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius-lg);
+                box-shadow: var(--shadow-lg);
+                max-width: 400px;
+                width: 90%;
+                animation: modalSlideIn 0.2s ease-out;
+            }
+            .auth-modal .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 1.5rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .auth-modal .modal-header h2 {
+                font-size: 1.25rem;
+                font-weight: 700;
+                color: var(--text-primary);
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            .auth-modal .modal-header h2 i {
+                color: var(--primary-color);
+            }
+            .auth-modal .close-btn {
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                color: var(--text-light);
+                cursor: pointer;
+                padding: 0.5rem;
+                border-radius: 50%;
+                transition: var(--transition);
+            }
+            .auth-modal .close-btn:hover {
+                background: var(--hover-bg);
+                color: var(--text-primary);
+            }
+            .auth-modal .modal-body {
+                padding: 1.5rem;
+                text-align: center;
+            }
+            .auth-modal .modal-body p {
+                color: var(--text-secondary);
+                margin-bottom: 1.5rem;
+                line-height: 1.5;
+            }
+            .auth-modal .auth-options {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .auth-modal .btn {
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                border: none;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                background: var(--primary-color);
+                color: white;
+            }
+            .auth-modal .btn:hover {
+                background: var(--primary-hover);
+            }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(modal);
+    }
+
     // ===== VERIFICACIÓN DE PERFIL COMPLETO =====
     async checkProfileCompletion() {
         try {
+            // Solo verificar perfil si el usuario está autenticado
             if (!this.currentUser) {
-                console.log('No hay usuario autenticado');
+                console.log('Usuario no autenticado - permitir navegación libre');
                 return;
             }
+
+            console.log('Usuario autenticado - verificando perfil completo...');
 
             // Asegurar que Firebase esté inicializado antes de verificar el perfil
             if (!this.database) {
@@ -109,7 +244,7 @@ class DeseoApp {
             const isProfileComplete = await this.isUserProfileComplete();
             
             if (!isProfileComplete) {
-                console.log('Perfil incompleto, redirigiendo a completar perfil...');
+                console.log('Perfil incompleto, mostrando modal de completar perfil...');
                 this.showProfileCompletionModal();
             } else {
                 console.log('Perfil completo ✅');
@@ -117,8 +252,10 @@ class DeseoApp {
             
         } catch (error) {
             console.error('Error verificando perfil:', error);
-            // En caso de error, asumir que el perfil no está completo
-            this.showProfileCompletionModal();
+            // En caso de error, solo mostrar modal si el usuario está autenticado
+            if (this.currentUser) {
+                this.showProfileCompletionModal();
+            }
         }
     }
 
@@ -1578,6 +1715,13 @@ class DeseoApp {
     // ===== DETALLES DEL DESEO (TARJETA FLOTANTE) =====
     showWishDetails(wish) {
         if (!wish) return;
+
+        // Verificar si el usuario está autenticado
+        if (!this.currentUser) {
+            console.log('Usuario no autenticado - mostrando modal de autenticación');
+            this.showAuthModal();
+            return;
+        }
 
         const wishDetailsCard = document.getElementById('wishDetailsCard'); // Usar el ID correcto
         if (!wishDetailsCard) return;

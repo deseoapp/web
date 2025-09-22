@@ -504,21 +504,7 @@ class ProfileCompleteManager {
                 }
             }
             
-            // Si aún no tenemos usuario, intentar crear uno temporal para testing
-            if (!currentUser || (!currentUser.id && !currentUser.uid)) {
-                console.log('⚠️ No se encontró usuario autenticado, creando usuario temporal...');
-                
-                // Crear usuario temporal para testing
-                const tempUserId = `temp_user_${Date.now()}`;
-                currentUser = {
-                    id: tempUserId,
-                    name: 'Usuario Temporal',
-                    email: 'temp@example.com',
-                    profileImageUrl: 'https://www.gravatar.com/avatar/?d=mp&f=y'
-                };
-                
-                console.log('✅ Usuario temporal creado:', currentUser);
-            }
+            // No crear usuarios temporales - requerir autenticación real
             
             if (!currentUser || (!currentUser.id && !currentUser.uid)) {
                 throw new Error('Usuario no autenticado. Por favor, inicia sesión primero.');

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Deseo - Plataforma de Micro-Deseos</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="availability-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Mapbox GL JS -->
@@ -89,31 +90,31 @@
         <main class="map-area">
             <div id="map" class="mapbox-map"></div>
 
-            <!-- Botón flotante para crear deseos -->
-            <button class="floating-btn" id="floatingCreateWishBtn">
-                <i class="fas fa-plus"></i>
+            <!-- Botón flotante para marcar disponibilidad -->
+            <button class="floating-btn" id="floatingAvailabilityBtn">
+                <i class="fas fa-user-check"></i>
             </button>
 
-            <!-- Tarjeta de detalles del deseo (oculta por defecto) -->
-            <div class="wish-details-card" id="wishDetailsCard">
-                <button class="close-details-card" onclick="document.getElementById('wishDetailsCard').classList.remove('active');">
+            <!-- Tarjeta de detalles del perfil (oculta por defecto) -->
+            <div class="profile-details-card" id="profileDetailsCard">
+                <button class="close-details-card" onclick="document.getElementById('profileDetailsCard').classList.remove('active');">
                     <i class="fas fa-times"></i>
                 </button>
                 <div class="card-header">
-                    <div class="wish-logo-small"><img src="" alt="" id="wishDetailsCardLogo"></div>
-                    <div class="wish-info-small">
-                        <h3 id="wishDetailsCardTitle"></h3>
-                        <p id="wishDetailsCardCategoryPrice"></p>
+                    <div class="profile-avatar"><img src="" alt="" id="profileDetailsCardAvatar"></div>
+                    <div class="profile-info-small">
+                        <h3 id="profileDetailsCardName"></h3>
+                        <p id="profileDetailsCardCategoryPrice"></p>
                     </div>
-                    <div class="wish-meta">
+                    <div class="profile-meta">
                         <span class="location"><i class="fas fa-map-marker-alt"></i> Ubicación</span>
-                        <span class="price-tag" id="wishDetailsCardPrice"></span>
+                        <span class="price-tag" id="profileDetailsCardPrice"></span>
                     </div>
                 </div>
                 <div class="card-body">
-                    <h4 id="wishDetailsCardDescription"></h4>
-                    <p class="wish-author" id="wishDetailsCardAuthor"></p>
-                    <button class="btn-primary" id="acceptWishBtnCard">Aceptar Deseo</button>
+                    <h4 id="profileDetailsCardDescription"></h4>
+                    <p class="profile-age" id="profileDetailsCardAge"></p>
+                    <button class="btn-primary" id="contactProfileBtnCard">Contactar</button>
                     <button class="btn-secondary" id="viewChatBtnCard" style="display: none;">Ver Chat</button>
                 </div>
             </div>
@@ -126,66 +127,69 @@
     <!-- Modal de Autenticación (se reemplazará por Clerk UI) -->
     <div id="authContainer" class="modal"></div> <!-- Aseguramos que sea un modal para que Clerk pueda renderizar -->
 
-    <!-- Modal para crear deseo -->
-    <div class="modal" id="createWishModal">
+    <!-- Modal para marcar disponibilidad -->
+    <div class="modal" id="availabilityModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2><i class="fas fa-star"></i> Crear Nuevo Deseo</h2>
-                <button class="close-btn" id="closeCreateModal">
+                <h2><i class="fas fa-user-check"></i> Marcar Disponibilidad</h2>
+                <button class="close-btn" id="closeAvailabilityModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <form id="createWishForm">
-                    <div class="form-group">
-                        <label for="wishTitle">Título del deseo:</label>
-                        <input type="text" id="wishTitle" placeholder="¿Qué deseas hacer?" required>
+                <div class="availability-section">
+                    <div class="availability-toggle">
+                        <h3>¿Estás disponible?</h3>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="availabilityToggle" class="toggle-input">
+                            <label for="availabilityToggle" class="toggle-label">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-text">Disponible</span>
+                            </label>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="wishDescription">Descripción:</label>
-                        <textarea id="wishDescription" placeholder="Describe tu deseo en detalle..." required></textarea>
+                    
+                    <div class="category-selection" id="categorySelection" style="display: none;">
+                        <h3>Selecciona tu categoría:</h3>
+                        <div class="category-grid">
+                            <div class="category-card" data-category="escort">
+                                <i class="fas fa-female"></i>
+                                <span>Escort</span>
+                            </div>
+                            <div class="category-card" data-category="gigolo">
+                                <i class="fas fa-male"></i>
+                                <span>Gigolo</span>
+                            </div>
+                            <div class="category-card" data-category="masajes">
+                                <i class="fas fa-spa"></i>
+                                <span>Masajes</span>
+                            </div>
+                            <div class="category-card" data-category="trans">
+                                <i class="fas fa-transgender"></i>
+                                <span>Trans</span>
+                            </div>
+                            <div class="category-card" data-category="chat">
+                                <i class="fas fa-comments"></i>
+                                <span>Chat</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="wishCategory">Categoría:</label>
-                        <select id="wishCategory" required>
-                            <option value="">Selecciona una categoría</option>
-                            <option value="comida">Comida</option>
-                            <option value="servicios">Servicios</option>
-                            <option value="compras">Compras</option>
-                            <option value="transporte">Transporte</option>
-                            <option value="entretenimiento">Entretenimiento</option>
-                        </select>
+                    
+                    <div class="price-section" id="priceSection" style="display: none;">
+                        <h3>Precio por hora (COP):</h3>
+                        <input type="number" id="availabilityPrice" min="50000" max="1000000" value="100000" placeholder="Ej: 100000">
                     </div>
-                    <div class="form-group">
-                        <label for="wishPrice">Precio máximo (COP):</label>
-                        <input type="number" id="wishPrice" min="1000" max="1000000" value="25000" required>
-                        <small class="price-hint">El precio se formateará automáticamente (ej: 25.000)</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="wishAddress">Dirección:</label>
-                        <input type="text" id="wishAddress" placeholder="¿Dónde quieres hacerlo?" required>
-                        <button type="button" id="useCurrentLocation" class="btn-secondary">
-                            <i class="fas fa-map-marker-alt"></i> Usar mi ubicación actual
-                        </button>
-                    </div>
-                    <div class="form-group">
-                        <label for="wishUrgency">Urgencia:</label>
-                        <select id="wishUrgency">
-                            <option value="low">Baja (1-3 días)</option>
-                            <option value="medium" selected>Media (Hoy o mañana)</option>
-                            <option value="high">Alta (Inmediata)</option>
-                        </select>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn-secondary" id="cancelCreateWish">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="btn-primary" id="submitCreateWish">
-                            <i class="fas fa-plus"></i>
-                            Crear Deseo
-                        </button>
-                    </div>
-                </form>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAvailability">
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn-primary" id="submitAvailability">
+                        <i class="fas fa-check"></i>
+                        Estoy Disponible
+                    </button>
+                </div>
             </div>
         </div>
     </div>

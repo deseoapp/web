@@ -36,6 +36,8 @@ class DeseoApp {
         this.map = null;
         this.wishes = []; // Vuelve a ser 'wishes'
         this.markers = [];
+        this.availableProfiles = [];
+        this.profileMarkers = [];
         this.currentUser = null; // Inicialmente null, se establecerá con Clerk
         this.activeChat = null;
         this.userLocation = null;
@@ -739,11 +741,11 @@ class DeseoApp {
         console.log('🔧 Setting up event listeners...');
         
         // Botones principales con verificaciones defensivas
-        const floatingCreateWishBtn = document.getElementById('floatingCreateWishBtn');
-        if (floatingCreateWishBtn) {
-            floatingCreateWishBtn.addEventListener('click', () => this.openCreateWishModal());
+        const floatingAvailabilityBtn = document.getElementById('floatingAvailabilityBtn');
+        if (floatingAvailabilityBtn) {
+            floatingAvailabilityBtn.addEventListener('click', () => this.openAvailabilityModal());
         } else {
-            console.warn('⚠️ floatingCreateWishBtn not found');
+            console.warn('⚠️ floatingAvailabilityBtn not found');
         }
 
         const filterBtn = document.getElementById('filterBtn');
@@ -1226,10 +1228,223 @@ class DeseoApp {
         document.body.style.overflow = 'auto';
     }
 
-    // ===== CREAR DESEO CON IA =====
-    openCreateWishModal() {
-        this.openModal('createWishModal');
-        this.resetAIChat();
+    // ===== MODAL DE DISPONIBILIDAD =====
+    openAvailabilityModal() {
+        this.openModal('availabilityModal');
+        this.setupAvailabilityModal();
+    }
+
+    setupAvailabilityModal() {
+        const toggle = document.getElementById('availabilityToggle');
+        const categorySelection = document.getElementById('categorySelection');
+        const priceSection = document.getElementById('priceSection');
+        const categoryCards = document.querySelectorAll('.category-card');
+        const submitBtn = document.getElementById('submitAvailability');
+
+        // Manejar toggle de disponibilidad
+        toggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                categorySelection.style.display = 'block';
+                priceSection.style.display = 'block';
+                submitBtn.style.display = 'block';
+            } else {
+                categorySelection.style.display = 'none';
+                priceSection.style.display = 'none';
+                submitBtn.style.display = 'none';
+            }
+        });
+
+        // Manejar selección de categorías
+        categoryCards.forEach(card => {
+            card.addEventListener('click', () => {
+                // Remover selección anterior
+                categoryCards.forEach(c => c.classList.remove('selected'));
+                // Seleccionar nueva categoría
+                card.classList.add('selected');
+            });
+        });
+
+        // Manejar envío de disponibilidad
+        submitBtn.addEventListener('click', () => {
+            this.submitAvailability();
+        });
+
+        // Manejar cancelar
+        document.getElementById('cancelAvailability').addEventListener('click', () => {
+            this.closeModal('availabilityModal');
+        });
+    }
+
+    async submitAvailability() {
+        try {
+            // Verificar autenticación
+            if (!this.currentUser) {
+                this.showAuthModal();
+                return;
+            }
+
+            // Obtener datos del formulario
+            const selectedCategory = document.querySelector('.category-card.selected');
+            const price = document.getElementById('availabilityPrice').value;
+
+            if (!selectedCategory) {
+                this.showNotification('Por favor selecciona una categoría', 'warning');
+                return;
+            }
+
+            if (!price || price < 50000) {
+                this.showNotification('Por favor ingresa un precio válido (mínimo $50,000)', 'warning');
+                return;
+            }
+
+            // Crear objeto de disponibilidad
+            const availabilityData = {
+                userId: this.currentUser.id,
+                userName: this.currentUser.name,
+                userEmail: this.currentUser.email,
+                userProfileImage: this.currentUser.profileImageUrl,
+                category: selectedCategory.dataset.category,
+                price: parseInt(price),
+                priceFormatted: this.formatPrice(price),
+                location: this.userLocation,
+                isAvailable: true,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+
+            // Guardar en Firebase
+            await this.saveAvailabilityToFirebase(availabilityData);
+
+            // Cerrar modal y mostrar notificación
+            this.closeModal('availabilityModal');
+            this.showNotification('¡Disponibilidad marcada exitosamente!', 'success');
+
+            // Recargar perfiles disponibles
+            this.loadAvailableProfiles();
+
+        } catch (error) {
+            console.error('Error marcando disponibilidad:', error);
+            this.showNotification('Error al marcar disponibilidad', 'error');
+        }
+    }
+
+    async saveAvailabilityToFirebase(availabilityData) {
+        try {
+            if (!this.database) {
+                throw new Error('Firebase no disponible');
+            }
+
+            // Guardar en la colección de perfiles disponibles
+            const availabilityRef = this.database.ref('availableProfiles').push();
+            await availabilityRef.set(availabilityData);
+
+            console.log('✅ Disponibilidad guardada en Firebase');
+        } catch (error) {
+            console.error('❌ Error guardando disponibilidad:', error);
+            throw error;
+        }
+    }
+
+    // ===== CARGAR PERFILES DISPONIBLES =====
+    async loadAvailableProfiles() {
+        try {
+            if (!this.database) {
+                console.warn('Firebase no disponible para cargar perfiles');
+                return;
+            }
+
+            console.log('🔍 Cargando perfiles disponibles...');
+            
+            const profilesRef = this.database.ref('availableProfiles');
+            const snapshot = await profilesRef.once('value');
+            const profilesData = snapshot.val();
+
+            if (profilesData) {
+                this.availableProfiles = Object.values(profilesData).filter(profile => profile.isAvailable);
+                console.log(`✅ ${this.availableProfiles.length} perfiles disponibles cargados`);
+                this.renderAvailableProfilesOnMap();
+            } else {
+                console.log('No hay perfiles disponibles');
+                this.availableProfiles = [];
+            }
+
+        } catch (error) {
+            console.error('❌ Error cargando perfiles disponibles:', error);
+        }
+    }
+
+    renderAvailableProfilesOnMap() {
+        // Limpiar marcadores existentes
+        this.clearProfileMarkers();
+
+        // Crear marcadores para cada perfil disponible
+        this.availableProfiles.forEach(profile => {
+            if (profile.location && profile.location.lat && profile.location.lng) {
+                this.createProfileMarker(profile);
+            }
+        });
+    }
+
+    createProfileMarker(profile) {
+        const marker = new mapboxgl.Marker({
+            color: this.getCategoryColor(profile.category),
+            scale: 1.2
+        })
+        .setLngLat([profile.location.lng, profile.location.lat])
+        .addTo(this.map);
+
+        // Agregar popup con información básica
+        const popup = new mapboxgl.Popup({
+            offset: 25,
+            closeButton: false
+        }).setHTML(`
+            <div class="profile-popup">
+                <div class="popup-header">
+                    <img src="${profile.userProfileImage}" alt="${profile.userName}" class="popup-avatar">
+                    <div class="popup-info">
+                        <h4>${profile.userName}</h4>
+                        <p class="popup-category">${this.getCategoryName(profile.category)}</p>
+                        <p class="popup-price">${profile.priceFormatted}/hora</p>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        marker.setPopup(popup);
+
+        // Evento click para mostrar detalles
+        marker.getElement().addEventListener('click', () => {
+            this.showProfileDetails(profile);
+        });
+
+        this.profileMarkers.push(marker);
+    }
+
+    getCategoryColor(category) {
+        const colors = {
+            'escort': '#e91e63',
+            'gigolo': '#2196f3',
+            'masajes': '#4caf50',
+            'trans': '#9c27b0',
+            'chat': '#ff9800'
+        };
+        return colors[category] || '#60c48e';
+    }
+
+    getCategoryName(category) {
+        const names = {
+            'escort': 'Escort',
+            'gigolo': 'Gigolo',
+            'masajes': 'Masajes',
+            'trans': 'Trans',
+            'chat': 'Chat'
+        };
+        return names[category] || category;
+    }
+
+    clearProfileMarkers() {
+        this.profileMarkers.forEach(marker => marker.remove());
+        this.profileMarkers = [];
     }
 
     resetAIChat() {
@@ -2272,8 +2487,8 @@ class DeseoApp {
             console.log('✅ Firebase Realtime Database inicializado');
             console.log('📊 Database URL:', CONFIG.FIREBASE.config.databaseURL);
             
-            // Cargar deseos existentes
-            this.loadExistingWishes();
+            // Cargar perfiles disponibles
+            this.loadAvailableProfiles();
             
             // Escuchar cambios en tiempo real
             this.setupRealtimeListeners();

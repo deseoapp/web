@@ -96,6 +96,15 @@ class DeseoApp {
                 return;
             }
 
+            // Asegurar que Firebase esté inicializado antes de verificar el perfil
+            if (!this.database) {
+                console.log('🔍 Firebase no inicializado, inicializando...');
+                await this.initializeFirebase();
+                
+                // Esperar un poco para que Firebase se inicialice
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
             // Verificar si el perfil está completo en Firebase
             const isProfileComplete = await this.isUserProfileComplete();
             
@@ -194,7 +203,7 @@ class DeseoApp {
                         <div class="profile-requirements">
                             <div class="requirement-item">
                                 <i class="fas fa-user"></i>
-                                <span>Información básica (Apodo, descripción y edad)</span>
+                                <span>Información básica</span>
                             </div>
                             <div class="requirement-item">
                                 <i class="fas fa-camera"></i>

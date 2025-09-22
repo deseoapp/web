@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completar Perfil - Deseo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="profile-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+</head>
+<body class="profile-complete-page">
+    <!-- Header -->
+    <header class="profile-header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-compass"></i>
+                <h1>Deseo</h1>
+            </div>
+            <div class="profile-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <span class="progress-text" id="progressText">0% completado</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="profile-main">
+        <div class="profile-container">
+            <div class="profile-form-container">
+                <h2 class="profile-title">Completa tu perfil</h2>
+                <p class="profile-subtitle">Ayúdanos a conocerte mejor para una experiencia personalizada</p>
+
+                <form id="profileForm" class="profile-form">
+                    <!-- Información Básica -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-user"></i>
+                            Información Básica
+                        </h3>
+                        
+                        <div class="form-group">
+                            <label for="nickname">Apodo *</label>
+                            <input type="text" id="nickname" name="nickname" required 
+                                   placeholder="¿Cómo te gusta que te llamen?">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Descripción *</label>
+                            <textarea id="description" name="description" required 
+                                      placeholder="Cuéntanos sobre ti, tus intereses, personalidad..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="age">Edad *</label>
+                            <input type="number" id="age" name="age" required min="18" max="100" 
+                                   placeholder="Tu edad">
+                        </div>
+                    </div>
+
+                    <!-- Fotos del Perfil -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-camera"></i>
+                            Fotos del Perfil (3-6 fotos)
+                        </h3>
+                        <p class="section-description">Sube entre 3 y 6 fotos tuyas. Se guardarán de forma segura.</p>
+                        
+                        <div class="photo-upload-container">
+                            <div class="photo-grid" id="photoGrid">
+                                <div class="photo-upload-item" data-index="0">
+                                    <input type="file" class="photo-input" accept="image/*" data-index="0">
+                                    <div class="photo-placeholder">
+                                        <i class="fas fa-plus"></i>
+                                        <span>Agregar foto</span>
+                                    </div>
+                                    <div class="photo-preview" style="display: none;">
+                                        <img src="" alt="Preview">
+                                        <button type="button" class="remove-photo">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Poses Sexuales Favoritas -->
+                    <div class="form-section">
+                        <h3 class="section-title">
+                            <i class="fas fa-heart"></i>
+                            Poses Sexuales Favoritas
+                        </h3>
+                        <p class="section-description">Selecciona las poses que más te gustan (puedes elegir varias)</p>
+                        
+                        <div class="poses-grid" id="posesGrid">
+                            <!-- Las poses se cargarán dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Botones -->
+                    <div class="form-actions">
+                        <button type="button" id="saveDraftBtn" class="btn btn-secondary">
+                            <i class="fas fa-save"></i>
+                            Guardar Borrador
+                        </button>
+                        <button type="submit" id="completeProfileBtn" class="btn btn-primary" disabled>
+                            <i class="fas fa-check"></i>
+                            Completar Perfil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Guardando perfil...</p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    <script src="script-profile-complete.js"></script>
+</body>
+</html>

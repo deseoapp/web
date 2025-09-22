@@ -788,7 +788,7 @@ class DeseoApp {
         if (wishSearchInput) {
             wishSearchInput.addEventListener('input', (e) => {
                 console.log('Buscando deseos:', e.target.value);
-                this.renderWishListInSidebar();
+                this.renderAvailableProfilesInSidebar();
                 this.renderWishesOnMap();
             });
         } else {
@@ -1353,9 +1353,11 @@ class DeseoApp {
                 this.availableProfiles = Object.values(profilesData).filter(profile => profile.isAvailable);
                 console.log(`✅ ${this.availableProfiles.length} perfiles disponibles cargados`);
                 this.renderAvailableProfilesOnMap();
+                this.renderAvailableProfilesInSidebar();
             } else {
                 console.log('No hay perfiles disponibles');
                 this.availableProfiles = [];
+                this.renderAvailableProfilesInSidebar();
             }
 
         } catch (error) {
@@ -1920,7 +1922,7 @@ class DeseoApp {
     }
 
     // ===== MODAL TIPO TINDER PARA PERFILES =====
-    showProfileDetails(profile) {
+    async showProfileDetails(profile) {
         if (!profile) return;
 
         // Verificar si el usuario está autenticado
@@ -1929,6 +1931,28 @@ class DeseoApp {
             this.showAuthModal();
             return;
         }
+
+        // Obtener datos completos del usuario desde Firebase
+        let userProfile = null;
+        try {
+            if (this.database) {
+                const userRef = this.database.ref(`users/${profile.userId}`);
+                const snapshot = await userRef.once('value');
+                userProfile = snapshot.val();
+            }
+        } catch (error) {
+            console.error('Error obteniendo perfil del usuario:', error);
+        }
+
+        // Usar datos de Firebase si están disponibles, sino usar datos básicos del perfil
+        const displayProfile = userProfile ? {
+            ...profile,
+            userName: userProfile.nickname || profile.userName,
+            userProfileImage: userProfile.photos && userProfile.photos.length > 0 ? userProfile.photos[0] : profile.userProfileImage,
+            description: userProfile.description || 'Descripción no disponible',
+            age: userProfile.age || 'No especificada',
+            favoritePoses: userProfile.favoritePoses || []
+        } : profile;
 
         // Crear modal tipo Tinder
         const modal = document.createElement('div');
@@ -1942,16 +1966,16 @@ class DeseoApp {
                         </button>
                     </div>
                     <div class="tinder-photos">
-                        <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
-                             alt="${profile.userName}" class="main-photo">
+                        <img src="${displayProfile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                             alt="${displayProfile.userName}" class="main-photo">
                     </div>
                     <div class="tinder-info">
                         <div class="profile-name">
-                            <h2>${profile.userName || 'Usuario'}</h2>
-                            <span class="category-badge ${profile.category}">${this.getCategoryName(profile.category)}</span>
+                            <h2>${displayProfile.userName || 'Usuario'}</h2>
+                            <span class="category-badge ${displayProfile.category}">${this.getCategoryName(displayProfile.category)}</span>
                         </div>
                         <div class="profile-details">
-                            <p class="profile-description">${profile.description || 'Descripción no disponible'}</p>
+                            <p class="profile-description">${displayProfile.description}</p>
                             <div class="profile-stats">
                                 <div class="stat-item">
                                     <i class="fas fa-map-marker-alt"></i>
@@ -1961,7 +1985,19 @@ class DeseoApp {
                                     <i class="fas fa-clock"></i>
                                     <span>Disponible ahora</span>
                                 </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-birthday-cake"></i>
+                                    <span>Edad: ${displayProfile.age}</span>
+                                </div>
                             </div>
+                            ${displayProfile.favoritePoses && displayProfile.favoritePoses.length > 0 ? `
+                                <div class="favorite-poses">
+                                    <h4>Poses favoritas:</h4>
+                                    <div class="poses-tags">
+                                        ${displayProfile.favoritePoses.map(pose => `<span class="pose-tag">${pose}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                     <div class="tinder-actions">
@@ -2112,6 +2148,27 @@ class DeseoApp {
             .contact-btn {
                 background: var(--primary-color);
                 color: white;
+            }
+            .favorite-poses {
+                margin-top: 15px;
+            }
+            .favorite-poses h4 {
+                color: var(--text-primary);
+                font-size: 0.9rem;
+                margin-bottom: 8px;
+            }
+            .poses-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .pose-tag {
+                background: var(--primary-color);
+                color: white;
+                padding: 4px 8px;
+                border-radius: 12px;
+                font-size: 0.75rem;
+                font-weight: 500;
             }
         `;
 
@@ -2286,44 +2343,44 @@ class DeseoApp {
         this.renderWishesOnMap();
     }
 
-    // ===== RENDERIZAR LISTA DE DESEOS EN SIDEBAR =====
-    renderWishListInSidebar() {
+    // ===== RENDERIZAR LISTA DE PERFILES DISPONIBLES EN SIDEBAR =====
+    renderAvailableProfilesInSidebar() {
         const wishList = document.getElementById('wishList');
         if (!wishList) {
             console.warn('wishList element not found');
             return;
         }
 
-        // Filtrar deseos según los filtros actuales
-        const filteredWishes = this.wishes.filter(wish => this.passesWishFilters(wish));
-        
         // Limpiar la lista actual
         wishList.innerHTML = '';
 
-        // Renderizar cada deseo
-        filteredWishes.forEach(wish => {
-            const wishItem = document.createElement('div');
-            wishItem.className = 'wish-item';
-            wishItem.innerHTML = `
-                <div class="wish-logo"><i class="${this.getCategoryIcon(wish.category)}"></i></div>
+        // Renderizar cada perfil disponible
+        this.availableProfiles.forEach(profile => {
+            const profileItem = document.createElement('div');
+            profileItem.className = 'wish-item profile-item';
+            profileItem.innerHTML = `
+                <div class="wish-logo">
+                    <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                         alt="${profile.userName}" class="profile-avatar-small">
+                </div>
                 <div class="wish-info">
-                    <h3>${wish.title}</h3>
-                    <p>$${wish.price} • ${this.getCategoryName(wish.category)}</p>
+                    <h3>${profile.userName || 'Usuario'}</h3>
+                    <p>${this.getCategoryName(profile.category)} • Disponible</p>
                 </div>
                 <div class="wish-actions">
-                    <i class="fas fa-heart"></i>
+                    <i class="fas fa-user-check"></i>
                 </div>
             `;
             
             // Añadir evento de clic para mostrar detalles
-            wishItem.addEventListener('click', () => {
-                this.showProfileDetails(wish);
+            profileItem.addEventListener('click', () => {
+                this.showProfileDetails(profile);
             });
             
-            wishList.appendChild(wishItem);
+            wishList.appendChild(profileItem);
         });
 
-        console.log(`Rendered ${filteredWishes.length} wishes in sidebar`);
+        console.log(`Rendered ${this.availableProfiles.length} available profiles in sidebar`);
     }
 
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====
@@ -2344,7 +2401,7 @@ class DeseoApp {
         this.renderWishesOnMap(); // Renderizar deseos con los nuevos filtros
         this.closeModal('filterModal');
         this.showNotification('Filtros aplicados correctamente.', 'success');
-        this.renderWishListInSidebar(); // Actualizar la lista de deseos en el sidebar
+        this.renderAvailableProfilesInSidebar(); // Actualizar la lista de deseos en el sidebar
     }
 
     applySidebarFilters() {
@@ -2354,7 +2411,7 @@ class DeseoApp {
         // this.filters.distance = parseInt(document.getElementById('distanceFilter').value);
 
         this.renderWishesOnMap();
-        this.renderWishListInSidebar();
+        this.renderAvailableProfilesInSidebar();
         this.showNotification('Filtros de sidebar aplicados correctamente.', 'success');
     }
 
@@ -2653,7 +2710,7 @@ class DeseoApp {
                 
                 // Renderizar en el mapa y sidebar
                 this.renderWishesOnMap();
-                this.renderWishListInSidebar();
+                this.renderAvailableProfilesInSidebar();
             } else {
                 console.log('ℹ️ No hay deseos en Firebase aún');
             }
@@ -2713,7 +2770,7 @@ class DeseoApp {
             if (!this.wishes.find(w => w.id === wish.id)) {
                 this.wishes.push(wish);
                 this.addWishMarker(wish);
-                this.renderWishListInSidebar();
+                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Nuevo deseo agregado en tiempo real:', wish.title);
             }
         });
@@ -2730,7 +2787,7 @@ class DeseoApp {
             if (index !== -1) {
                 this.wishes[index] = updatedWish;
                 this.updateWishMarker(updatedWish);
-                this.renderWishListInSidebar();
+                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Deseo actualizado en tiempo real:', updatedWish.title);
             }
         });
@@ -2743,7 +2800,7 @@ class DeseoApp {
             if (index !== -1) {
                 this.wishes.splice(index, 1);
                 this.removeWishMarker(wishId);
-                this.renderWishListInSidebar();
+                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Deseo eliminado en tiempo real:', wishId);
             }
         });
@@ -3047,7 +3104,7 @@ class DeseoApp {
             console.log('🔍 [DEBUG] Marcador agregado al mapa');
             
             // Actualizar lista en sidebar
-            this.renderWishListInSidebar();
+            this.renderAvailableProfilesInSidebar();
             console.log('🔍 [DEBUG] Lista actualizada en sidebar');
             
             console.log('✅ Deseo creado localmente:', wish.title);

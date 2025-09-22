@@ -1200,9 +1200,9 @@ class DeseoApp {
 
         marker.setPopup(popup);
 
-        // Evento de clic en el marcador para mostrar la tarjeta de detalles del deseo
+        // Evento de clic en el marcador para mostrar detalles del perfil
         markerElement.addEventListener('click', () => {
-            this.showWishDetails(wish); // Mostrar detalles del deseo en la tarjeta flotante
+            this.showProfileDetails(wish); // Mostrar detalles del perfil en modal tipo Tinder
         });
 
         this.markers.push(marker);
@@ -1245,11 +1245,9 @@ class DeseoApp {
         toggle.addEventListener('change', (e) => {
             if (e.target.checked) {
                 categorySelection.style.display = 'block';
-                priceSection.style.display = 'block';
                 submitBtn.style.display = 'block';
             } else {
                 categorySelection.style.display = 'none';
-                priceSection.style.display = 'none';
                 submitBtn.style.display = 'none';
             }
         });
@@ -1285,15 +1283,9 @@ class DeseoApp {
 
             // Obtener datos del formulario
             const selectedCategory = document.querySelector('.category-card.selected');
-            const price = document.getElementById('availabilityPrice').value;
 
             if (!selectedCategory) {
                 this.showNotification('Por favor selecciona una categoría', 'warning');
-                return;
-            }
-
-            if (!price || price < 50000) {
-                this.showNotification('Por favor ingresa un precio válido (mínimo $50,000)', 'warning');
                 return;
             }
 
@@ -1304,8 +1296,6 @@ class DeseoApp {
                 userEmail: this.currentUser.email,
                 userProfileImage: this.currentUser.profileImageUrl,
                 category: selectedCategory.dataset.category,
-                price: parseInt(price),
-                priceFormatted: this.formatPrice(price),
                 location: this.userLocation,
                 isAvailable: true,
                 createdAt: new Date().toISOString(),
@@ -1386,34 +1376,23 @@ class DeseoApp {
     }
 
     createProfileMarker(profile) {
-        const marker = new mapboxgl.Marker({
-            color: this.getCategoryColor(profile.category),
-            scale: 1.2
-        })
+        // Crear elemento personalizado para el marcador
+        const markerElement = document.createElement('div');
+        markerElement.className = 'custom-profile-marker';
+        markerElement.innerHTML = `
+            <div class="marker-container">
+                <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                     alt="${profile.userName}" class="marker-avatar">
+                <div class="marker-alias">${profile.userName || 'Usuario'}</div>
+            </div>
+        `;
+
+        const marker = new mapboxgl.Marker(markerElement)
         .setLngLat([profile.location.lng, profile.location.lat])
         .addTo(this.map);
 
-        // Agregar popup con información básica
-        const popup = new mapboxgl.Popup({
-            offset: 25,
-            closeButton: false
-        }).setHTML(`
-            <div class="profile-popup">
-                <div class="popup-header">
-                    <img src="${profile.userProfileImage}" alt="${profile.userName}" class="popup-avatar">
-                    <div class="popup-info">
-                        <h4>${profile.userName}</h4>
-                        <p class="popup-category">${this.getCategoryName(profile.category)}</p>
-                        <p class="popup-price">${profile.priceFormatted}/hora</p>
-                    </div>
-                </div>
-            </div>
-        `);
-
-        marker.setPopup(popup);
-
         // Evento click para mostrar detalles
-        marker.getElement().addEventListener('click', () => {
+        markerElement.addEventListener('click', () => {
             this.showProfileDetails(profile);
         });
 
@@ -1426,7 +1405,8 @@ class DeseoApp {
             'gigolo': '#2196f3',
             'masajes': '#4caf50',
             'trans': '#9c27b0',
-            'chat': '#ff9800'
+            'chat': '#ff9800',
+            'live': '#f44336'
         };
         return colors[category] || '#60c48e';
     }
@@ -1437,7 +1417,8 @@ class DeseoApp {
             'gigolo': 'Gigolo',
             'masajes': 'Masajes',
             'trans': 'Trans',
-            'chat': 'Chat'
+            'chat': 'Chat',
+            'live': 'Live'
         };
         return names[category] || category;
     }
@@ -1938,9 +1919,9 @@ class DeseoApp {
         this.showNotification('¡Tu deseo ha sido publicado exitosamente!', 'success');
     }
 
-    // ===== DETALLES DEL DESEO (TARJETA FLOTANTE) =====
-    showWishDetails(wish) {
-        if (!wish) return;
+    // ===== MODAL TIPO TINDER PARA PERFILES =====
+    showProfileDetails(profile) {
+        if (!profile) return;
 
         // Verificar si el usuario está autenticado
         if (!this.currentUser) {
@@ -1949,61 +1930,198 @@ class DeseoApp {
             return;
         }
 
-        const wishDetailsCard = document.getElementById('wishDetailsCard'); // Usar el ID correcto
-        if (!wishDetailsCard) return;
+        // Crear modal tipo Tinder
+        const modal = document.createElement('div');
+        modal.className = 'tinder-profile-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content tinder-card">
+                    <div class="tinder-header">
+                        <button class="close-btn" onclick="this.closest('.tinder-profile-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="tinder-photos">
+                        <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                             alt="${profile.userName}" class="main-photo">
+                    </div>
+                    <div class="tinder-info">
+                        <div class="profile-name">
+                            <h2>${profile.userName || 'Usuario'}</h2>
+                            <span class="category-badge ${profile.category}">${this.getCategoryName(profile.category)}</span>
+                        </div>
+                        <div class="profile-details">
+                            <p class="profile-description">${profile.description || 'Descripción no disponible'}</p>
+                            <div class="profile-stats">
+                                <div class="stat-item">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <span>Ubicación cercana</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Disponible ahora</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tinder-actions">
+                        <button class="action-btn pass-btn" onclick="this.closest('.tinder-profile-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <button class="action-btn contact-btn" onclick="window.deseoApp.contactProfile('${profile.userId}')">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
 
-        // Guardar el deseo actual para acciones futuras
-        this.currentWish = wish;
+        // Agregar estilos
+        const style = document.createElement('style');
+        style.textContent = `
+            .tinder-profile-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: modalFadeIn 0.3s ease;
+            }
+            .tinder-card {
+                width: 90%;
+                max-width: 400px;
+                height: 80vh;
+                background: var(--background-secondary);
+                border-radius: 20px;
+                overflow: hidden;
+                position: relative;
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            }
+            .tinder-header {
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                z-index: 10;
+            }
+            .tinder-header .close-btn {
+                background: rgba(0, 0, 0, 0.5);
+                border: none;
+                color: white;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-size: 1.2rem;
+            }
+            .tinder-photos {
+                height: 60%;
+                position: relative;
+                overflow: hidden;
+            }
+            .main-photo {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .tinder-info {
+                padding: 20px;
+                height: 40%;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            .profile-name {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+            .profile-name h2 {
+                color: var(--text-primary);
+                font-size: 1.5rem;
+                margin: 0;
+            }
+            .category-badge {
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: white;
+            }
+            .category-badge.escort { background: #e91e63; }
+            .category-badge.gigolo { background: #2196f3; }
+            .category-badge.masajes { background: #4caf50; }
+            .category-badge.trans { background: #9c27b0; }
+            .category-badge.chat { background: #ff9800; }
+            .category-badge.live { background: #f44336; }
+            .profile-description {
+                color: var(--text-secondary);
+                line-height: 1.5;
+                margin-bottom: 15px;
+            }
+            .profile-stats {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .stat-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+            }
+            .stat-item i {
+                color: var(--primary-color);
+                width: 16px;
+            }
+            .tinder-actions {
+                position: absolute;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 20px;
+            }
+            .action-btn {
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                border: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                cursor: pointer;
+                transition: transform 0.2s ease;
+            }
+            .action-btn:hover {
+                transform: scale(1.1);
+            }
+            .pass-btn {
+                background: #ff4757;
+                color: white;
+            }
+            .contact-btn {
+                background: var(--primary-color);
+                color: white;
+            }
+        `;
 
-        // Asegurar que wish.author existe y tiene la estructura correcta
-        const author = wish.author || { id: 'anonymous', name: 'Usuario Anónimo' };
-        const currentUserId = this.currentUser?.id || 'anonymous';
-
-        // Actualizar el contenido de la tarjeta con los detalles del deseo
-        document.getElementById('wishDetailsCardLogo').src = this.getCategoryLogo(wish.category);
-        document.getElementById('wishDetailsCardLogo').alt = wish.category;
-        document.getElementById('wishDetailsCardTitle').textContent = wish.title;
-        document.getElementById('wishDetailsCardCategoryPrice').textContent = `${wish.priceFormatted || '$' + wish.price} • ${this.getCategoryName(wish.category)}`;
-        document.getElementById('wishDetailsCardPrice').textContent = wish.priceFormatted || '$' + wish.price;
-        document.getElementById('wishDetailsCardDescription').textContent = wish.description;
-        document.getElementById('wishDetailsCardAuthor').textContent = `Autor: ${author.name}`;
-
-        // Mostrar u ocultar el botón de chatear/aceptar según el estado y si es el autor
-        const acceptBtn = document.getElementById('acceptWishBtnCard');
-        const viewChatBtn = document.getElementById('viewChatBtnCard');
-
-        if (wish.status === 'active' && author.id !== currentUserId) {
-            acceptBtn.style.display = 'block';
-            viewChatBtn.style.display = 'none';
-        } else if (wish.status === 'in_progress' && (author.id === currentUserId || (wish.acceptedBy && wish.acceptedBy.id === currentUserId))) {
-            acceptBtn.style.display = 'none';
-            viewChatBtn.style.display = 'block';
-        } else {
-            acceptBtn.style.display = 'none';
-            viewChatBtn.style.display = 'none';
-        }
-        
-        wishDetailsCard.classList.add('active');
-
-        // Centrar el mapa en la ubicación del deseo
-        this.map.flyTo({
-            center: [wish.location.lng, wish.location.lat],
-            essential: true,
-            duration: 900 // animación suave
-        });
+        document.head.appendChild(style);
+        document.body.appendChild(modal);
     }
 
-    acceptWishFromCard() {
-        if (!this.currentWish) return;
-        this.acceptWish(this.currentWish.id);
-        // Después de aceptar, la tarjeta de detalles debería actualizarse o cerrarse y abrir el chat
-        document.getElementById('wishDetailsCard').classList.remove('active');
-    }
-
-    openPrivateChatForCurrentWish() {
-        if (!this.currentWish) return;
-        this.openPrivateChat(this.currentWish.id); // Reutilizar la función existente o adaptarla si es necesario
-        document.getElementById('wishDetailsCard').classList.remove('active');
+    contactProfile(userId) {
+        console.log('Contactando usuario:', userId);
+        this.showNotification('Función de contacto en desarrollo', 'info');
     }
 
     // ===== CHAT PRIVADO =====
@@ -2199,7 +2317,7 @@ class DeseoApp {
             
             // Añadir evento de clic para mostrar detalles
             wishItem.addEventListener('click', () => {
-                this.showWishDetails(wish);
+                this.showProfileDetails(wish);
             });
             
             wishList.appendChild(wishItem);

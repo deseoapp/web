@@ -173,6 +173,13 @@ class DeseoApp {
     }
 
     showProfileCompletionModal() {
+        // Prevenir múltiples modales
+        const existingModal = document.querySelector('.profile-completion-modal');
+        if (existingModal) {
+            console.log('Modal ya existe, no crear otra');
+            return;
+        }
+
         // Crear modal de completar perfil
         const modal = document.createElement('div');
         modal.className = 'profile-completion-modal';
@@ -180,16 +187,17 @@ class DeseoApp {
             <div class="modal-overlay">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h2>
-                            <i class="fas fa-user-plus"></i>
-                            Completa tu perfil
-                        </h2>
+                        <h2><i class="fas fa-user-plus"></i> Completa tu perfil</h2>
+                        <button class="close-btn" onclick="this.closest('.profile-completion-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                     <div class="modal-body">
+                        <p class="modal-description">Para acceder a todas las funcionalidades de la plataforma</p>
                         <div class="profile-requirements">
                             <div class="requirement-item">
                                 <i class="fas fa-user"></i>
-                                <span>Información básica </span>
+                                <span>Información básica (Apodo, descripción y edad)</span>
                             </div>
                             <div class="requirement-item">
                                 <i class="fas fa-camera"></i>
@@ -201,8 +209,11 @@ class DeseoApp {
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-primary" id="completeProfileBtn">
+                    <div class="modal-actions">
+                        <button class="btn-secondary" onclick="this.closest('.profile-completion-modal').remove()">
+                            Cancelar
+                        </button>
+                        <button class="btn-primary" id="completeProfileBtn">
                             <i class="fas fa-check"></i>
                             Completar ahora
                         </button>
@@ -211,7 +222,7 @@ class DeseoApp {
             </div>
         `;
 
-        // Agregar estilos
+        // Agregar estilos usando el diseño del sitio
         const style = document.createElement('style');
         style.textContent = `
             .profile-completion-modal {
@@ -224,195 +235,158 @@ class DeseoApp {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                animation: fadeIn 0.3s ease;
+                animation: modalFadeIn 0.3s ease;
             }
-            @keyframes fadeIn {
+            @keyframes modalFadeIn {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
-            .modal-overlay {
-                background: rgba(0, 0, 0, 0.3);
+            .profile-completion-modal .modal-overlay {
+                background: transparent;
                 width: 100%;
                 height: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 padding: 2rem;
-                backdrop-filter: blur(2px);
             }
-            .modal-content {
-                background: var(--bg-secondary, #1a1a1a);
-                border-radius: 24px;
-                max-width: 520px;
-                width: 100%;
-                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
-                border: 1px solid var(--border-color, #333);
-                animation: slideUp 0.4s ease;
-                overflow: hidden;
+            .profile-completion-modal .modal-content {
+                background: var(--background);
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius-lg);
+                box-shadow: var(--shadow-lg);
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                animation: modalSlideIn 0.2s ease-out;
             }
-            @keyframes slideUp {
-                from { 
+            @keyframes modalSlideIn {
+                from {
                     opacity: 0;
-                    transform: translateY(30px) scale(0.95);
+                    transform: translateY(-20px) scale(0.95);
                 }
-                to { 
+                to {
                     opacity: 1;
                     transform: translateY(0) scale(1);
                 }
             }
-            .modal-header {
-                background: linear-gradient(135deg, #10b981, #059669);
-                padding: 2.5rem 2rem 2rem;
-                text-align: center;
-                position: relative;
+            .profile-completion-modal .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1rem 1.5rem;
+                border-bottom: 1px solid var(--border-color);
             }
-            .modal-header::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
-                pointer-events: none;
-            }
-            .modal-header h2 {
-                color: #ffffff;
-                margin: 0 0 0.75rem 0;
-                font-size: 1.75rem;
+            .profile-completion-modal .modal-header h2 {
+                font-size: 1.25rem;
                 font-weight: 700;
+                color: var(--text-primary);
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 0.75rem;
-                position: relative;
-                z-index: 1;
+                gap: 0.5rem;
             }
-            .modal-header h2 i {
+            .profile-completion-modal .modal-header h2 i {
+                color: var(--primary-color);
+            }
+            .profile-completion-modal .close-btn {
+                background: none;
+                border: none;
                 font-size: 1.5rem;
-                color: rgba(255, 255, 255, 0.9);
+                color: var(--text-light);
+                cursor: pointer;
+                padding: 0.5rem;
+                border-radius: 50%;
+                transition: var(--transition);
             }
-            .modal-header p {
-                color: rgba(255, 255, 255, 0.9);
-                margin: 0;
-                font-size: 1rem;
+            .profile-completion-modal .close-btn:hover {
+                background: var(--hover-bg);
+                color: var(--text-primary);
+            }
+            .profile-completion-modal .modal-body {
+                padding: 1.5rem;
+            }
+            .profile-completion-modal .modal-description {
+                color: var(--text-secondary);
+                margin-bottom: 1.5rem;
+                font-size: 0.9rem;
                 line-height: 1.5;
-                position: relative;
-                z-index: 1;
             }
-            .modal-body {
-                padding: 2.5rem 2rem;
-                background: var(--bg-secondary, #1a1a1a);
-            }
-            .profile-requirements {
+            .profile-completion-modal .profile-requirements {
                 display: flex;
                 flex-direction: column;
-                gap: 1.25rem;
+                gap: 1rem;
             }
-            .requirement-item {
+            .profile-completion-modal .requirement-item {
                 display: flex;
                 align-items: center;
-                gap: 1.25rem;
-                padding: 1.25rem;
-                background: var(--bg-tertiary, #2a2a2a);
-                border-radius: 12px;
-                border: 1px solid var(--border-color, #333);
-                transition: all 0.3s ease;
-                position: relative;
-                overflow: hidden;
+                gap: 1rem;
+                padding: 1rem;
+                background: var(--background-secondary);
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius-sm);
+                transition: var(--transition);
             }
-            .requirement-item::before {
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 0;
-                bottom: 0;
-                width: 4px;
-                background: linear-gradient(135deg, #10b981, #059669);
-                opacity: 0;
-                transition: opacity 0.3s ease;
+            .profile-completion-modal .requirement-item:hover {
+                background: var(--hover-bg);
+                border-color: var(--primary-color);
             }
-            .requirement-item:hover {
-                transform: translateX(4px);
-                border-color: rgba(16, 185, 129, 0.3);
+            .profile-completion-modal .requirement-item i {
+                color: var(--primary-color);
+                font-size: 1.2rem;
+                min-width: 20px;
             }
-            .requirement-item:hover::before {
-                opacity: 1;
-            }
-            .requirement-item i {
-                color: #10b981;
-                font-size: 1.3rem;
-                min-width: 24px;
-                text-align: center;
-            }
-            .requirement-item span {
-                color: var(--text-primary, #fff);
-                font-weight: 500;
-                font-size: 1rem;
+            .profile-completion-modal .requirement-item span {
+                color: var(--text-primary);
+                font-size: 0.9rem;
                 line-height: 1.4;
             }
-            .modal-footer {
-                padding: 1.5rem 2rem 2rem;
+            .profile-completion-modal .modal-actions {
                 display: flex;
-                gap: 1rem;
-                justify-content: center;
-                background: var(--bg-secondary, #1a1a1a);
-                border-top: 1px solid var(--border-color, #333);
+                gap: 12px;
+                justify-content: flex-end;
+                margin-top: 24px;
+                padding-top: 20px;
+                border-top: 1px solid var(--border-color);
             }
-            .btn {
-                padding: 0.875rem 2rem;
+            .profile-completion-modal .btn-secondary,
+            .profile-completion-modal .btn-primary {
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-weight: 500;
+                transition: all 0.2s ease;
                 border: none;
-                border-radius: 12px;
-                font-weight: 600;
-                font-size: 1rem;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 0.75rem;
-                transition: all 0.3s ease;
-                min-width: 160px;
-                justify-content: center;
+                gap: 8px;
             }
-            .btn-primary {
-                background: linear-gradient(135deg, #10b981, #059669);
+            .profile-completion-modal .btn-secondary {
+                background: var(--secondary-color);
+                color: var(--text-primary);
+            }
+            .profile-completion-modal .btn-secondary:hover {
+                background: var(--hover-bg);
+            }
+            .profile-completion-modal .btn-primary {
+                background: var(--primary-color);
                 color: white;
-                box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
             }
-            .btn-primary:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
-                background: linear-gradient(135deg, #059669, #047857);
-            }
-            .btn-primary:active {
-                transform: translateY(0);
-            }
-            .btn-secondary {
-                background: var(--bg-tertiary, #2a2a2a);
-                color: var(--text-primary, #fff);
-                border: 2px solid var(--border-color, #333);
-            }
-            .btn-secondary:hover {
-                background: var(--bg-primary, #0f0f0f);
-                border-color: #10b981;
-                color: #10b981;
+            .profile-completion-modal .btn-primary:hover {
+                background: var(--primary-hover);
             }
             @media (max-width: 640px) {
-                .modal-content {
+                .profile-completion-modal .modal-content {
                     margin: 1rem;
                     max-width: none;
                 }
-                .modal-header {
-                    padding: 2rem 1.5rem 1.5rem;
-                }
-                .modal-body {
-                    padding: 2rem 1.5rem;
-                }
-                .modal-footer {
-                    padding: 1rem 1.5rem 1.5rem;
+                .profile-completion-modal .modal-actions {
                     flex-direction: column;
                 }
-                .btn {
+                .profile-completion-modal .btn-secondary,
+                .profile-completion-modal .btn-primary {
                     width: 100%;
+                    justify-content: center;
                 }
             }
         `;

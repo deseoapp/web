@@ -1430,6 +1430,25 @@ class DeseoApp {
         this.profileMarkers = [];
     }
 
+    updateProfileMarker(profile) {
+        const existingMarker = this.profileMarkers.find(marker => marker.profileId === profile.id);
+        if (existingMarker) {
+            existingMarker.remove();
+            const index = this.profileMarkers.indexOf(existingMarker);
+            this.profileMarkers.splice(index, 1);
+        }
+        this.createProfileMarker(profile);
+    }
+
+    removeProfileMarker(profileId) {
+        const marker = this.profileMarkers.find(m => m.profileId === profileId);
+        if (marker) {
+            marker.remove();
+            const index = this.profileMarkers.indexOf(marker);
+            this.profileMarkers.splice(index, 1);
+        }
+    }
+
     resetAIChat() {
         const messagesContainer = document.getElementById('aiChatMessages');
         messagesContainer.innerHTML = `
@@ -2668,6 +2687,9 @@ class DeseoApp {
             // Escuchar cambios en tiempo real
             this.setupRealtimeListeners();
             
+            // Escuchar cambios en perfiles disponibles
+            this.setupAvailableProfilesListeners();
+            
         } catch (error) {
             console.error('❌ Error inicializando Firebase:', error);
             console.error('🔍 [DEBUG] Error details:', error.message);
@@ -2770,7 +2792,6 @@ class DeseoApp {
             if (!this.wishes.find(w => w.id === wish.id)) {
                 this.wishes.push(wish);
                 this.addWishMarker(wish);
-                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Nuevo deseo agregado en tiempo real:', wish.title);
             }
         });
@@ -2787,7 +2808,6 @@ class DeseoApp {
             if (index !== -1) {
                 this.wishes[index] = updatedWish;
                 this.updateWishMarker(updatedWish);
-                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Deseo actualizado en tiempo real:', updatedWish.title);
             }
         });
@@ -2800,8 +2820,57 @@ class DeseoApp {
             if (index !== -1) {
                 this.wishes.splice(index, 1);
                 this.removeWishMarker(wishId);
-                this.renderAvailableProfilesInSidebar();
                 console.log('✅ Deseo eliminado en tiempo real:', wishId);
+            }
+        });
+    }
+
+    // ===== LISTENERS DE PERFILES DISPONIBLES =====
+    setupAvailableProfilesListeners() {
+        if (!this.database) return;
+
+        const profilesRef = this.database.ref('availableProfiles');
+        
+        // Escuchar nuevos perfiles disponibles
+        profilesRef.on('child_added', (snapshot) => {
+            const profile = snapshot.val();
+            profile.id = snapshot.key;
+            
+            if (profile.isAvailable) {
+                // Solo agregar si no existe ya
+                if (!this.availableProfiles.find(p => p.id === profile.id)) {
+                    this.availableProfiles.push(profile);
+                    this.createProfileMarker(profile);
+                    this.renderAvailableProfilesInSidebar();
+                    console.log('✅ Nuevo perfil disponible agregado:', profile.userName);
+                }
+            }
+        });
+
+        // Escuchar cambios en perfiles existentes
+        profilesRef.on('child_changed', (snapshot) => {
+            const updatedProfile = snapshot.val();
+            updatedProfile.id = snapshot.key;
+            
+            const index = this.availableProfiles.findIndex(p => p.id === updatedProfile.id);
+            if (index !== -1) {
+                this.availableProfiles[index] = updatedProfile;
+                this.updateProfileMarker(updatedProfile);
+                this.renderAvailableProfilesInSidebar();
+                console.log('✅ Perfil disponible actualizado:', updatedProfile.userName);
+            }
+        });
+
+        // Escuchar eliminación de perfiles
+        profilesRef.on('child_removed', (snapshot) => {
+            const profileId = snapshot.key;
+            const index = this.availableProfiles.findIndex(p => p.id === profileId);
+            
+            if (index !== -1) {
+                this.availableProfiles.splice(index, 1);
+                this.removeProfileMarker(profileId);
+                this.renderAvailableProfilesInSidebar();
+                console.log('✅ Perfil disponible eliminado:', profileId);
             }
         });
     }

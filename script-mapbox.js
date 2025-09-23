@@ -1235,6 +1235,13 @@ class DeseoApp {
     }
 
     setupAvailabilityModal() {
+        // Prevenir múltiples event listeners
+        if (this.availabilityModalSetup) {
+            console.log('Modal de disponibilidad ya configurado');
+            return;
+        }
+        this.availabilityModalSetup = true;
+
         const toggle = document.getElementById('availabilityToggle');
         const categorySelection = document.getElementById('categorySelection');
         const priceSection = document.getElementById('priceSection');
@@ -1242,15 +1249,17 @@ class DeseoApp {
         const submitBtn = document.getElementById('submitAvailability');
 
         // Manejar toggle de disponibilidad
-        toggle.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                categorySelection.style.display = 'block';
-                submitBtn.style.display = 'block';
-            } else {
-                categorySelection.style.display = 'none';
-                submitBtn.style.display = 'none';
-            }
-        });
+        if (toggle) {
+            toggle.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    categorySelection.style.display = 'block';
+                    submitBtn.style.display = 'block';
+                } else {
+                    categorySelection.style.display = 'none';
+                    submitBtn.style.display = 'none';
+                }
+            });
+        }
 
         // Manejar selección de categorías
         categoryCards.forEach(card => {
@@ -1263,14 +1272,19 @@ class DeseoApp {
         });
 
         // Manejar envío de disponibilidad
-        submitBtn.addEventListener('click', () => {
-            this.submitAvailability();
-        });
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                this.submitAvailability();
+            });
+        }
 
         // Manejar cancelar
-        document.getElementById('cancelAvailability').addEventListener('click', () => {
-            this.closeModal('availabilityModal');
-        });
+        const cancelBtn = document.getElementById('cancelAvailability');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.closeModal('availabilityModal');
+            });
+        }
     }
 
     async submitAvailability() {
@@ -1281,12 +1295,27 @@ class DeseoApp {
                 return;
             }
 
+            // Verificar si ya está disponible para evitar duplicados
+            const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+            if (existingProfile) {
+                this.showNotification('Ya estás marcado como disponible', 'warning');
+                this.closeModal('availabilityModal');
+                return;
+            }
+
             // Obtener datos del formulario
             const selectedCategory = document.querySelector('.category-card.selected');
 
             if (!selectedCategory) {
                 this.showNotification('Por favor selecciona una categoría', 'warning');
                 return;
+            }
+
+            // Deshabilitar botón para prevenir múltiples envíos
+            const submitBtn = document.getElementById('submitAvailability');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
             }
 
             // Crear objeto de disponibilidad
@@ -1315,6 +1344,13 @@ class DeseoApp {
         } catch (error) {
             console.error('Error marcando disponibilidad:', error);
             this.showNotification('Error al marcar disponibilidad', 'error');
+            
+            // Restaurar botón en caso de error
+            const submitBtn = document.getElementById('submitAvailability');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Estoy Disponible';
+            }
         }
     }
 

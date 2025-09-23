@@ -1397,6 +1397,7 @@ class DeseoApp {
         // Actualizar UI inmediatamente
         this.renderAvailableProfilesOnMap();
         this.renderAvailableProfilesInSidebar();
+        this.updateAvailabilityFabState();
         
         console.log('✅ setUserAvailable completado exitosamente');
     }
@@ -1426,6 +1427,7 @@ class DeseoApp {
         // Actualizar UI inmediatamente
         this.renderAvailableProfilesOnMap();
         this.renderAvailableProfilesInSidebar();
+        this.updateAvailabilityFabState();
         
         console.log('✅ setUserUnavailable completado exitosamente');
     }
@@ -1614,11 +1616,13 @@ class DeseoApp {
                 
                 this.renderAvailableProfilesOnMap();
                 this.renderAvailableProfilesInSidebar();
+                this.updateAvailabilityFabState();
             } else {
                 console.log('No hay perfiles disponibles');
                 this.availableProfiles = [];
                 this.renderAvailableProfilesOnMap();
                 this.renderAvailableProfilesInSidebar();
+                this.updateAvailabilityFabState();
             }
 
         } catch (error) {
@@ -1636,6 +1640,9 @@ class DeseoApp {
                 this.createProfileMarker(profile);
             }
         });
+
+        // Actualizar estado visual del FAB según disponibilidad del usuario
+        this.updateAvailabilityFabState();
     }
 
     createProfileMarker(profile) {
@@ -1687,6 +1694,17 @@ class DeseoApp {
             'live': 'Live'
         };
         return names[category] || category;
+    }
+
+    // ===== Actualizar estado visual del botón flotante de disponibilidad =====
+    updateAvailabilityFabState() {
+        const btn = document.getElementById('floatingAvailabilityBtn');
+        if (!btn) return;
+        const isAvailable = !!(this.currentUser && this.availableProfiles && this.availableProfiles.some(p => p.userId === this.currentUser.id));
+        btn.classList.toggle('available', isAvailable);
+        const icon = btn.querySelector('i');
+        if (icon) icon.className = 'fas fa-power-off';
+        btn.title = isAvailable ? 'Disponible (clic para cambiar)' : 'No disponible (clic para cambiar)';
     }
 
     clearProfileMarkers() {

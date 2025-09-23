@@ -251,28 +251,28 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: white;
-    border-radius: 35px;
-    padding: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border: 3px solid var(--primary-color);
-    min-width: 56px;
+    background: transparent;
+    padding: 0;
+    border: none;
 }
 
 .marker-avatar {
-    width: 35px;
-    height: 35px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     object-fit: cover;
-    margin-bottom: 3px;
+    object-position: center;
+    border: 3px solid var(--primary-color);
+    background: #000;
 }
 
 .marker-alias {
-    font-size: 0.6rem;
-    font-weight: 600;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
     color: var(--text-primary);
     text-align: center;
-    max-width: 50px;
+    max-width: 72px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -477,6 +477,9 @@ body {
     z-index: 1000;
     transition: var(--transition);
 }
+.floating-btn.available {
+    background: var(--danger-color);
+}
 
 .floating-btn:hover {
     background: var(--primary-hover);

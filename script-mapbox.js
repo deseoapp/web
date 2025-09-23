@@ -1289,6 +1289,16 @@ class DeseoApp {
 
     // ===== NUEVA FUNCIÓN UNIFICADA PARA GUARDAR DISPONIBILIDAD =====
     async saveAvailabilityStatus() {
+        const saveBtn = document.getElementById('saveAvailability');
+        
+        // Función para restaurar el botón
+        const restoreButton = () => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar';
+            }
+        };
+        
         try {
             console.log('🔍 [DEBUG] saveAvailabilityStatus iniciado');
             
@@ -1296,6 +1306,7 @@ class DeseoApp {
             if (!this.currentUser) {
                 console.log('❌ Usuario no autenticado');
                 this.showAuthModal();
+                restoreButton();
                 return;
             }
 
@@ -1304,19 +1315,23 @@ class DeseoApp {
             console.log('🔍 [DEBUG] Estado del switch:', isAvailable);
 
             // Deshabilitar botón para prevenir múltiples envíos
-            const saveBtn = document.getElementById('saveAvailability');
             if (saveBtn) {
                 saveBtn.disabled = true;
                 saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
             }
 
-            if (isAvailable) {
-                // Usuario quiere estar disponible
-                await this.setUserAvailable();
-            } else {
-                // Usuario quiere estar no disponible
-                await this.setUserUnavailable();
-            }
+            // Timeout de seguridad de 10 segundos
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Timeout: La operación tardó demasiado'));
+                }, 10000);
+            });
+
+            // Ejecutar la operación con timeout
+            await Promise.race([
+                isAvailable ? this.setUserAvailable() : this.setUserUnavailable(),
+                timeoutPromise
+            ]);
 
             // Cerrar modal y mostrar notificación
             this.closeModal('availabilityModal');
@@ -1327,14 +1342,13 @@ class DeseoApp {
 
         } catch (error) {
             console.error('❌ Error guardando estado de disponibilidad:', error);
-            this.showNotification('Error al guardar disponibilidad', 'error');
-            
-            // Restaurar botón en caso de error
-            const saveBtn = document.getElementById('saveAvailability');
-            if (saveBtn) {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar';
-            }
+            const errorMessage = error.message.includes('Timeout') ? 
+                'La operación tardó demasiado. Inténtalo de nuevo.' : 
+                'Error al guardar disponibilidad';
+            this.showNotification(errorMessage, 'error');
+        } finally {
+            // Restaurar botón siempre
+            restoreButton();
         }
     }
 
@@ -1345,16 +1359,14 @@ class DeseoApp {
         const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
         if (existingProfile) {
             console.log('⚠️ Usuario ya está disponible');
-            this.showNotification('Ya estás marcado como disponible', 'warning');
-            return;
+            throw new Error('Ya estás marcado como disponible');
         }
 
         // Obtener datos del formulario
         const selectedCategory = document.querySelector('.category-card.selected');
         if (!selectedCategory) {
             console.log('❌ No se seleccionó categoría');
-            this.showNotification('Por favor selecciona una categoría', 'warning');
-            return;
+            throw new Error('Por favor selecciona una categoría');
         }
 
         // Crear objeto de disponibilidad
@@ -1373,10 +1385,20 @@ class DeseoApp {
         console.log('🔍 [DEBUG] Datos de disponibilidad:', availabilityData);
 
         // Guardar en Firebase
-        await this.saveAvailabilityToFirebase(availabilityData);
-
-        // Recargar perfiles disponibles
-        this.loadAvailableProfiles();
+        const newProfileRef = await this.saveAvailabilityToFirebase(availabilityData);
+        
+        // Agregar localmente con el ID de Firebase
+        const newProfile = {
+            id: newProfileRef.key,
+            ...availabilityData
+        };
+        this.availableProfiles.push(newProfile);
+        
+        // Actualizar UI inmediatamente
+        this.renderAvailableProfilesOnMap();
+        this.renderAvailableProfilesInSidebar();
+        
+        console.log('✅ setUserAvailable completado exitosamente');
     }
 
     async setUserUnavailable() {
@@ -1386,8 +1408,7 @@ class DeseoApp {
         const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
         if (!existingProfile) {
             console.log('⚠️ Usuario no está marcado como disponible');
-            this.showNotification('No estás marcado como disponible', 'warning');
-            return;
+            throw new Error('No estás marcado como disponible');
         }
 
         console.log('🔍 [DEBUG] Perfil encontrado para eliminar:', existingProfile.id);
@@ -1405,6 +1426,8 @@ class DeseoApp {
         // Actualizar UI inmediatamente
         this.renderAvailableProfilesOnMap();
         this.renderAvailableProfilesInSidebar();
+        
+        console.log('✅ setUserUnavailable completado exitosamente');
     }
 
     async submitAvailability() {
@@ -1424,6 +1447,7 @@ class DeseoApp {
             await availabilityRef.set(availabilityData);
 
             console.log('✅ Disponibilidad guardada en Firebase');
+            return availabilityRef;
         } catch (error) {
             console.error('❌ Error guardando disponibilidad:', error);
             throw error;

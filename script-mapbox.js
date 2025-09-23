@@ -1244,10 +1244,8 @@ class DeseoApp {
 
         const toggle = document.getElementById('availabilityToggle');
         const categorySelection = document.getElementById('categorySelection');
-        const priceSection = document.getElementById('priceSection');
         const categoryCards = document.querySelectorAll('.category-card');
-        const submitBtn = document.getElementById('submitAvailability');
-        const markUnavailableBtn = document.getElementById('markUnavailable');
+        const saveBtn = document.getElementById('saveAvailability');
 
         // Verificar si el usuario ya está disponible
         this.checkCurrentAvailabilityStatus();
@@ -1257,12 +1255,8 @@ class DeseoApp {
             toggle.addEventListener('change', (e) => {
                 if (e.target.checked) {
                     categorySelection.style.display = 'block';
-                    submitBtn.style.display = 'block';
-                    markUnavailableBtn.style.display = 'none';
                 } else {
                     categorySelection.style.display = 'none';
-                    submitBtn.style.display = 'none';
-                    markUnavailableBtn.style.display = 'none';
                 }
             });
         }
@@ -1277,17 +1271,10 @@ class DeseoApp {
             });
         });
 
-        // Manejar envío de disponibilidad
-        if (submitBtn) {
-            submitBtn.addEventListener('click', () => {
-                this.submitAvailability();
-            });
-        }
-
-        // Manejar marcarse como no disponible
-        if (markUnavailableBtn) {
-            markUnavailableBtn.addEventListener('click', () => {
-                this.markAsUnavailable();
+        // Manejar botón guardar
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.saveAvailabilityStatus();
             });
         }
 
@@ -1300,71 +1287,130 @@ class DeseoApp {
         }
     }
 
-    async submitAvailability() {
+    // ===== NUEVA FUNCIÓN UNIFICADA PARA GUARDAR DISPONIBILIDAD =====
+    async saveAvailabilityStatus() {
         try {
+            console.log('🔍 [DEBUG] saveAvailabilityStatus iniciado');
+            
             // Verificar autenticación
             if (!this.currentUser) {
+                console.log('❌ Usuario no autenticado');
                 this.showAuthModal();
                 return;
             }
 
-            // Verificar si ya está disponible para evitar duplicados
-            const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
-            if (existingProfile) {
-                this.showNotification('Ya estás marcado como disponible', 'warning');
-                this.closeModal('availabilityModal');
-                return;
-            }
-
-            // Obtener datos del formulario
-            const selectedCategory = document.querySelector('.category-card.selected');
-
-            if (!selectedCategory) {
-                this.showNotification('Por favor selecciona una categoría', 'warning');
-                return;
-            }
+            const toggle = document.getElementById('availabilityToggle');
+            const isAvailable = toggle.checked;
+            console.log('🔍 [DEBUG] Estado del switch:', isAvailable);
 
             // Deshabilitar botón para prevenir múltiples envíos
-            const submitBtn = document.getElementById('submitAvailability');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            const saveBtn = document.getElementById('saveAvailability');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
             }
 
-            // Crear objeto de disponibilidad
-            const availabilityData = {
-                userId: this.currentUser.id,
-                userName: this.currentUser.name,
-                userEmail: this.currentUser.email,
-                userProfileImage: this.currentUser.profileImageUrl,
-                category: selectedCategory.dataset.category,
-                location: this.userLocation,
-                isAvailable: true,
-                createdAt: new Date().toISOString(),
-                lastUpdated: new Date().toISOString()
-            };
-
-            // Guardar en Firebase
-            await this.saveAvailabilityToFirebase(availabilityData);
+            if (isAvailable) {
+                // Usuario quiere estar disponible
+                await this.setUserAvailable();
+            } else {
+                // Usuario quiere estar no disponible
+                await this.setUserUnavailable();
+            }
 
             // Cerrar modal y mostrar notificación
             this.closeModal('availabilityModal');
-            this.showNotification('¡Disponibilidad marcada exitosamente!', 'success');
+            const message = isAvailable ? '¡Disponibilidad marcada exitosamente!' : '¡Ya no estás disponible!';
+            this.showNotification(message, 'success');
 
-            // Recargar perfiles disponibles
-            this.loadAvailableProfiles();
+            console.log('✅ saveAvailabilityStatus completado exitosamente');
 
         } catch (error) {
-            console.error('Error marcando disponibilidad:', error);
-            this.showNotification('Error al marcar disponibilidad', 'error');
+            console.error('❌ Error guardando estado de disponibilidad:', error);
+            this.showNotification('Error al guardar disponibilidad', 'error');
             
             // Restaurar botón en caso de error
-            const submitBtn = document.getElementById('submitAvailability');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Estoy Disponible';
+            const saveBtn = document.getElementById('saveAvailability');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> Guardar';
             }
         }
+    }
+
+    async setUserAvailable() {
+        console.log('🔍 [DEBUG] setUserAvailable iniciado');
+        
+        // Verificar si ya está disponible para evitar duplicados
+        const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+        if (existingProfile) {
+            console.log('⚠️ Usuario ya está disponible');
+            this.showNotification('Ya estás marcado como disponible', 'warning');
+            return;
+        }
+
+        // Obtener datos del formulario
+        const selectedCategory = document.querySelector('.category-card.selected');
+        if (!selectedCategory) {
+            console.log('❌ No se seleccionó categoría');
+            this.showNotification('Por favor selecciona una categoría', 'warning');
+            return;
+        }
+
+        // Crear objeto de disponibilidad
+        const availabilityData = {
+            userId: this.currentUser.id,
+            userName: this.currentUser.name,
+            userEmail: this.currentUser.email,
+            userProfileImage: this.currentUser.profileImageUrl,
+            category: selectedCategory.dataset.category,
+            location: this.userLocation,
+            isAvailable: true,
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        };
+
+        console.log('🔍 [DEBUG] Datos de disponibilidad:', availabilityData);
+
+        // Guardar en Firebase
+        await this.saveAvailabilityToFirebase(availabilityData);
+
+        // Recargar perfiles disponibles
+        this.loadAvailableProfiles();
+    }
+
+    async setUserUnavailable() {
+        console.log('🔍 [DEBUG] setUserUnavailable iniciado');
+        
+        // Buscar el perfil del usuario en la lista de disponibles
+        const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+        if (!existingProfile) {
+            console.log('⚠️ Usuario no está marcado como disponible');
+            this.showNotification('No estás marcado como disponible', 'warning');
+            return;
+        }
+
+        console.log('🔍 [DEBUG] Perfil encontrado para eliminar:', existingProfile.id);
+
+        // Eliminar de Firebase
+        await this.removeAvailabilityFromFirebase(existingProfile.id);
+
+        // Eliminar localmente también
+        const localIndex = this.availableProfiles.findIndex(profile => profile.userId === this.currentUser.id);
+        if (localIndex !== -1) {
+            this.availableProfiles.splice(localIndex, 1);
+            console.log('✅ Perfil eliminado localmente');
+        }
+
+        // Actualizar UI inmediatamente
+        this.renderAvailableProfilesOnMap();
+        this.renderAvailableProfilesInSidebar();
+    }
+
+    async submitAvailability() {
+        // Esta función se mantiene para compatibilidad pero ahora redirige a la nueva función
+        console.log('⚠️ submitAvailability está deprecado, usando saveAvailabilityStatus');
+        await this.saveAvailabilityStatus();
     }
 
     async saveAvailabilityToFirebase(availabilityData) {
@@ -1389,22 +1435,31 @@ class DeseoApp {
         if (!this.currentUser) return;
 
         const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
-        const markUnavailableBtn = document.getElementById('markUnavailable');
-        const submitBtn = document.getElementById('submitAvailability');
         const toggle = document.getElementById('availabilityToggle');
+        const categorySelection = document.getElementById('categorySelection');
 
         if (existingProfile) {
             // Usuario ya está disponible
+            console.log('🔍 [DEBUG] Usuario ya está disponible, configurando UI');
             toggle.checked = true;
-            markUnavailableBtn.style.display = 'block';
-            submitBtn.style.display = 'none';
-            document.getElementById('categorySelection').style.display = 'block';
+            categorySelection.style.display = 'block';
+            
+            // Preseleccionar la categoría actual si existe
+            const currentCategory = existingProfile.category;
+            if (currentCategory) {
+                const categoryCard = document.querySelector(`[data-category="${currentCategory}"]`);
+                if (categoryCard) {
+                    // Remover selección anterior
+                    document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
+                    // Seleccionar categoría actual
+                    categoryCard.classList.add('selected');
+                }
+            }
         } else {
             // Usuario no está disponible
+            console.log('🔍 [DEBUG] Usuario no está disponible, configurando UI');
             toggle.checked = false;
-            markUnavailableBtn.style.display = 'none';
-            submitBtn.style.display = 'block';
-            document.getElementById('categorySelection').style.display = 'none';
+            categorySelection.style.display = 'none';
         }
     }
 

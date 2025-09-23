@@ -1410,17 +1410,28 @@ class DeseoApp {
 
     async markAsUnavailable() {
         try {
+            console.log('🔍 [DEBUG] Iniciando markAsUnavailable...');
+            
             if (!this.currentUser) {
+                console.log('❌ Usuario no autenticado');
                 this.showAuthModal();
                 return;
             }
 
+            console.log('🔍 [DEBUG] Usuario actual:', this.currentUser.id);
+            console.log('🔍 [DEBUG] Perfiles disponibles actuales:', this.availableProfiles.length);
+
             // Buscar el perfil del usuario en la lista de disponibles
             const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+            console.log('🔍 [DEBUG] Perfil existente encontrado:', existingProfile);
+            
             if (!existingProfile) {
+                console.log('❌ No se encontró perfil disponible');
                 this.showNotification('No estás marcado como disponible', 'warning');
                 return;
             }
+
+            console.log('🔍 [DEBUG] ID del perfil a eliminar:', existingProfile.id);
 
             // Deshabilitar botón para prevenir múltiples clics
             const markUnavailableBtn = document.getElementById('markUnavailable');
@@ -1430,17 +1441,29 @@ class DeseoApp {
             }
 
             // Eliminar de Firebase
+            console.log('🔍 [DEBUG] Eliminando de Firebase...');
             await this.removeAvailabilityFromFirebase(existingProfile.id);
+
+            // Eliminar localmente también
+            console.log('🔍 [DEBUG] Eliminando localmente...');
+            const localIndex = this.availableProfiles.findIndex(profile => profile.userId === this.currentUser.id);
+            if (localIndex !== -1) {
+                this.availableProfiles.splice(localIndex, 1);
+                console.log('✅ Perfil eliminado localmente');
+            }
+
+            // Actualizar UI inmediatamente
+            this.renderAvailableProfilesOnMap();
+            this.renderAvailableProfilesInSidebar();
 
             // Cerrar modal y mostrar notificación
             this.closeModal('availabilityModal');
             this.showNotification('¡Ya no estás disponible!', 'success');
 
-            // Recargar perfiles disponibles
-            this.loadAvailableProfiles();
+            console.log('✅ markAsUnavailable completado exitosamente');
 
         } catch (error) {
-            console.error('Error marcándose como no disponible:', error);
+            console.error('❌ Error marcándose como no disponible:', error);
             this.showNotification('Error al actualizar disponibilidad', 'error');
             
             // Restaurar botón en caso de error
@@ -1454,17 +1477,27 @@ class DeseoApp {
 
     async removeAvailabilityFromFirebase(profileId) {
         try {
+            console.log('🔍 [DEBUG] removeAvailabilityFromFirebase iniciado');
+            console.log('🔍 [DEBUG] profileId:', profileId);
+            
             if (!this.database) {
+                console.log('❌ Firebase no disponible');
                 throw new Error('Firebase no disponible');
             }
 
+            console.log('🔍 [DEBUG] Firebase disponible, procediendo a eliminar...');
+
             // Eliminar de la colección de perfiles disponibles
             const profileRef = this.database.ref(`availableProfiles/${profileId}`);
+            console.log('🔍 [DEBUG] Referencia creada:', profileRef.toString());
+            
             await profileRef.remove();
-
-            console.log('✅ Disponibilidad eliminada de Firebase');
+            console.log('✅ Disponibilidad eliminada de Firebase exitosamente');
+            
         } catch (error) {
             console.error('❌ Error eliminando disponibilidad:', error);
+            console.error('🔍 [DEBUG] Error details:', error.message);
+            console.error('🔍 [DEBUG] Error code:', error.code);
             throw error;
         }
     }
@@ -1472,6 +1505,8 @@ class DeseoApp {
     // ===== CARGAR PERFILES DISPONIBLES =====
     async loadAvailableProfiles() {
         try {
+            console.log('🔍 [DEBUG] loadAvailableProfiles iniciado');
+            
             if (!this.database) {
                 console.warn('Firebase no disponible para cargar perfiles');
                 return;
@@ -1483,14 +1518,27 @@ class DeseoApp {
             const snapshot = await profilesRef.once('value');
             const profilesData = snapshot.val();
 
+            console.log('🔍 [DEBUG] Datos de Firebase:', profilesData);
+
             if (profilesData) {
-                this.availableProfiles = Object.values(profilesData).filter(profile => profile.isAvailable);
+                // Convertir a array y agregar IDs
+                const profilesArray = Object.keys(profilesData).map(key => ({
+                    id: key,
+                    ...profilesData[key]
+                }));
+                
+                console.log('🔍 [DEBUG] Perfiles con IDs:', profilesArray);
+                
+                // Filtrar solo los disponibles
+                this.availableProfiles = profilesArray.filter(profile => profile.isAvailable);
                 console.log(`✅ ${this.availableProfiles.length} perfiles disponibles cargados`);
+                
                 this.renderAvailableProfilesOnMap();
                 this.renderAvailableProfilesInSidebar();
             } else {
                 console.log('No hay perfiles disponibles');
                 this.availableProfiles = [];
+                this.renderAvailableProfilesOnMap();
                 this.renderAvailableProfilesInSidebar();
             }
 

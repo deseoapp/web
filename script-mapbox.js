@@ -1247,6 +1247,10 @@ class DeseoApp {
         const priceSection = document.getElementById('priceSection');
         const categoryCards = document.querySelectorAll('.category-card');
         const submitBtn = document.getElementById('submitAvailability');
+        const markUnavailableBtn = document.getElementById('markUnavailable');
+
+        // Verificar si el usuario ya está disponible
+        this.checkCurrentAvailabilityStatus();
 
         // Manejar toggle de disponibilidad
         if (toggle) {
@@ -1254,9 +1258,11 @@ class DeseoApp {
                 if (e.target.checked) {
                     categorySelection.style.display = 'block';
                     submitBtn.style.display = 'block';
+                    markUnavailableBtn.style.display = 'none';
                 } else {
                     categorySelection.style.display = 'none';
                     submitBtn.style.display = 'none';
+                    markUnavailableBtn.style.display = 'none';
                 }
             });
         }
@@ -1275,6 +1281,13 @@ class DeseoApp {
         if (submitBtn) {
             submitBtn.addEventListener('click', () => {
                 this.submitAvailability();
+            });
+        }
+
+        // Manejar marcarse como no disponible
+        if (markUnavailableBtn) {
+            markUnavailableBtn.addEventListener('click', () => {
+                this.markAsUnavailable();
             });
         }
 
@@ -1371,6 +1384,91 @@ class DeseoApp {
         }
     }
 
+    // ===== FUNCIONES PARA MANEJAR DISPONIBILIDAD =====
+    checkCurrentAvailabilityStatus() {
+        if (!this.currentUser) return;
+
+        const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+        const markUnavailableBtn = document.getElementById('markUnavailable');
+        const submitBtn = document.getElementById('submitAvailability');
+        const toggle = document.getElementById('availabilityToggle');
+
+        if (existingProfile) {
+            // Usuario ya está disponible
+            toggle.checked = true;
+            markUnavailableBtn.style.display = 'block';
+            submitBtn.style.display = 'none';
+            document.getElementById('categorySelection').style.display = 'block';
+        } else {
+            // Usuario no está disponible
+            toggle.checked = false;
+            markUnavailableBtn.style.display = 'none';
+            submitBtn.style.display = 'block';
+            document.getElementById('categorySelection').style.display = 'none';
+        }
+    }
+
+    async markAsUnavailable() {
+        try {
+            if (!this.currentUser) {
+                this.showAuthModal();
+                return;
+            }
+
+            // Buscar el perfil del usuario en la lista de disponibles
+            const existingProfile = this.availableProfiles.find(profile => profile.userId === this.currentUser.id);
+            if (!existingProfile) {
+                this.showNotification('No estás marcado como disponible', 'warning');
+                return;
+            }
+
+            // Deshabilitar botón para prevenir múltiples clics
+            const markUnavailableBtn = document.getElementById('markUnavailable');
+            if (markUnavailableBtn) {
+                markUnavailableBtn.disabled = true;
+                markUnavailableBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            }
+
+            // Eliminar de Firebase
+            await this.removeAvailabilityFromFirebase(existingProfile.id);
+
+            // Cerrar modal y mostrar notificación
+            this.closeModal('availabilityModal');
+            this.showNotification('¡Ya no estás disponible!', 'success');
+
+            // Recargar perfiles disponibles
+            this.loadAvailableProfiles();
+
+        } catch (error) {
+            console.error('Error marcándose como no disponible:', error);
+            this.showNotification('Error al actualizar disponibilidad', 'error');
+            
+            // Restaurar botón en caso de error
+            const markUnavailableBtn = document.getElementById('markUnavailable');
+            if (markUnavailableBtn) {
+                markUnavailableBtn.disabled = false;
+                markUnavailableBtn.innerHTML = '<i class="fas fa-times"></i> No Disponible';
+            }
+        }
+    }
+
+    async removeAvailabilityFromFirebase(profileId) {
+        try {
+            if (!this.database) {
+                throw new Error('Firebase no disponible');
+            }
+
+            // Eliminar de la colección de perfiles disponibles
+            const profileRef = this.database.ref(`availableProfiles/${profileId}`);
+            await profileRef.remove();
+
+            console.log('✅ Disponibilidad eliminada de Firebase');
+        } catch (error) {
+            console.error('❌ Error eliminando disponibilidad:', error);
+            throw error;
+        }
+    }
+
     // ===== CARGAR PERFILES DISPONIBLES =====
     async loadAvailableProfiles() {
         try {
@@ -1428,6 +1526,9 @@ class DeseoApp {
         const marker = new mapboxgl.Marker(markerElement)
         .setLngLat([profile.location.lng, profile.location.lat])
         .addTo(this.map);
+
+        // Agregar ID del perfil al marcador para referencia
+        marker.profileId = profile.id;
 
         // Evento click para mostrar detalles
         markerElement.addEventListener('click', () => {
@@ -2236,6 +2337,36 @@ class DeseoApp {
         this.showNotification('Función de contacto en desarrollo', 'info');
     }
 
+    // ===== FUNCIÓN PARA IR AL MAPA DESDE SIDEBAR =====
+    focusOnProfileMarker(profile) {
+        if (!profile || !profile.location) {
+            console.warn('Perfil sin ubicación válida');
+            return;
+        }
+
+        // Centrar el mapa en la ubicación del perfil
+        this.map.flyTo({
+            center: [profile.location.lng, profile.location.lat],
+            zoom: 16,
+            essential: true,
+            duration: 1500
+        });
+
+        // Agregar animación de pulso al marcador
+        const marker = this.profileMarkers.find(m => m.profileId === profile.id);
+        if (marker) {
+            const markerElement = marker.getElement();
+            if (markerElement) {
+                markerElement.classList.add('pulse-animation');
+                setTimeout(() => {
+                    markerElement.classList.remove('pulse-animation');
+                }, 3000);
+            }
+        }
+
+        this.showNotification(`Centrando en ${profile.userName}`, 'info');
+    }
+
     // ===== CHAT PRIVADO =====
     openPrivateChat(wishId) { // Modificar para aceptar un ID de deseo
         const wish = this.wishes.find(w => w.id === wishId);
@@ -2427,9 +2558,9 @@ class DeseoApp {
                 </div>
             `;
             
-            // Añadir evento de clic para mostrar detalles
+            // Añadir evento de clic para ir al mapa
             profileItem.addEventListener('click', () => {
-                this.showProfileDetails(profile);
+                this.focusOnProfileMarker(profile);
             });
             
             wishList.appendChild(profileItem);

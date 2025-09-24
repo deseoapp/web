@@ -1144,6 +1144,30 @@ body {
     display: none !important;
 }
 
+/* ===== CATEGORY BADGES ===== */
+.category-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+    display: inline-block;
+}
+.category-badge.escort { background: #e91e63; }
+.category-badge.gigolo { background: #2196f3; }
+.category-badge.masajes { background: #4caf50; }
+.category-badge.trans { background: #9c27b0; }
+.category-badge.chat { background: #ff9800; }
+.category-badge.live { background: #f44336; }
+
+/* ===== PROFILE AVATAR SMALL (SIDEBAR) ===== */
+.profile-avatar-small {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
 /* Asegurar que main-container sea visible en billetera */
 body.wallet-page .main-container {
     display: block !important;

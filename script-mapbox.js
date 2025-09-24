@@ -56,6 +56,8 @@ class DeseoApp {
             category: '',
             distance: 10
         }; // Revertidos los filtros para deseos
+        // Cache para perfiles completos de Firebase, clave: userId
+        this.userProfilesCache = {};
         this.aiResponses = this.initializeAIResponses();
         this.exposeGetTopInterests();
         this.initializeApp();
@@ -129,6 +131,56 @@ class DeseoApp {
                 </div>
             </div>
         `;
+
+        // Interacciones de fotos (thumbnails, prev/next, gestos)
+        try {
+            const mainPhotoEl = modal.querySelector('#tinderMainPhoto');
+            const thumbEls = Array.from(modal.querySelectorAll('.thumbs .thumb'));
+            let currentIndex = 0;
+
+            const setActiveIndex = (idx) => {
+                if (!displayProfile.photos || displayProfile.photos.length === 0) return;
+                currentIndex = (idx + displayProfile.photos.length) % displayProfile.photos.length;
+                const src = displayProfile.photos[currentIndex];
+                if (mainPhotoEl && typeof src === 'string') {
+                    mainPhotoEl.src = src;
+                }
+                thumbEls.forEach((t, i) => t.classList.toggle('active', i === currentIndex));
+            };
+
+            thumbEls.forEach((thumb, idx) => {
+                thumb.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setActiveIndex(idx);
+                });
+            });
+
+            const prevBtn = modal.querySelector('#tinderPrevPhoto');
+            const nextBtn = modal.querySelector('#tinderNextPhoto');
+            if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); setActiveIndex(currentIndex - 1); });
+            if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); setActiveIndex(currentIndex + 1); });
+
+            let startX = 0;
+            let isTouching = false;
+            const onTouchStart = (e) => { isTouching = true; startX = e.touches ? e.touches[0].clientX : e.clientX; };
+            const onTouchEnd = (e) => {
+                if (!isTouching) return;
+                const endX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const delta = endX - startX;
+                if (Math.abs(delta) > 40) {
+                    if (delta < 0) setActiveIndex(currentIndex + 1); else setActiveIndex(currentIndex - 1);
+                }
+                isTouching = false;
+            };
+            if (mainPhotoEl) {
+                mainPhotoEl.addEventListener('touchstart', onTouchStart, { passive: true });
+                mainPhotoEl.addEventListener('touchend', onTouchEnd);
+                mainPhotoEl.addEventListener('mousedown', onTouchStart);
+                mainPhotoEl.addEventListener('mouseup', onTouchEnd);
+            }
+
+            setActiveIndex(0);
+        } catch (err) { console.warn('Photo interactions init failed:', err); }
 
         // Agregar estilos
         const style = document.createElement('style');
@@ -2235,10 +2287,10 @@ class DeseoApp {
             return;
         }
 
-        // Obtener datos completos del usuario desde Firebase
-        let userProfile = null;
+        // Obtener datos completos del usuario desde Firebase (con cache)
+        let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
         try {
-            if (this.database) {
+            if (!userProfile && this.database) {
                 console.log('🔍 Buscando perfil del usuario:', profile.userId);
                 // Buscar en users/{userId}/profile donde se guarda el perfil completo
                 const userRef = this.database.ref(`users/${profile.userId}/profile`);
@@ -2253,6 +2305,10 @@ class DeseoApp {
                     const userRootSnapshot = await userRootRef.once('value');
                     userProfile = userRootSnapshot.val();
                     console.log('📊 Datos obtenidos de Firebase (users/{userId}):', userProfile);
+                }
+                // Guardar en cache
+                if (userProfile && this.userProfilesCache) {
+                    this.userProfilesCache[profile.userId] = userProfile;
                 }
             } else {
                 console.warn('⚠️ Firebase database no disponible');
@@ -2340,6 +2396,12 @@ class DeseoApp {
                     <div class="tinder-photos">
                         <img src="${displayProfile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
                              alt="${displayProfile.userName}" class="main-photo" id="tinderMainPhoto">
+                        ${displayProfile.photos && displayProfile.photos.length > 1 ? `
+                        <div class="photo-nav">
+                            <button class="nav-btn prev" id="tinderPrevPhoto"><i class="fas fa-chevron-left"></i></button>
+                            <button class="nav-btn next" id="tinderNextPhoto"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        ` : ''}
                         ${displayProfile.photos && displayProfile.photos.length > 1 ? `
                         <div class="thumbs">
                             ${displayProfile.photos.slice(0, 6).map((p, idx) => `
@@ -2475,6 +2537,31 @@ class DeseoApp {
             .thumbs .thumb.active {
                 border-color: var(--primary-color);
             }
+            .photo-nav {
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 8px;
+                transform: translateY(-50%);
+                pointer-events: none;
+            }
+            .photo-nav .nav-btn {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                border: none;
+                background: rgba(0,0,0,0.45);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                pointer-events: auto;
+            }
             .tinder-info {
                 padding: 20px;
                 height: 40%;
@@ -2584,21 +2671,54 @@ class DeseoApp {
         document.head.appendChild(style);
         document.body.appendChild(modal);
 
-        // Listeners: cambiar foto principal al hacer click en thumbnails
-        const thumbs = modal.querySelectorAll('.thumbs .thumb');
-        const mainPhoto = modal.querySelector('#tinderMainPhoto');
-        if (thumbs && mainPhoto) {
-            thumbs.forEach(thumb => {
-                thumb.addEventListener('click', () => {
-                    const src = thumb.getAttribute('data-src');
-                    if (src) {
-                        mainPhoto.src = src;
-                        modal.querySelectorAll('.thumbs .thumb').forEach(t => t.classList.remove('active'));
-                        thumb.classList.add('active');
-                    }
+        // Interacciones de fotos: thumbs, prev/next, gestos
+        try {
+            const mainPhotoEl = modal.querySelector('#tinderMainPhoto');
+            const thumbEls = Array.from(modal.querySelectorAll('.thumbs .thumb'));
+            let currentIndex = 0;
+
+            const setActiveIndex = (idx) => {
+                if (!displayProfile.photos || displayProfile.photos.length === 0) return;
+                currentIndex = (idx + displayProfile.photos.length) % displayProfile.photos.length;
+                const src = displayProfile.photos[currentIndex];
+                if (mainPhotoEl && typeof src === 'string') {
+                    mainPhotoEl.src = src;
+                }
+                thumbEls.forEach((t, i) => t.classList.toggle('active', i === currentIndex));
+            };
+
+            thumbEls.forEach((thumb, idx) => {
+                thumb.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setActiveIndex(idx);
                 });
             });
-        }
+
+            const prevBtn = modal.querySelector('#tinderPrevPhoto');
+            const nextBtn = modal.querySelector('#tinderNextPhoto');
+            if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); setActiveIndex(currentIndex - 1); });
+            if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); setActiveIndex(currentIndex + 1); });
+
+            let startX = 0;
+            let isTouching = false;
+            const onTouchStart = (e) => { isTouching = true; startX = e.touches ? e.touches[0].clientX : e.clientX; };
+            const onTouchEnd = (e) => {
+                if (!isTouching) return;
+                const endX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+                const delta = endX - startX;
+                if (Math.abs(delta) > 40) {
+                    if (delta < 0) setActiveIndex(currentIndex + 1); else setActiveIndex(currentIndex - 1);
+                }
+                isTouching = false;
+            };
+            if (mainPhotoEl) {
+                mainPhotoEl.addEventListener('touchstart', onTouchStart, { passive: true });
+                mainPhotoEl.addEventListener('touchend', onTouchEnd);
+                mainPhotoEl.addEventListener('mousedown', onTouchStart);
+                mainPhotoEl.addEventListener('mouseup', onTouchEnd);
+            }
+            setActiveIndex(0);
+        } catch (err) { console.warn('Photo interactions init failed:', err); }
     }
 
     contactProfile(userId) {
@@ -2799,7 +2919,7 @@ class DeseoApp {
     }
 
     // ===== RENDERIZAR LISTA DE PERFILES DISPONIBLES EN SIDEBAR =====
-    renderAvailableProfilesInSidebar() {
+    async renderAvailableProfilesInSidebar() {
         const wishList = document.getElementById('wishList');
         if (!wishList) {
             console.warn('wishList element not found');
@@ -2810,20 +2930,68 @@ class DeseoApp {
         wishList.innerHTML = '';
 
         // Renderizar cada perfil disponible
-        this.availableProfiles.forEach(profile => {
+        for (const profile of this.availableProfiles) {
+            // Obtener datos completos del perfil desde Firebase (con cache)
+            let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
+            if (!userProfile && this.database) {
+                try {
+                    const userRef = this.database.ref(`users/${profile.userId}/profile`);
+                    const snapshot = await userRef.once('value');
+                    userProfile = snapshot.val();
+                    if (!userProfile) {
+                        const userRootRef = this.database.ref(`users/${profile.userId}`);
+                        const userRootSnapshot = await userRootRef.once('value');
+                        userProfile = userRootSnapshot.val();
+                    }
+                    if (userProfile && this.userProfilesCache) {
+                        this.userProfilesCache[profile.userId] = userProfile;
+                    }
+                } catch (error) {
+                    console.warn('Error fetching profile for sidebar:', error);
+                }
+            }
+
+            // Normalizar datos: soportar posibles nombres alternativos según data.json
+            const nickname = userProfile?.nickname || userProfile?.alias || userProfile?.apodo || profile.userName || 'Usuario';
+            // Procesar foto principal: verificar si es base64 o URL
+            let mainPhoto = profile.userProfileImage;
+            if (userProfile) {
+                const photos = Array.isArray(userProfile.photos) ? userProfile.photos : (Array.isArray(userProfile.fotos) ? userProfile.fotos : []);
+                if (photos.length > 0) {
+                    const toImageSrc = (input) => {
+                        if (!input) return null;
+                        let value = input;
+                        if (typeof input === 'object') {
+                            if (typeof input.url === 'string') value = input.url;
+                            else if (typeof input.src === 'string') value = input.src;
+                            else if (typeof input.base64 === 'string') value = input.base64;
+                            else if (Array.isArray(input) && input.length > 0) value = input[0];
+                            else return null;
+                        }
+                        if (typeof value !== 'string') return null;
+                        if (value.startsWith('data:image/')) return value;
+                        if (value.startsWith('http') || value.startsWith('https')) return value;
+                        if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+                        return null;
+                    };
+                    const processed = photos.map(toImageSrc).filter((src) => typeof src === 'string' && src.length > 0);
+                    if (processed.length > 0) mainPhoto = processed[0];
+                }
+            }
+
             const profileItem = document.createElement('div');
             profileItem.className = 'wish-item profile-item';
             profileItem.innerHTML = `
                 <div class="wish-logo">
-                    <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
-                         alt="${profile.userName}" class="profile-avatar-small">
+                    <img src="${mainPhoto || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                         alt="${nickname}" class="profile-avatar-small">
                 </div>
                 <div class="wish-info">
-                    <h3>${profile.userName || 'Usuario'}</h3>
-                    <p>${this.getCategoryName(profile.category)} • Disponible</p>
+                    <h3>${nickname}</h3>
+                    <p><span class="category-badge ${profile.category}">${this.getCategoryName(profile.category)}</span> • Disponible</p>
                 </div>
                 <div class="wish-actions">
-                    <i class="fas fa-user-check"></i>
+                    <i class="fas fa-heart"></i>
                 </div>
             `;
             
@@ -2833,7 +3001,7 @@ class DeseoApp {
             });
             
             wishList.appendChild(profileItem);
-        });
+        }
 
         console.log(`Rendered ${this.availableProfiles.length} available profiles in sidebar`);
     }

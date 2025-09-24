@@ -1645,6 +1645,10 @@ class DeseoApp {
                 return;
             }
 
+            // Limpiar array antes de cargar
+            this.availableProfiles = [];
+            console.log('🧹 Array de perfiles limpiado antes de cargar');
+
             console.log('🔍 Cargando perfiles disponibles...');
             
             const profilesRef = this.database.ref('availableProfiles');
@@ -1663,11 +1667,11 @@ class DeseoApp {
                 console.log('🔍 [DEBUG] Perfiles con IDs:', profilesArray);
                 
                 // Filtrar solo los disponibles
-                this.availableProfiles = profilesArray.filter(profile => profile.isAvailable);
-                console.log(`✅ ${this.availableProfiles.length} perfiles disponibles cargados`);
+                const availableProfiles = profilesArray.filter(profile => profile.isAvailable);
+                console.log(`✅ ${availableProfiles.length} perfiles disponibles cargados`);
                 
                 // Limpiar duplicados por userId
-                const uniqueProfiles = this.availableProfiles.reduce((acc, profile) => {
+                const uniqueProfiles = availableProfiles.reduce((acc, profile) => {
                     if (!acc.find(p => p.userId === profile.userId)) {
                         acc.push(profile);
                     } else {
@@ -1706,30 +1710,85 @@ class DeseoApp {
         }
     }
 
-    renderAvailableProfilesOnMap() {
+    async renderAvailableProfilesOnMap() {
         // Limpiar marcadores existentes
         this.clearProfileMarkers();
 
         // Crear marcadores para cada perfil disponible
-        this.availableProfiles.forEach(profile => {
+        for (const profile of this.availableProfiles) {
             if (profile.location && profile.location.lat && profile.location.lng) {
-                this.createProfileMarker(profile);
+                await this.createProfileMarker(profile);
             }
-        });
+        }
 
         // Actualizar estado visual del FAB según disponibilidad del usuario
         this.updateAvailabilityFabState();
     }
 
-    createProfileMarker(profile) {
+    async createProfileMarker(profile) {
+        // Obtener datos completos del perfil desde Firebase (con cache) - misma lógica que navbar
+        let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
+        if (!userProfile && this.database) {
+            try {
+                const userRef = this.database.ref(`users/${profile.userId}/profile`);
+                const snapshot = await userRef.once('value');
+                userProfile = snapshot.val();
+                if (!userProfile) {
+                    const userRootRef = this.database.ref(`users/${profile.userId}`);
+                    const userRootSnapshot = await userRootRef.once('value');
+                    userProfile = userRootSnapshot.val();
+                }
+                if (userProfile && this.userProfilesCache) {
+                    this.userProfilesCache[profile.userId] = userProfile;
+                }
+            } catch (error) {
+                console.warn('Error fetching profile for marker:', error);
+            }
+        }
+
+        // Normalizar datos: soportar posibles nombres alternativos - misma lógica que navbar
+        const nickname = userProfile?.nickname || userProfile?.alias || userProfile?.apodo || profile.userName || 'Usuario';
+        
+        // Procesar foto principal: usar la misma lógica que en navbar
+        let mainPhoto = profile.userProfileImage;
+        if (userProfile) {
+            const photos = Array.isArray(userProfile.photos) ? userProfile.photos : (Array.isArray(userProfile.fotos) ? userProfile.fotos : []);
+            if (photos.length > 0) {
+                const toImageSrc = (input) => {
+                    if (!input) return null;
+                    let value = input;
+                    if (typeof input === 'object') {
+                        if (typeof input.url === 'string') value = input.url;
+                        else if (typeof input.src === 'string') value = input.src;
+                        else if (typeof input.base64 === 'string') value = input.base64;
+                        else if (Array.isArray(input) && input.length > 0) value = input[0];
+                        else return null;
+                    }
+                    if (typeof value !== 'string') return null;
+                    if (value.startsWith('data:image/')) return value;
+                    if (value.startsWith('http') || value.startsWith('https')) return value;
+                    if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+                    return null;
+                };
+                const processed = photos.map(toImageSrc).filter((src) => typeof src === 'string' && src.length > 0);
+                if (processed.length > 0) mainPhoto = processed[0];
+            }
+        }
+        
+        // Asegurar que la imagen sea consistente con la del navbar
+        if (!mainPhoto) {
+            mainPhoto = 'https://www.gravatar.com/avatar/?d=mp&f=y';
+        }
+
         // Crear elemento personalizado para el marcador
         const markerElement = document.createElement('div');
         markerElement.className = 'custom-profile-marker';
         markerElement.innerHTML = `
             <div class="marker-container">
-                <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
-                     alt="${profile.userName}" class="marker-avatar">
-                <div class="marker-alias">${profile.userName || 'Usuario'}</div>
+                <img src="${mainPhoto}" 
+                     alt="${nickname}" class="marker-avatar">
+                <div class="marker-alias">${nickname}</div>
+                <div class="marker-category">${this.getCategoryName(profile.category)}</div>
             </div>
         `;
 
@@ -1788,14 +1847,14 @@ class DeseoApp {
         this.profileMarkers = [];
     }
 
-    updateProfileMarker(profile) {
+    async updateProfileMarker(profile) {
         const existingMarker = this.profileMarkers.find(marker => marker.profileId === profile.id);
         if (existingMarker) {
             existingMarker.remove();
             const index = this.profileMarkers.indexOf(existingMarker);
             this.profileMarkers.splice(index, 1);
         }
-        this.createProfileMarker(profile);
+        await this.createProfileMarker(profile);
     }
 
     removeProfileMarker(profileId) {
@@ -2699,8 +2758,14 @@ class DeseoApp {
                 color: white;
             }
             .contact-btn {
-                background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+                background: linear-gradient(135deg, #10b981, #059669);
                 color: white;
+                box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+            }
+            .contact-btn:hover {
+                background: linear-gradient(135deg, #059669, #047857);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
             }
             .favorite-poses {
                 margin-top: 16px;
@@ -2717,12 +2782,13 @@ class DeseoApp {
                 gap: 8px;
             }
             .pose-tag {
-                background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+                background: linear-gradient(135deg, #10b981, #059669);
                 color: white;
                 padding: 6px 12px;
                 border-radius: 16px;
                 font-size: 0.8rem;
                 font-weight: 500;
+                box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
             }
             @keyframes modalFadeIn {
                 from {
@@ -2988,9 +3054,17 @@ class DeseoApp {
 
     // ===== RENDERIZAR LISTA DE PERFILES DISPONIBLES EN SIDEBAR =====
     async renderAvailableProfilesInSidebar() {
+        // Prevenir múltiples renderizados simultáneos
+        if (this.isRenderingSidebar) {
+            console.log('⚠️ [DEBUG] Renderizado ya en progreso, saltando...');
+            return;
+        }
+        this.isRenderingSidebar = true;
+
         const wishList = document.getElementById('wishList');
         if (!wishList) {
             console.warn('wishList element not found');
+            this.isRenderingSidebar = false;
             return;
         }
 
@@ -3094,6 +3168,9 @@ class DeseoApp {
         }
 
         console.log(`✅ Rendered ${uniqueProfiles.length} unique profiles in sidebar (from ${this.availableProfiles.length} total)`);
+        
+        // Liberar el flag de renderizado
+        this.isRenderingSidebar = false;
     }
 
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====
@@ -3566,7 +3643,7 @@ class DeseoApp {
         const profilesRef = this.database.ref('availableProfiles');
         
         // Escuchar nuevos perfiles disponibles
-        profilesRef.on('child_added', (snapshot) => {
+        profilesRef.on('child_added', async (snapshot) => {
             const profile = snapshot.val();
             profile.id = snapshot.key;
             
@@ -3582,7 +3659,7 @@ class DeseoApp {
                 
                 if (!existingById && !existingByUserId) {
                     this.availableProfiles.push(profile);
-                    this.createProfileMarker(profile);
+                    await this.createProfileMarker(profile);
                     this.renderAvailableProfilesInSidebar();
                     console.log('✅ Nuevo perfil disponible agregado:', profile.userName, 'ID:', profile.id);
                 } else {
@@ -3594,14 +3671,14 @@ class DeseoApp {
         });
 
         // Escuchar cambios en perfiles existentes
-        profilesRef.on('child_changed', (snapshot) => {
+        profilesRef.on('child_changed', async (snapshot) => {
             const updatedProfile = snapshot.val();
             updatedProfile.id = snapshot.key;
             
             const index = this.availableProfiles.findIndex(p => p.id === updatedProfile.id);
             if (index !== -1) {
                 this.availableProfiles[index] = updatedProfile;
-                this.updateProfileMarker(updatedProfile);
+                await this.updateProfileMarker(updatedProfile);
                 this.renderAvailableProfilesInSidebar();
                 console.log('✅ Perfil disponible actualizado:', updatedProfile.userName);
             }

@@ -1666,6 +1666,30 @@ class DeseoApp {
                 this.availableProfiles = profilesArray.filter(profile => profile.isAvailable);
                 console.log(`✅ ${this.availableProfiles.length} perfiles disponibles cargados`);
                 
+                // Limpiar duplicados por userId
+                const uniqueProfiles = this.availableProfiles.reduce((acc, profile) => {
+                    if (!acc.find(p => p.userId === profile.userId)) {
+                        acc.push(profile);
+                    } else {
+                        console.log('⚠️ Duplicado encontrado y eliminado:', profile.userName, 'userId:', profile.userId);
+                    }
+                    return acc;
+                }, []);
+                
+                this.availableProfiles = uniqueProfiles;
+                console.log(`🧹 Después de limpiar duplicados: ${this.availableProfiles.length} perfiles únicos`);
+                
+                // Debug: Mostrar detalles de cada perfil
+                this.availableProfiles.forEach((profile, index) => {
+                    console.log(`🔍 Perfil ${index + 1}:`, {
+                        id: profile.id,
+                        userId: profile.userId,
+                        userName: profile.userName,
+                        category: profile.category,
+                        isAvailable: profile.isAvailable
+                    });
+                });
+                
                 this.renderAvailableProfilesOnMap();
                 this.renderAvailableProfilesInSidebar();
                 this.updateAvailabilityFabState();
@@ -2358,9 +2382,9 @@ class DeseoApp {
             .map(toImageSrc)
             .filter((src) => typeof src === 'string' && src.length > 0);
         
-        const favoritePoses = Array.isArray(userProfile?.favoritePoses) && userProfile.favoritePoses.length > 0
-            ? userProfile.favoritePoses
-            : (Array.isArray(userProfile?.poses) ? userProfile.poses : (Array.isArray(userProfile?.posesFavoritas) ? userProfile.posesFavoritas : []));
+        const favoritePoses = Array.isArray(userProfile?.sexualPoses) && userProfile.sexualPoses.length > 0
+            ? userProfile.sexualPoses
+            : (Array.isArray(userProfile?.favoritePoses) ? userProfile.favoritePoses : (Array.isArray(userProfile?.poses) ? userProfile.poses : (Array.isArray(userProfile?.posesFavoritas) ? userProfile.posesFavoritas : [])));
 
         console.log('🔧 Datos normalizados:', {
             nickname,
@@ -2437,9 +2461,9 @@ class DeseoApp {
                             </div>
                             ${displayProfile.favoritePoses && displayProfile.favoritePoses.length > 0 ? `
                                 <div class="favorite-poses">
-                                    <h4>Poses favoritas:</h4>
+                                    <h4><i class="fas fa-heart"></i> Poses Favoritas</h4>
                                     <div class="poses-tags">
-                                        ${displayProfile.favoritePoses.map(pose => `<span class="pose-tag">${pose}</span>`).join('')}
+                                        ${displayProfile.favoritePoses.map(pose => `<span class="pose-tag">${this.getSexualPoseName(pose)}</span>`).join('')}
                                     </div>
                                 </div>
                             ` : ''}
@@ -2973,10 +2997,17 @@ class DeseoApp {
         // Limpiar la lista actual
         wishList.innerHTML = '';
 
+        // Debug: Mostrar estado actual del array
+        console.log(`🔍 [DEBUG] availableProfiles.length: ${this.availableProfiles.length}`);
+        console.log(`🔍 [DEBUG] availableProfiles content:`, this.availableProfiles.map(p => ({ id: p.id, userId: p.userId, userName: p.userName })));
+
         // Eliminar duplicados por userId antes de renderizar
         const uniqueProfiles = this.availableProfiles.reduce((acc, profile) => {
-            if (!acc.find(p => p.userId === profile.userId)) {
+            const existing = acc.find(p => p.userId === profile.userId);
+            if (!existing) {
                 acc.push(profile);
+            } else {
+                console.log(`⚠️ [DEBUG] Duplicado encontrado en renderizado: ${profile.userName} (userId: ${profile.userId})`);
             }
             return acc;
         }, []);
@@ -3154,6 +3185,33 @@ class DeseoApp {
             case 'live': return 'Live';
             default: return 'General';
         }
+    }
+
+    // Mapear IDs de poses sexuales a nombres de visualización
+    getSexualPoseName(poseId) {
+        const poseMap = {
+            'missionary': 'Misionero',
+            'cowgirl': 'Vaquera',
+            'doggy': 'Perrito',
+            'spooning': 'Cucharita',
+            'reverse_cowgirl': 'Vaquera Inversa',
+            'standing': 'De Pie',
+            'lotus': 'Loto',
+            'scissors': 'Tijeras',
+            'butterfly': 'Mariposa',
+            'reverse_spooning': 'Cucharita Inversa',
+            'crab': 'Cangrejo',
+            'wheelbarrow': 'Carretilla',
+            'pretzel': 'Pretzel',
+            'yab_yum': 'Yab Yum',
+            'bridge': 'Puente',
+            'spread_eagle': 'Águila Extendida',
+            'reverse_spread': 'Águila Inversa',
+            'side_by_side': 'Lado a Lado',
+            'kneeling': 'Arrodillados',
+            'lotus_standing': 'Loto de Pie'
+        };
+        return poseMap[poseId] || poseId;
     }
 
     formatTime(date) {
@@ -3498,6 +3556,13 @@ class DeseoApp {
     setupAvailableProfilesListeners() {
         if (!this.database) return;
 
+        // Prevenir múltiples configuraciones de listeners
+        if (this.availableProfilesListenersSetup) {
+            console.log('⚠️ [DEBUG] Listeners ya configurados, saltando...');
+            return;
+        }
+        this.availableProfilesListenersSetup = true;
+
         const profilesRef = this.database.ref('availableProfiles');
         
         // Escuchar nuevos perfiles disponibles
@@ -3505,14 +3570,26 @@ class DeseoApp {
             const profile = snapshot.val();
             profile.id = snapshot.key;
             
+            console.log(`🔍 [DEBUG] child_added event - Profile: ${profile.userName}, ID: ${profile.id}, userId: ${profile.userId}, isAvailable: ${profile.isAvailable}`);
+            
             if (profile.isAvailable) {
-                // Solo agregar si no existe ya
-                if (!this.availableProfiles.find(p => p.id === profile.id)) {
+                // Verificar duplicados por userId Y por id
+                const existingById = this.availableProfiles.find(p => p.id === profile.id);
+                const existingByUserId = this.availableProfiles.find(p => p.userId === profile.userId);
+                
+                console.log(`🔍 [DEBUG] Verificando duplicados - existingById: ${!!existingById}, existingByUserId: ${!!existingByUserId}`);
+                console.log(`🔍 [DEBUG] availableProfiles actual length: ${this.availableProfiles.length}`);
+                
+                if (!existingById && !existingByUserId) {
                     this.availableProfiles.push(profile);
                     this.createProfileMarker(profile);
                     this.renderAvailableProfilesInSidebar();
-                    console.log('✅ Nuevo perfil disponible agregado:', profile.userName);
+                    console.log('✅ Nuevo perfil disponible agregado:', profile.userName, 'ID:', profile.id);
+                } else {
+                    console.log('⚠️ Perfil duplicado ignorado:', profile.userName, 'ID:', profile.id, 'userId:', profile.userId);
                 }
+            } else {
+                console.log('⚠️ Perfil no disponible ignorado:', profile.userName, 'ID:', profile.id);
             }
         });
 

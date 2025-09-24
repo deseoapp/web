@@ -3334,6 +3334,19 @@ class DeseoApp {
         });
 
         this.updateCarouselButtons();
+
+        // Mover el mapa al perfil correspondiente
+        try {
+            const slideEl = carouselTrack.children[slideIndex];
+            if (slideEl) {
+                const profileEl = slideEl.querySelector('.carousel-profile');
+                const profileId = profileEl && profileEl.getAttribute('data-profile-id');
+                const profile = this.availableProfiles.find(p => p.id === profileId);
+                if (profile && profile.location) {
+                    this.focusOnProfileMarker(profile);
+                }
+            }
+        } catch (e) { console.warn('No se pudo centrar el mapa en el slide actual:', e); }
     }
 
     nextSlide() {

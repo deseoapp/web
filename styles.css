@@ -1041,17 +1041,40 @@ body {
         flex-direction: column;
     }
 
-    /* Ocultar sidebar entero para liberar espacio */
+    /* Mantener solo el header del sidebar visible sobre el mapa */
     .sidebar {
-        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: transparent;
+        border: none;
+        z-index: 10001; /* por encima del mapa */
+        pointer-events: none; /* desactivar clicks por defecto */
+    }
+
+    .sidebar-header {
+        pointer-events: auto; /* permitir clicks en header */
+        background: rgba(24, 25, 26, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Ocultar contenidos del sidebar en móvil */
+    .sidebar .main-nav,
+    .sidebar .search-bar,
+    .sidebar .filters,
+    .sidebar .wish-list {
+        display: none !important;
     }
 
     .map-area {
         position: relative;
-        height: 100vh; /* El mapa ocupa casi toda la pantalla */
+        height: 100vh; /* El mapa ocupa toda la pantalla */
     }
 
-    /* Mostrar overlays móviles por encima de todo */
+    /* Overlays móviles por encima de todo */
     .mobile-overlays {
         display: block;
         position: fixed; /* por encima del mapa y controles */

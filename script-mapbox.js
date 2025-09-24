@@ -3642,15 +3642,18 @@ class DeseoApp {
         
         if (mainNav && sidebarToggle) {
             const isHidden = mainNav.classList.contains('hidden');
+            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
             
             if (isHidden) {
                 // Mostrar el menú
                 mainNav.classList.remove('hidden');
+                if (isMobile) document.body.classList.add('mobile-menu-open');
                 sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
                 console.log('✅ Sidebar menu shown');
             } else {
                 // Ocultar el menú
                 mainNav.classList.add('hidden');
+                if (isMobile) document.body.classList.remove('mobile-menu-open');
                 sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Mantener el mismo icono
                 console.log('✅ Sidebar menu hidden');
             }

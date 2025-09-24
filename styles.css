@@ -1069,6 +1069,28 @@ body {
         display: none !important;
     }
 
+    /* Mostrar menú cuando esté abierto */
+    body.mobile-menu-open .sidebar .main-nav {
+        display: block !important;
+        position: fixed;
+        top: 56px; /* altura del header */
+        left: 0;
+        width: 100%;
+        max-height: calc(100vh - 56px);
+        overflow-y: auto;
+        background: rgba(24,25,26,0.95);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        z-index: 10002;
+        padding: 0.75rem 1rem;
+    }
+
+    body.mobile-menu-open .sidebar .main-nav ul li a {
+        display: block;
+        padding: 0.75rem 0.5rem;
+    }
+
     .map-area {
         position: relative;
         height: 100vh; /* El mapa ocupa toda la pantalla */

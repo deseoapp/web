@@ -2226,6 +2226,8 @@ class DeseoApp {
     async showProfileDetails(profile) {
         if (!profile) return;
 
+        console.log('🎯 showProfileDetails llamado con:', profile);
+
         // Verificar si el usuario está autenticado
         if (!this.currentUser) {
             console.log('Usuario no autenticado - mostrando modal de autenticación');
@@ -2237,23 +2239,58 @@ class DeseoApp {
         let userProfile = null;
         try {
             if (this.database) {
-                const userRef = this.database.ref(`users/${profile.userId}`);
+                console.log('🔍 Buscando perfil del usuario:', profile.userId);
+                // Buscar en users/{userId}/profile donde se guarda el perfil completo
+                const userRef = this.database.ref(`users/${profile.userId}/profile`);
                 const snapshot = await userRef.once('value');
                 userProfile = snapshot.val();
+                console.log('📊 Datos obtenidos de Firebase (users/{userId}/profile):', userProfile);
+                
+                // Si no se encuentra en /profile, intentar en la raíz del usuario
+                if (!userProfile) {
+                    console.log('🔍 No se encontró en /profile, buscando en users/{userId}');
+                    const userRootRef = this.database.ref(`users/${profile.userId}`);
+                    const userRootSnapshot = await userRootRef.once('value');
+                    userProfile = userRootSnapshot.val();
+                    console.log('📊 Datos obtenidos de Firebase (users/{userId}):', userProfile);
+                }
+            } else {
+                console.warn('⚠️ Firebase database no disponible');
             }
         } catch (error) {
-            console.error('Error obteniendo perfil del usuario:', error);
+            console.error('❌ Error obteniendo perfil del usuario:', error);
         }
 
-        // Usar datos de Firebase si están disponibles, sino usar datos básicos del perfil
-        const displayProfile = userProfile ? {
+        // Normalizar datos: soportar posibles nombres alternativos según data.json
+        const nickname = userProfile?.nickname || userProfile?.alias || userProfile?.apodo || profile.userName || 'Usuario';
+        const description = userProfile?.description || userProfile?.descripcion || 'Descripción no disponible';
+        const age = userProfile?.age || userProfile?.edad || 'No especificada';
+        const photos = Array.isArray(userProfile?.photos) && userProfile.photos.length > 0
+            ? userProfile.photos
+            : (Array.isArray(userProfile?.fotos) && userProfile.fotos.length > 0 ? userProfile.fotos : (profile.userProfileImage ? [profile.userProfileImage] : []));
+        const favoritePoses = Array.isArray(userProfile?.favoritePoses) && userProfile.favoritePoses.length > 0
+            ? userProfile.favoritePoses
+            : (Array.isArray(userProfile?.poses) ? userProfile.poses : (Array.isArray(userProfile?.posesFavoritas) ? userProfile.posesFavoritas : []));
+
+        console.log('🔧 Datos normalizados:', {
+            nickname,
+            description,
+            age,
+            photos,
+            favoritePoses
+        });
+
+        const displayProfile = {
             ...profile,
-            userName: userProfile.nickname || profile.userName,
-            userProfileImage: userProfile.photos && userProfile.photos.length > 0 ? userProfile.photos[0] : profile.userProfileImage,
-            description: userProfile.description || 'Descripción no disponible',
-            age: userProfile.age || 'No especificada',
-            favoritePoses: userProfile.favoritePoses || []
-        } : profile;
+            userName: nickname,
+            userProfileImage: photos[0] || profile.userProfileImage,
+            description,
+            age,
+            favoritePoses,
+            photos
+        };
+
+        console.log('🎯 Perfil final para mostrar:', displayProfile);
 
         // Crear modal tipo Tinder
         const modal = document.createElement('div');
@@ -2268,7 +2305,14 @@ class DeseoApp {
                     </div>
                     <div class="tinder-photos">
                         <img src="${displayProfile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
-                             alt="${displayProfile.userName}" class="main-photo">
+                             alt="${displayProfile.userName}" class="main-photo" id="tinderMainPhoto">
+                        ${displayProfile.photos && displayProfile.photos.length > 1 ? `
+                        <div class="thumbs">
+                            ${displayProfile.photos.slice(0, 6).map((p, idx) => `
+                                <img src="${p}" alt="foto ${idx+1}" class="thumb ${idx===0 ? 'active' : ''}" data-src="${p}">
+                            `).join('')}
+                        </div>
+                        ` : ''}
                     </div>
                     <div class="tinder-info">
                         <div class="profile-name">
@@ -2361,11 +2405,37 @@ class DeseoApp {
                 height: 60%;
                 position: relative;
                 overflow: hidden;
+                display: flex;
+                flex-direction: column;
             }
             .main-photo {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
+            }
+            .thumbs {
+                position: absolute;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 6px;
+                padding: 6px;
+                background: rgba(0,0,0,0.35);
+                border-radius: 12px;
+                max-width: 90%;
+                overflow-x: auto;
+            }
+            .thumbs .thumb {
+                width: 48px;
+                height: 48px;
+                border-radius: 8px;
+                object-fit: cover;
+                cursor: pointer;
+                border: 2px solid transparent;
+            }
+            .thumbs .thumb.active {
+                border-color: var(--primary-color);
             }
             .tinder-info {
                 padding: 20px;
@@ -2475,6 +2545,22 @@ class DeseoApp {
 
         document.head.appendChild(style);
         document.body.appendChild(modal);
+
+        // Listeners: cambiar foto principal al hacer click en thumbnails
+        const thumbs = modal.querySelectorAll('.thumbs .thumb');
+        const mainPhoto = modal.querySelector('#tinderMainPhoto');
+        if (thumbs && mainPhoto) {
+            thumbs.forEach(thumb => {
+                thumb.addEventListener('click', () => {
+                    const src = thumb.getAttribute('data-src');
+                    if (src) {
+                        mainPhoto.src = src;
+                        modal.querySelectorAll('.thumbs .thumb').forEach(t => t.classList.remove('active'));
+                        thumb.classList.add('active');
+                    }
+                });
+            });
+        }
     }
 
     contactProfile(userId) {

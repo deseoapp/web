@@ -58,6 +58,10 @@ class DeseoApp {
         }; // Revertidos los filtros para deseos
         // Cache para perfiles completos de Firebase, clave: userId
         this.userProfilesCache = {};
+        
+        // Carrusel móvil
+        this.currentSlide = 0;
+        this.totalSlides = 0;
         this.aiResponses = this.initializeAIResponses();
         this.exposeGetTopInterests();
         this.initializeApp();
@@ -3169,8 +3173,248 @@ class DeseoApp {
 
         console.log(`✅ Rendered ${uniqueProfiles.length} unique profiles in sidebar (from ${this.availableProfiles.length} total)`);
         
+        // Renderizar carrusel móvil
+        this.renderMobileCarousel(uniqueProfiles);
+        
         // Liberar el flag de renderizado
         this.isRenderingSidebar = false;
+    }
+
+    // ===== CARRUSEL MÓVIL =====
+    renderMobileCarousel(profiles) {
+        // Asegurar que exista el contenedor overlay en móvil
+        let overlay = document.getElementById('mobileCarouselOverlay');
+        if (!overlay) {
+            const mapArea = document.querySelector('.map-area');
+            let overlays = mapArea && mapArea.querySelector('.mobile-overlays');
+            if (!overlays && mapArea) {
+                overlays = document.createElement('div');
+                overlays.className = 'mobile-overlays';
+                mapArea.appendChild(overlays);
+            }
+            if (overlays) {
+                overlays.insertAdjacentHTML('beforeend', `
+                    <div class="mobile-carousel overlay" id="mobileCarouselOverlay">
+                        <div class="carousel-container">
+                            <div class="carousel-track" id="carouselTrack"></div>
+                            <div class="carousel-controls">
+                                <button class="carousel-btn prev-btn" id="prevBtn">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <div class="carousel-indicators" id="carouselIndicators"></div>
+                                <button class="carousel-btn next-btn" id="nextBtn">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+        }
+
+        const carouselTrack = document.getElementById('carouselTrack');
+        const carouselIndicators = document.getElementById('carouselIndicators');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        // Si los elementos aún no existen (por timing), reintentar una vez después de un breve delay
+        if (!carouselTrack || !carouselIndicators || !prevBtn || !nextBtn) {
+            console.warn('Elementos del carrusel móvil no encontrados aún. Reintentando...');
+            clearTimeout(this._carouselRetryTimer);
+            this._carouselRetryTimer = setTimeout(() => {
+                this.renderMobileCarousel(profiles);
+            }, 300);
+            return;
+        }
+
+        // Limpiar carrusel
+        carouselTrack.innerHTML = '';
+        carouselIndicators.innerHTML = '';
+
+        if (profiles.length === 0) {
+            carouselTrack.innerHTML = `
+                <div class="carousel-slide">
+                    <div class="carousel-profile">
+                        <div class="carousel-profile-info">
+                            <div class="carousel-profile-name">No hay perfiles disponibles</div>
+                            <div class="carousel-profile-category">Intenta más tarde</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            // Estado base
+            this.currentSlide = 0;
+            this.totalSlides = 0;
+            this.updateCarouselButtons();
+            return;
+        }
+
+        // Crear slides del carrusel
+        profiles.forEach((profile, index) => {
+            const slide = document.createElement('div');
+            slide.className = 'carousel-slide';
+            slide.innerHTML = `
+                <div class="carousel-profile" data-profile-id="${profile.id}">
+                    <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                         alt="${profile.userName}" class="carousel-profile-avatar">
+                    <div class="carousel-profile-info">
+                        <div class="carousel-profile-name">${profile.userName || 'Usuario'}</div>
+                        <div class="carousel-profile-category">${this.getCategoryName(profile.category)}</div>
+                        <div class="carousel-profile-status">
+                            <i></i>
+                            <span>Disponible ahora</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar evento de clic para mostrar detalles
+            slide.addEventListener('click', () => {
+                this.showProfileDetails(profile);
+            });
+            
+            carouselTrack.appendChild(slide);
+        });
+
+        // Crear indicadores
+        profiles.forEach((_, index) => {
+            const indicator = document.createElement('div');
+            indicator.className = `carousel-indicator ${index === 0 ? 'active' : ''}`;
+            indicator.addEventListener('click', () => {
+                this.goToSlide(index);
+            });
+            carouselIndicators.appendChild(indicator);
+        });
+
+        // Evitar listeners duplicados en controles
+        if (!this._carouselControlsBound) {
+            this.setupCarouselControls(profiles.length);
+            this._carouselControlsBound = true;
+        }
+        
+        // Inicializar estado del carrusel
+        this.currentSlide = 0;
+        this.totalSlides = profiles.length;
+        this.goToSlide(0);
+    }
+
+    setupCarouselControls(totalSlides) {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        if (!prevBtn || !nextBtn) return;
+
+        prevBtn.addEventListener('click', () => {
+            this.previousSlide();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            this.nextSlide();
+        });
+
+        // Actualizar estado inicial de los botones
+        this.updateCarouselButtons();
+        
+        // Agregar soporte para gestos táctiles
+        this.setupCarouselTouchEvents();
+    }
+
+    goToSlide(slideIndex) {
+        const carouselTrack = document.getElementById('carouselTrack');
+        const indicators = document.querySelectorAll('.carousel-indicator');
+        
+        if (!carouselTrack || slideIndex < 0 || slideIndex >= this.totalSlides) return;
+
+        this.currentSlide = slideIndex;
+        carouselTrack.style.transform = `translateX(-${slideIndex * 100}%)`;
+
+        // Actualizar indicadores
+        indicators.forEach((indicator, index) => {
+            indicator.classList.toggle('active', index === slideIndex);
+        });
+
+        this.updateCarouselButtons();
+    }
+
+    nextSlide() {
+        if (this.currentSlide < this.totalSlides - 1) {
+            this.goToSlide(this.currentSlide + 1);
+        }
+    }
+
+    previousSlide() {
+        if (this.currentSlide > 0) {
+            this.goToSlide(this.currentSlide - 1);
+        }
+    }
+
+    updateCarouselButtons() {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        
+        if (!prevBtn || !nextBtn) return;
+
+        prevBtn.disabled = this.currentSlide === 0;
+        nextBtn.disabled = this.currentSlide === this.totalSlides - 1;
+    }
+
+    setupCarouselTouchEvents() {
+        const carouselTrack = document.getElementById('carouselTrack');
+        if (!carouselTrack) return;
+
+        let startX = 0;
+        let startY = 0;
+        let isDragging = false;
+        let currentX = 0;
+
+        const onTouchStart = (e) => {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+            isDragging = true;
+            carouselTrack.style.transition = 'none';
+        };
+
+        const onTouchMove = (e) => {
+            if (!isDragging) return;
+            
+            currentX = e.touches[0].clientX;
+            const diffX = currentX - startX;
+            const diffY = Math.abs(e.touches[0].clientY - startY);
+            
+            // Solo procesar si el movimiento horizontal es mayor que el vertical
+            if (Math.abs(diffX) > diffY) {
+                const deltaPercent = (diffX / carouselTrack.clientWidth) * 100;
+                const basePercent = -this.currentSlide * 100;
+                carouselTrack.style.transform = `translateX(${basePercent + deltaPercent}%)`;
+            }
+        };
+
+        const onTouchEnd = () => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            carouselTrack.style.transition = 'transform 0.3s ease';
+            
+            const diffX = currentX - startX;
+            const threshold = carouselTrack.clientWidth * 0.15; // 15% del ancho
+            
+            if (Math.abs(diffX) > threshold) {
+                if (diffX > 0 && this.currentSlide > 0) {
+                    this.previousSlide();
+                } else if (diffX < 0 && this.currentSlide < this.totalSlides - 1) {
+                    this.nextSlide();
+                } else {
+                    this.goToSlide(this.currentSlide);
+                }
+            } else {
+                this.goToSlide(this.currentSlide);
+            }
+        };
+
+        // Escuchas pasivos para evitar bloquear scroll
+        carouselTrack.addEventListener('touchstart', onTouchStart, { passive: true });
+        carouselTrack.addEventListener('touchmove', onTouchMove, { passive: true });
+        carouselTrack.addEventListener('touchend', onTouchEnd, { passive: true });
     }
 
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====

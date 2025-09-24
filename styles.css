@@ -93,6 +93,16 @@ body {
     z-index: 100;
 }
 
+/* Ocultar carrusel móvil en desktop */
+.mobile-carousel {
+    display: none;
+}
+
+/* === Overlays móviles sobre el mapa === */
+.mobile-overlays {
+    display: none;
+}
+
 .sidebar-header {
     display: flex;
     justify-content: space-between;
@@ -1028,19 +1038,123 @@ body {
 
 @media (max-width: 768px) {
     .app-container {
-    flex-direction: column;
+        flex-direction: column;
     }
 
+    /* Ocultar sidebar entero para liberar espacio */
     .sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-        position: relative; /* No fixed, scrolls with content */
+        display: none;
     }
 
     .map-area {
-        height: 60vh; /* Map takes up more space on mobile */
+        position: relative;
+        height: 100vh; /* El mapa ocupa casi toda la pantalla */
+    }
+
+    /* Mostrar overlays móviles por encima de todo */
+    .mobile-overlays {
+        display: block;
+        position: fixed; /* por encima del mapa y controles */
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none; /* Dejar pasar eventos salvo en hijos */
+        z-index: 9999;
+    }
+
+    .mobile-overlays .overlay {
+        pointer-events: auto;
+    }
+
+    .mobile-filter-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 10000;
+        background: rgba(24, 25, 26, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 8px 12px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: var(--shadow);
+    }
+
+    /* Carrusel superpuesto con efecto glass */
+    #mobileCarouselOverlay {
+        display: block;
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 24px);
+        z-index: 10000;
+    }
+
+    #mobileCarouselOverlay .carousel-container {
+        height: 128px; /* más bajo */
+        background: rgba(24, 25, 26, 0.6);
+        color: var(--text-primary);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    /* Permitir desplazamiento vertical del documento mientras capturamos swipe horizontal */
+    #mobileCarouselOverlay .carousel-track {
+        touch-action: pan-y;
+    }
+
+    /* Forzar visibilidad del carrusel overlay en móvil */
+    #mobileCarouselOverlay {
+        display: block;
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 20px);
+        z-index: 11;
+    }
+
+    #mobileCarouselOverlay .carousel-container {
+        height: 128px; /* más bajo */
+        background: rgba(24, 25, 26, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    /* Permitir desplazamiento vertical del documento mientras capturamos swipe horizontal */
+    #mobileCarouselOverlay .carousel-track {
+        touch-action: pan-y;
+    }
+
+    #mobileCarouselOverlay .carousel-profile-avatar {
+        width: 54px;
+        height: 54px;
+        border: 2px solid var(--primary-color);
+    }
+
+    #mobileCarouselOverlay .carousel-profile-name {
+        font-size: 1rem;
+    }
+
+    #mobileCarouselOverlay .carousel-profile-category {
+        font-size: 0.85rem;
+    }
+
+    #mobileCarouselOverlay .carousel-controls {
+        padding: 0.5rem 0;
+    }
+
+    /* Botón flotante de disponibilidad por encima del carrusel */
+    #floatingAvailabilityBtn {
+        z-index: 6;
     }
 
     .sidebar-header {
@@ -1073,6 +1187,145 @@ body {
     .floating-btn {
         bottom: 1rem;
         right: 1rem;
+    }
+
+    /* Ocultar lista normal en móvil */
+    .wish-list {
+        display: none;
+    }
+
+    /* Mostrar carrusel móvil */
+    .mobile-carousel {
+        display: block;
+        padding: 1rem;
+        background: var(--background-secondary);
+    }
+
+    .carousel-container {
+        position: relative;
+        width: 100%;
+        height: 200px;
+        overflow: hidden;
+        border-radius: var(--border-radius);
+        background: var(--background);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .carousel-track {
+        display: flex;
+        height: 100%;
+        transition: transform 0.3s ease;
+    }
+
+    .carousel-slide {
+        min-width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: var(--background);
+    }
+
+    .carousel-profile {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        gap: 1rem;
+    }
+
+    .carousel-profile-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--primary-color);
+    }
+
+    .carousel-profile-info {
+        flex: 1;
+    }
+
+    .carousel-profile-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+    }
+
+    .carousel-profile-category {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+    }
+
+    .carousel-profile-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--success-color);
+    }
+
+    .carousel-profile-status i {
+        width: 8px;
+        height: 8px;
+        background: var(--success-color);
+        border-radius: 50%;
+    }
+
+    .carousel-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 0;
+        gap: 1rem;
+    }
+
+    .carousel-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: var(--transition);
+        box-shadow: var(--shadow);
+    }
+
+    .carousel-btn:hover {
+        background: var(--primary-hover);
+        transform: scale(1.05);
+    }
+
+    .carousel-btn:disabled {
+        background: var(--text-light);
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .carousel-indicators {
+        display: flex;
+        gap: 0.5rem;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .carousel-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-light);
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .carousel-indicator.active {
+        background: var(--primary-color);
+        transform: scale(1.2);
     }
 }
 
@@ -1132,6 +1385,12 @@ body {
 
     .wish-details-card .card-body .wish-author {
         font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 420px) {
+    #mobileCarouselOverlay .carousel-container {
+        height: 116px;
     }
 }
 

@@ -2265,9 +2265,43 @@ class DeseoApp {
         const nickname = userProfile?.nickname || userProfile?.alias || userProfile?.apodo || profile.userName || 'Usuario';
         const description = userProfile?.description || userProfile?.descripcion || 'Descripción no disponible';
         const age = userProfile?.age || userProfile?.edad || 'No especificada';
-        const photos = Array.isArray(userProfile?.photos) && userProfile.photos.length > 0
-            ? userProfile.photos
-            : (Array.isArray(userProfile?.fotos) && userProfile.fotos.length > 0 ? userProfile.fotos : (profile.userProfileImage ? [profile.userProfileImage] : []));
+        
+        // Procesar fotos: verificar si son base64 o URLs
+        let photos = [];
+        if (Array.isArray(userProfile?.photos) && userProfile.photos.length > 0) {
+            photos = userProfile.photos;
+        } else if (Array.isArray(userProfile?.fotos) && userProfile.fotos.length > 0) {
+            photos = userProfile.fotos;
+        } else if (profile.userProfileImage) {
+            photos = [profile.userProfileImage];
+        }
+        
+        // Convertir fotos a formato correcto (base64 o URL)
+        const toImageSrc = (input) => {
+            if (!input) return null;
+            let value = input;
+            // Manejar objetos comunes { url, src, base64 }
+            if (typeof input === 'object') {
+                if (typeof input.url === 'string') value = input.url;
+                else if (typeof input.src === 'string') value = input.src;
+                else if (typeof input.base64 === 'string') value = input.base64;
+                else if (Array.isArray(input) && input.length > 0) value = input[0];
+                else return null;
+            }
+            if (typeof value !== 'string') return null;
+            // Si ya es base64, usarlo directamente
+            if (value.startsWith('data:image/')) return value;
+            // Si es URL, usarla directamente
+            if (value.startsWith('http') || value.startsWith('https')) return value;
+            // Si parece base64 sin prefijo, agregarlo
+            if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+            return null;
+        };
+
+        const processedPhotos = photos
+            .map(toImageSrc)
+            .filter((src) => typeof src === 'string' && src.length > 0);
+        
         const favoritePoses = Array.isArray(userProfile?.favoritePoses) && userProfile.favoritePoses.length > 0
             ? userProfile.favoritePoses
             : (Array.isArray(userProfile?.poses) ? userProfile.poses : (Array.isArray(userProfile?.posesFavoritas) ? userProfile.posesFavoritas : []));
@@ -2276,18 +2310,18 @@ class DeseoApp {
             nickname,
             description,
             age,
-            photos,
+            processedPhotos,
             favoritePoses
         });
 
         const displayProfile = {
             ...profile,
             userName: nickname,
-            userProfileImage: photos[0] || profile.userProfileImage,
+            userProfileImage: processedPhotos[0] || profile.userProfileImage,
             description,
             age,
             favoritePoses,
-            photos
+            photos: processedPhotos
         };
 
         console.log('🎯 Perfil final para mostrar:', displayProfile);
@@ -2333,6 +2367,10 @@ class DeseoApp {
                                 <div class="stat-item">
                                     <i class="fas fa-birthday-cake"></i>
                                     <span>Edad: ${displayProfile.age}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-tag"></i>
+                                    <span>Categoría: ${this.getCategoryName(displayProfile.category)}</span>
                                 </div>
                             </div>
                             ${displayProfile.favoritePoses && displayProfile.favoritePoses.length > 0 ? `

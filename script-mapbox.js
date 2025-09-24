@@ -2432,7 +2432,7 @@ class DeseoApp {
                                 </div>
                                 <div class="stat-item">
                                     <i class="fas fa-tag"></i>
-                                    <span>Categoría: ${this.getCategoryName(displayProfile.category)}</span>
+                                    <span>${this.getCategoryName(displayProfile.category)}</span>
                                 </div>
                             </div>
                             ${displayProfile.favoritePoses && displayProfile.favoritePoses.length > 0 ? `
@@ -2471,38 +2471,46 @@ class DeseoApp {
                 align-items: center;
                 justify-content: center;
                 animation: modalFadeIn 0.3s ease;
+                background: rgba(0, 0, 0, 0.8);
             }
             .tinder-card {
                 width: 90%;
-                max-width: 400px;
-                height: 80vh;
+                max-width: 420px;
+                height: 85vh;
                 background: var(--background-secondary);
-                border-radius: 20px;
+                border-radius: 24px;
                 overflow: hidden;
                 position: relative;
-                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+                display: flex;
+                flex-direction: column;
             }
             .tinder-header {
                 position: absolute;
-                top: 20px;
-                right: 20px;
+                top: 16px;
+                right: 16px;
                 z-index: 10;
             }
             .tinder-header .close-btn {
-                background: rgba(0, 0, 0, 0.5);
+                background: rgba(0, 0, 0, 0.6);
                 border: none;
                 color: white;
-                width: 40px;
-                height: 40px;
+                width: 44px;
+                height: 44px;
                 border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                font-size: 1.2rem;
+                font-size: 1.3rem;
+                transition: all 0.2s ease;
+            }
+            .tinder-header .close-btn:hover {
+                background: rgba(0, 0, 0, 0.8);
+                transform: scale(1.1);
             }
             .tinder-photos {
-                height: 60%;
+                height: 55%;
                 position: relative;
                 overflow: hidden;
                 display: flex;
@@ -2515,27 +2523,30 @@ class DeseoApp {
             }
             .thumbs {
                 position: absolute;
-                bottom: 10px;
+                bottom: 12px;
                 left: 50%;
                 transform: translateX(-50%);
                 display: flex;
-                gap: 6px;
-                padding: 6px;
-                background: rgba(0,0,0,0.35);
-                border-radius: 12px;
+                gap: 8px;
+                padding: 8px 12px;
+                background: rgba(0,0,0,0.4);
+                border-radius: 16px;
                 max-width: 90%;
                 overflow-x: auto;
+                backdrop-filter: blur(10px);
             }
             .thumbs .thumb {
-                width: 48px;
-                height: 48px;
-                border-radius: 8px;
+                width: 52px;
+                height: 52px;
+                border-radius: 10px;
                 object-fit: cover;
                 cursor: pointer;
-                border: 2px solid transparent;
+                border: 3px solid transparent;
+                transition: all 0.2s ease;
             }
             .thumbs .thumb.active {
                 border-color: var(--primary-color);
+                transform: scale(1.05);
             }
             .photo-nav {
                 position: absolute;
@@ -2545,126 +2556,159 @@ class DeseoApp {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 0 8px;
+                padding: 0 12px;
                 transform: translateY(-50%);
                 pointer-events: none;
             }
             .photo-nav .nav-btn {
-                width: 36px;
-                height: 36px;
+                width: 40px;
+                height: 40px;
                 border-radius: 50%;
                 border: none;
-                background: rgba(0,0,0,0.45);
+                background: rgba(0,0,0,0.5);
                 color: #fff;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
                 pointer-events: auto;
+                transition: all 0.2s ease;
+                font-size: 1.1rem;
+            }
+            .photo-nav .nav-btn:hover {
+                background: rgba(0,0,0,0.7);
+                transform: scale(1.1);
             }
             .tinder-info {
-                padding: 20px;
-                height: 40%;
+                padding: 24px;
+                height: 45%;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
+                background: var(--background-secondary);
             }
             .profile-name {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                margin-bottom: 15px;
+                gap: 12px;
+                margin-bottom: 16px;
             }
             .profile-name h2 {
                 color: var(--text-primary);
-                font-size: 1.5rem;
+                font-size: 1.6rem;
                 margin: 0;
+                font-weight: 700;
             }
             .category-badge {
-                padding: 4px 12px;
-                border-radius: 20px;
-                font-size: 0.8rem;
+                padding: 6px 14px;
+                border-radius: 24px;
+                font-size: 0.85rem;
                 font-weight: 600;
                 color: white;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
             }
-            .category-badge.escort { background: #e91e63; }
-            .category-badge.gigolo { background: #2196f3; }
-            .category-badge.masajes { background: #4caf50; }
-            .category-badge.trans { background: #9c27b0; }
-            .category-badge.chat { background: #ff9800; }
-            .category-badge.live { background: #f44336; }
+            .category-badge.escort { background: linear-gradient(135deg, #e91e63, #c2185b); }
+            .category-badge.gigolo { background: linear-gradient(135deg, #2196f3, #1976d2); }
+            .category-badge.masajes { background: linear-gradient(135deg, #4caf50, #388e3c); }
+            .category-badge.trans { background: linear-gradient(135deg, #9c27b0, #7b1fa2); }
+            .category-badge.chat { background: linear-gradient(135deg, #ff9800, #f57c00); }
+            .category-badge.live { background: linear-gradient(135deg, #f44336, #d32f2f); }
+            .category-badge.comida { background: linear-gradient(135deg, #ff5722, #e64a19); }
+            .category-badge.servicios { background: linear-gradient(135deg, #607d8b, #455a64); }
+            .category-badge.compras { background: linear-gradient(135deg, #795548, #5d4037); }
+            .category-badge.transporte { background: linear-gradient(135deg, #3f51b5, #303f9f); }
+            .category-badge.entretenimiento { background: linear-gradient(135deg, #9c27b0, #7b1fa2); }
             .profile-description {
                 color: var(--text-secondary);
-                line-height: 1.5;
-                margin-bottom: 15px;
+                line-height: 1.6;
+                margin-bottom: 20px;
+                font-size: 1rem;
             }
             .profile-stats {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin-bottom: 20px;
             }
             .stat-item {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 10px;
                 color: var(--text-secondary);
                 font-size: 0.9rem;
+                padding: 8px 12px;
+                background: var(--background-tertiary);
+                border-radius: 12px;
             }
             .stat-item i {
                 color: var(--primary-color);
-                width: 16px;
+                width: 18px;
+                font-size: 1rem;
             }
             .tinder-actions {
-                position: absolute;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
                 display: flex;
-                gap: 20px;
+                justify-content: center;
+                gap: 24px;
+                padding: 20px 0 0 0;
+                border-top: 1px solid var(--border-color);
             }
             .action-btn {
-                width: 60px;
-                height: 60px;
+                width: 64px;
+                height: 64px;
                 border-radius: 50%;
                 border: none;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 1.5rem;
+                font-size: 1.6rem;
                 cursor: pointer;
-                transition: transform 0.2s ease;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
             }
             .action-btn:hover {
                 transform: scale(1.1);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
             }
             .pass-btn {
-                background: #ff4757;
+                background: linear-gradient(135deg, #ff4757, #ff3742);
                 color: white;
             }
             .contact-btn {
-                background: var(--primary-color);
+                background: linear-gradient(135deg, var(--primary-color), #4f46e5);
                 color: white;
             }
             .favorite-poses {
-                margin-top: 15px;
+                margin-top: 16px;
             }
             .favorite-poses h4 {
                 color: var(--text-primary);
-                font-size: 0.9rem;
-                margin-bottom: 8px;
+                font-size: 1rem;
+                margin-bottom: 10px;
+                font-weight: 600;
             }
             .poses-tags {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 6px;
+                gap: 8px;
             }
             .pose-tag {
-                background: var(--primary-color);
+                background: linear-gradient(135deg, var(--primary-color), #4f46e5);
                 color: white;
-                padding: 4px 8px;
-                border-radius: 12px;
-                font-size: 0.75rem;
+                padding: 6px 12px;
+                border-radius: 16px;
+                font-size: 0.8rem;
                 font-weight: 500;
+            }
+            @keyframes modalFadeIn {
+                from {
+                    opacity: 0;
+                    transform: scale(0.9);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1);
+                }
             }
         `;
 
@@ -2929,8 +2973,18 @@ class DeseoApp {
         // Limpiar la lista actual
         wishList.innerHTML = '';
 
+        // Eliminar duplicados por userId antes de renderizar
+        const uniqueProfiles = this.availableProfiles.reduce((acc, profile) => {
+            if (!acc.find(p => p.userId === profile.userId)) {
+                acc.push(profile);
+            }
+            return acc;
+        }, []);
+
+        console.log(`🔍 [DEBUG] Perfiles únicos para renderizar: ${uniqueProfiles.length} de ${this.availableProfiles.length}`);
+
         // Renderizar cada perfil disponible
-        for (const profile of this.availableProfiles) {
+        for (const profile of uniqueProfiles) {
             // Obtener datos completos del perfil desde Firebase (con cache)
             let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
             if (!userProfile && this.database) {
@@ -2953,7 +3007,7 @@ class DeseoApp {
 
             // Normalizar datos: soportar posibles nombres alternativos según data.json
             const nickname = userProfile?.nickname || userProfile?.alias || userProfile?.apodo || profile.userName || 'Usuario';
-            // Procesar foto principal: verificar si es base64 o URL
+            // Procesar foto principal: usar la misma lógica que en showProfileDetails
             let mainPhoto = profile.userProfileImage;
             if (userProfile) {
                 const photos = Array.isArray(userProfile.photos) ? userProfile.photos : (Array.isArray(userProfile.fotos) ? userProfile.fotos : []);
@@ -2977,6 +3031,11 @@ class DeseoApp {
                     const processed = photos.map(toImageSrc).filter((src) => typeof src === 'string' && src.length > 0);
                     if (processed.length > 0) mainPhoto = processed[0];
                 }
+            }
+            
+            // Asegurar que la imagen sea consistente con la del mapa
+            if (!mainPhoto) {
+                mainPhoto = 'https://www.gravatar.com/avatar/?d=mp&f=y';
             }
 
             const profileItem = document.createElement('div');
@@ -3003,7 +3062,7 @@ class DeseoApp {
             wishList.appendChild(profileItem);
         }
 
-        console.log(`Rendered ${this.availableProfiles.length} available profiles in sidebar`);
+        console.log(`✅ Rendered ${uniqueProfiles.length} unique profiles in sidebar (from ${this.availableProfiles.length} total)`);
     }
 
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====
@@ -3080,13 +3139,19 @@ class DeseoApp {
     }
 
     getCategoryName(category) {
-        // Función para obtener el nombre de la categoría (ya existente)
+        // Función para obtener el nombre de la categoría (actualizada con todas las categorías)
         switch (category) {
             case 'comida': return 'Comida';
             case 'servicios': return 'Servicios';
             case 'compras': return 'Compras';
             case 'transporte': return 'Transporte';
             case 'entretenimiento': return 'Entretenimiento';
+            case 'escort': return 'Escort';
+            case 'gigolo': return 'Gigolo';
+            case 'masajes': return 'Masajes';
+            case 'trans': return 'Trans';
+            case 'chat': return 'Chat';
+            case 'live': return 'Live';
             default: return 'General';
         }
     }

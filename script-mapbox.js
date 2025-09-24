@@ -3251,11 +3251,41 @@ class DeseoApp {
 
         // Crear slides del carrusel
         profiles.forEach((profile, index) => {
+            // Obtener foto principal usando la misma lógica que navbar/mapa
+            let mainPhoto = profile.userProfileImage;
+            try {
+                const userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
+                if (userProfile) {
+                    const photos = Array.isArray(userProfile.photos) ? userProfile.photos : (Array.isArray(userProfile.fotos) ? userProfile.fotos : []);
+                    if (photos.length > 0) {
+                        const toImageSrc = (input) => {
+                            if (!input) return null;
+                            let value = input;
+                            if (typeof input === 'object') {
+                                if (typeof input.url === 'string') value = input.url;
+                                else if (typeof input.src === 'string') value = input.src;
+                                else if (typeof input.base64 === 'string') value = input.base64;
+                                else if (Array.isArray(input) && input.length > 0) value = input[0];
+                                else return null;
+                            }
+                            if (typeof value !== 'string') return null;
+                            if (value.startsWith('data:image/')) return value;
+                            if (value.startsWith('http') || value.startsWith('https')) return value;
+                            if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+                            return null;
+                        };
+                        const processed = photos.map(toImageSrc).filter((src) => typeof src === 'string' && src.length > 0);
+                        if (processed.length > 0) mainPhoto = processed[0];
+                    }
+                }
+            } catch (e) { /* noop */ }
+            if (!mainPhoto) mainPhoto = 'https://www.gravatar.com/avatar/?d=mp&f=y';
+
             const slide = document.createElement('div');
             slide.className = 'carousel-slide';
             slide.innerHTML = `
                 <div class="carousel-profile" data-profile-id="${profile.id}">
-                    <img src="${profile.userProfileImage || 'https://www.gravatar.com/avatar/?d=mp&f=y'}" 
+                    <img src="${mainPhoto}" 
                          alt="${profile.userName}" class="carousel-profile-avatar">
                     <div class="carousel-profile-info">
                         <div class="carousel-profile-name">${profile.userName || 'Usuario'}</div>

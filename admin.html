@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Aprobar Recargas Nequi</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="wallet-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="wallet-page">
+    <main class="main-container">
+        <div class="page-container">
+            <div class="page-header">
+                <h2><i class="fas fa-shield-alt"></i> Panel de Administración</h2>
+                <p>Gestionar recargas pendientes de Nequi</p>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="section-header" style="margin-bottom: 20px;">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="pending">Pendientes</button>
+                    <button class="filter-tab" data-filter="all">Todas</button>
+                    <button class="filter-tab" data-filter="approved">Aprobadas</button>
+                    <button class="filter-tab" data-filter="rejected">Rechazadas</button>
+                </div>
+            </div>
+            
+            <div id="transactionsList" class="transactions-list"></div>
+        </div>
+    </main>
+
+    <!-- Modal para ver comprobante -->
+    <div class="modal" id="proofModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Comprobante de Pago</h2>
+                <button class="close-btn" onclick="app.closeModal('proofModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="proofImageContainer" style="text-align: center;">
+                    <!-- La imagen se cargará aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+    // Panel de administración para aprobar recargas de Nequi
+    (function(){
+        console.log('🔍 Debug: Iniciando panel de administración...');
+        
+        if (typeof firebase === 'undefined') {
+            document.getElementById('transactionsList').innerHTML = '<p style="color: #f44336;">❌ Firebase no disponible</p>';
+            return;
+        }
+
+        const db = firebase.database();
+        const list = document.getElementById('transactionsList');
+        let currentFilter = 'pending';
+
+        function renderTransaction(transactionId, transaction, userId) {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            
+            // Determinar el estado
+            let statusBadge = '';
+            let statusColor = '';
+            if (transaction.status === 'pending_verification') {
+                statusBadge = 'Pendiente';
+                statusColor = '#ff9800';
+            } else if (transaction.status === 'completed') {
+                statusBadge = 'Aprobado';
+                statusColor = '#4CAF50';
+            } else if (transaction.status === 'rejected') {
+                statusBadge = 'Rechazado';
+                statusColor = '#f44336';
+            }
+
+            item.innerHTML = `
+                <div class="transaction-info">
+                    <div class="transaction-icon income">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="transaction-details">
+                        <h4>Recarga Nequi ${statusBadge ? `<span style="background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px;">${statusBadge}</span>` : ''}</h4>
+                        <p><strong>Usuario:</strong> ${userId}</p>
+                        <p><strong>Monto:</strong> $${transaction.amount.toLocaleString('es-CO')} COP</p>
+                        <p><strong>Nequi:</strong> ${transaction.nequiNumber || '3146959639'}</p>
+                        <p><strong>Fecha:</strong> ${new Date(transaction.timestamp).toLocaleString('es-ES')}</p>
+                        ${transaction.proofFileName ? `<p><strong>Comprobante:</strong> ${transaction.proofFileName}</p>` : ''}
+                    </div>
+                </div>
+                <div class="transaction-amount" style="display: flex; flex-direction: column; gap: 10px;">
+                    ${transaction.proofImage ? `
+                        <button class="btn-secondary" onclick="showProof('${transaction.proofImage}')" style="margin-bottom: 5px;">
+                            <i class="fas fa-eye"></i> Ver Comprobante
+                        </button>
+                    ` : ''}
+                    ${transaction.status === 'pending_verification' ? `
+                        <button class="btn-primary" onclick="approveTransaction('${transactionId}', '${userId}', ${transaction.amount})" style="background: #4CAF50;">
+                            <i class="fas fa-check"></i> Aprobar
+                        </button>
+                        <button class="btn-secondary" onclick="rejectTransaction('${transactionId}', '${userId}')" style="background: #f44336;">
+                            <i class="fas fa-times"></i> Rechazar
+                        </button>
+                    ` : ''}
+                </div>`;
+
+            return item;
+        }
+
+        function showProof(proofImage) {
+            const modal = document.getElementById('proofModal');
+            const container = document.getElementById('proofImageContainer');
+            
+            container.innerHTML = `<img src="${proofImage}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);" />`;
+            modal.style.display = 'flex';
+        }
+
+        async function approveTransaction(transactionId, userId, amount) {
+            try {
+                console.log('🔍 Debug: Aprobando transacción:', transactionId);
+                
+                // Actualizar estado de la transacción
+                await db.ref(`transactions/${userId}/${transactionId}/status`).set('completed');
+                
+                // Actualizar balance del usuario
+                const userRef = db.ref(`users/${userId}`);
+                const userSnapshot = await userRef.once('value');
+                const userData = userSnapshot.val();
+                const currentBalance = userData.balance || 0;
+                const newBalance = currentBalance + amount;
+                
+                await userRef.update({
+                    balance: newBalance,
+                    lastUpdated: new Date().toISOString()
+                });
+                
+                console.log('✅ Transacción aprobada exitosamente');
+                alert('✅ Transacción aprobada. El dinero se ha acreditado a la billetera del usuario.');
+                
+            } catch (error) {
+                console.error('❌ Error aprobando transacción:', error);
+                alert('❌ Error al aprobar la transacción');
+            }
+        }
+
+        async function rejectTransaction(transactionId, userId) {
+            try {
+                console.log('🔍 Debug: Rechazando transacción:', transactionId);
+                
+                // Actualizar estado de la transacción
+                await db.ref(`transactions/${userId}/${transactionId}/status`).set('rejected');
+                
+                console.log('✅ Transacción rechazada');
+                alert('✅ Transacción rechazada.');
+                
+            } catch (error) {
+                console.error('❌ Error rechazando transacción:', error);
+                alert('❌ Error al rechazar la transacción');
+            }
+        }
+
+        // Hacer funciones globales
+        window.showProof = showProof;
+        window.approveTransaction = approveTransaction;
+        window.rejectTransaction = rejectTransaction;
+
+        // Filtros
+        const filterTabs = document.querySelectorAll('.filter-tab');
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                filterTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentFilter = tab.getAttribute('data-filter');
+                loadTransactions();
+            });
+        });
+
+        function loadTransactions() {
+            console.log('🔍 Debug: Cargando transacciones con filtro:', currentFilter);
+            
+            // Escuchar todas las transacciones
+            db.ref('transactions').on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                list.innerHTML = '';
+                
+                let allTransactions = [];
+                
+                // Recopilar todas las transacciones de todos los usuarios
+                Object.keys(data).forEach(userId => {
+                    const userTransactions = data[userId];
+                    Object.keys(userTransactions).forEach(transactionId => {
+                        const transaction = userTransactions[transactionId];
+                        if (transaction.needsAdminApproval || transaction.method === 'Nequi') {
+                            allTransactions.push({
+                                id: transactionId,
+                                userId: userId,
+                                transaction: transaction
+                            });
+                        }
+                    });
+                });
+                
+                // Filtrar según el filtro seleccionado
+                let filteredTransactions = allTransactions;
+                if (currentFilter === 'pending') {
+                    filteredTransactions = allTransactions.filter(t => t.transaction.status === 'pending_verification');
+                } else if (currentFilter === 'approved') {
+                    filteredTransactions = allTransactions.filter(t => t.transaction.status === 'completed');
+                } else if (currentFilter === 'rejected') {
+                    filteredTransactions = allTransactions.filter(t => t.transaction.status === 'rejected');
+                }
+                
+                // Ordenar por fecha (más recientes primero)
+                filteredTransactions.sort((a, b) => new Date(b.transaction.timestamp) - new Date(a.transaction.timestamp));
+                
+                if (filteredTransactions.length === 0) {
+                    list.innerHTML = `
+                        <div class="no-transactions">
+                            <i class="fas fa-receipt"></i>
+                            <p>No hay transacciones para mostrar</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                filteredTransactions.forEach(({id, userId, transaction}) => {
+                    const element = renderTransaction(id, transaction, userId);
+                    list.appendChild(element);
+                });
+                
+                console.log(`✅ ${filteredTransactions.length} transacciones cargadas`);
+            });
+        }
+
+        // Inicializar
+        loadTransactions();
+        
+        // Funciones globales para el modal
+        window.app = {
+            closeModal: (modalId) => {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+            }
+        };
+        
+    })();
+    </script>
+</body>
+</html>
+

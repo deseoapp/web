@@ -100,7 +100,7 @@
     <div class="modal" id="addMoneyModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Agregar Dinero</h2>
+                <h2><i class="fas fa-mobile-alt"></i> Recargar con Nequi</h2>
                 <button class="close-btn" onclick="app.closeModal('addMoneyModal')">
                     <i class="fas fa-times"></i>
                 </button>
@@ -114,14 +114,18 @@
                     </div>
                     <div class="form-group">
                         <label>Método de pago:</label>
-                        <div class="payment-method-info">
-                            <i class="fas fa-shield-alt"></i>
-                            <span>Pago seguro con Bold</span>
+                        <div class="payment-method-info" style="background: #E91E63; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <i class="fas fa-mobile-alt" style="font-size: 24px; margin-bottom: 10px;"></i>
+                            <p style="margin: 0; font-weight: bold;">Transferencia a Nequi</p>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Número: 3146959639</p>
                         </div>
                     </div>
-                    <div class="bold-payment-container">
-                        <div id="boldButtonPlaceholder">
-                            <p>Ingresa una cantidad para habilitar el pago</p>
+                    <div class="nequi-payment-container">
+                        <div id="nequiInstructionsPlaceholder">
+                            <p style="text-align: center; color: #666; padding: 20px;">
+                                <i class="fas fa-mobile-alt" style="font-size: 48px; color: #E91E63; margin-bottom: 15px;"></i><br>
+                                Ingresa una cantidad para ver las instrucciones de transferencia
+                            </p>
                         </div>
                     </div>
                 </form>
@@ -160,16 +164,12 @@
 
     <!-- Scripts -->
     <script src="config.js"></script>
-    <!-- Bold Payment Button SDK -->
-    <script src="https://checkout.bold.co/library/boldPaymentButton.js"></script>
     <script src="script-wallet.js"></script>
     
     <!-- Debug Script -->
     <script>
         console.log('🔍 Debug: Página de billetera cargada');
         console.log('🔍 Debug: CONFIG disponible:', typeof window.CONFIG !== 'undefined');
-        console.log('🔍 Debug: Bold disponible:', typeof window.Bold !== 'undefined');
-        console.log('🔍 Debug: BoldPaymentButton disponible:', typeof window.BoldPaymentButton !== 'undefined');
         console.log('🔍 Debug: WalletManager disponible:', typeof window.walletManager !== 'undefined');
         
         // Verificar elementos del DOM
@@ -177,26 +177,18 @@
             const balanceElement = document.getElementById('totalBalance');
             const transactionsList = document.getElementById('transactionsList');
             const addAmountInput = document.getElementById('addAmount');
-            const boldContainer = document.querySelector('.bold-payment-container');
+            const nequiContainer = document.querySelector('.nequi-payment-container');
             
             console.log('🔍 Debug: Elemento balance:', balanceElement);
             console.log('🔍 Debug: Lista transacciones:', transactionsList);
             console.log('🔍 Debug: Input cantidad:', addAmountInput);
-            console.log('🔍 Debug: Contenedor Bold:', boldContainer);
+            console.log('🔍 Debug: Contenedor Nequi:', nequiContainer);
             console.log('🔍 Debug: WalletManager:', window.walletManager);
-            
-            // Verificar si Bold está realmente cargado
-            if (typeof window.BoldPaymentButton !== 'undefined') {
-                console.log('✅ BoldPaymentButton está disponible');
-            } else {
-                console.error('❌ BoldPaymentButton NO está disponible');
-                console.log('🔍 Debug: Objetos disponibles en window:', Object.keys(window).filter(k => k.toLowerCase().includes('bold')));
-            }
         }, 1000);
         
-        // Procesar resultado de pago al cargar la página
+        // Verificar que el WalletManager esté funcionando
         window.addEventListener('load', async () => {
-            console.log('🔍 Debug - Página cargada, verificando resultado de pago...');
+            console.log('🔍 Debug - Página cargada, verificando WalletManager...');
             
             // Esperar a que el WalletManager esté disponible
             let attempts = 0;
@@ -209,8 +201,7 @@
             }
             
             if (window.walletManager) {
-                console.log('✅ WalletManager encontrado, procesando resultado de pago...');
-                await window.walletManager.processPaymentResult();
+                console.log('✅ WalletManager encontrado y funcionando correctamente');
             } else {
                 console.error('❌ WalletManager no disponible después de 10 intentos');
             }

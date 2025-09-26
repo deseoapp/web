@@ -239,6 +239,34 @@ class AdminDashboard {
             });
         }
 
+        // Mobile menu toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+        const adminSidebar = document.getElementById('adminSidebar');
+
+        if (mobileMenuToggle && mobileOverlay && adminSidebar) {
+            mobileMenuToggle.addEventListener('click', () => {
+                adminSidebar.classList.toggle('open');
+                mobileOverlay.classList.toggle('active');
+            });
+
+            mobileOverlay.addEventListener('click', () => {
+                adminSidebar.classList.remove('open');
+                mobileOverlay.classList.remove('active');
+            });
+
+            // Close mobile menu when clicking on nav links
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        adminSidebar.classList.remove('open');
+                        mobileOverlay.classList.remove('active');
+                    }
+                });
+            });
+        }
+
         // Botón de guardar mensaje
         const saveMessageBtn = document.getElementById('saveMessageBtn');
         if (saveMessageBtn) {
@@ -246,6 +274,14 @@ class AdminDashboard {
                 this.saveAdminMessage();
             });
         }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.handleWindowResize();
+        });
+
+        // Initial responsive setup
+        this.handleWindowResize();
     }
 
     navigateToSection(section) {
@@ -1429,6 +1465,51 @@ class AdminDashboard {
     backupData() {
         alert('Funcionalidad de respaldo en desarrollo');
         // Aquí se implementaría la funcionalidad de respaldo
+    }
+
+    // ===== RESPONSIVE HANDLING =====
+    handleWindowResize() {
+        const width = window.innerWidth;
+        const adminSidebar = document.getElementById('adminSidebar');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+
+        if (width > 768) {
+            // Desktop view
+            if (adminSidebar) {
+                adminSidebar.classList.remove('open');
+            }
+            if (mobileOverlay) {
+                mobileOverlay.classList.remove('active');
+            }
+        } else {
+            // Mobile view - ensure sidebar is closed by default
+            if (adminSidebar && !adminSidebar.classList.contains('open')) {
+                adminSidebar.classList.remove('open');
+            }
+            if (mobileOverlay) {
+                mobileOverlay.classList.remove('active');
+            }
+        }
+
+        // Update charts if they exist
+        this.updateChartsResponsiveness();
+    }
+
+    updateChartsResponsiveness() {
+        // Update chart sizes for responsive behavior
+        const charts = [
+            this.transactionsChart,
+            this.revenueChart,
+            this.transactionDistributionChart,
+            this.userActivityChart,
+            this.approvalTrendsChart
+        ];
+
+        charts.forEach(chart => {
+            if (chart) {
+                chart.resize();
+            }
+        });
     }
 }
 

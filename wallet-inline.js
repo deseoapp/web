@@ -25,7 +25,25 @@ class InlineWalletManager {
         this.renderBalance();
         this.renderTransactions();
         this.setupEventListeners();
+        
+        // Configurar limpieza al cerrar la página
+        this.setupCleanup();
+        
         console.log('✅ InlineWalletManager: Inicializado correctamente');
+    }
+
+    setupCleanup() {
+        // Limpiar listeners cuando se cierre la página
+        window.addEventListener('beforeunload', () => {
+            if (this.database && this.transactionListener) {
+                this.database.ref(`transactions/${this.getCurrentUserId()}`).off('value', this.transactionListener);
+            }
+        });
+    }
+
+    getCurrentUserId() {
+        const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+        return user.id || user.uid;
     }
     
     async initializeFirebase() {
@@ -211,10 +229,110 @@ class InlineWalletManager {
                 this.transactions = [];
                 console.log('ℹ️ No hay transacciones para este usuario');
             }
+
+            // Configurar listener en tiempo real para cambios en transacciones
+            this.setupTransactionListener(userId);
         } catch (error) {
             console.error('❌ Error loading transactions from Firebase:', error);
             this.transactions = [];
         }
+    }
+
+    setupTransactionListener(userId) {
+        if (!this.database) return;
+
+        const transactionsRef = this.database.ref(`transactions/${userId}`);
+        
+        // Guardar referencia del listener para poder limpiarlo después
+        this.transactionListener = (snapshot) => {
+            const transactionsData = snapshot.val();
+            
+            if (transactionsData) {
+                const newTransactions = Object.values(transactionsData)
+                    .sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+                
+                // Verificar si hay cambios
+                const hasChanges = JSON.stringify(newTransactions) !== JSON.stringify(this.transactions);
+                
+                if (hasChanges) {
+                    this.transactions = newTransactions;
+                    console.log('🔄 Transacciones actualizadas en tiempo real');
+                    
+                    // Re-renderizar transacciones
+                    this.renderTransactions();
+                    
+                    // Mostrar notificación si hay un nuevo mensaje del admin
+                    this.checkForNewAdminMessages(newTransactions);
+                }
+            } else {
+                this.transactions = [];
+                this.renderTransactions();
+            }
+        };
+        
+        // Escuchar cambios en tiempo real
+        transactionsRef.on('value', this.transactionListener);
+    }
+
+    checkForNewAdminMessages(newTransactions) {
+        // Buscar transacciones con mensajes del admin que no estaban antes
+        const oldTransactionIds = this.transactions.map(t => t.id || t.timestamp);
+        
+        newTransactions.forEach(transaction => {
+            const transactionId = transaction.id || transaction.timestamp;
+            const hasAdminMessage = transaction.adminMessage && transaction.adminMessage.trim() !== '';
+            const isNewMessage = !oldTransactionIds.includes(transactionId) && hasAdminMessage;
+            
+            if (isNewMessage || (hasAdminMessage && transaction.adminActionDate)) {
+                // Mostrar notificación de nuevo mensaje
+                this.showAdminMessageNotification(transaction);
+            }
+        });
+    }
+
+    showAdminMessageNotification(transaction) {
+        const messageType = transaction.status === 'rejected' ? 'rechazada' : 
+                           transaction.status === 'completed' ? 'aprobada' : 'actualizada';
+        
+        const notification = document.createElement('div');
+        notification.className = 'admin-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${transaction.status === 'rejected' ? '#f44336' : '#4CAF50'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            max-width: 300px;
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas ${transaction.status === 'rejected' ? 'fa-times' : 'fa-check'}" style="font-size: 18px;"></i>
+                <div>
+                    <strong>Transacción ${messageType}</strong>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">
+                        ${transaction.adminMessage ? transaction.adminMessage.substring(0, 50) + '...' : 'Tu transacción ha sido procesada.'}
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
     }
 
     renderBalance() {
@@ -261,12 +379,45 @@ class InlineWalletManager {
         const amountPrefix = transaction.type === 'income' ? '+' : '-';
 
         let statusBadge = '';
+        let statusClass = '';
         if (transaction.status === 'pending_verification') {
-            statusBadge = '<span style="background: #ff9800; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px;">Pendiente</span>';
+            statusBadge = '<span class="transaction-status-badge pending"><i class="fas fa-clock"></i> Pendiente</span>';
+            statusClass = 'pending';
         } else if (transaction.status === 'completed') {
-            statusBadge = '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px;">Completado</span>';
+            statusBadge = '<span class="transaction-status-badge approved"><i class="fas fa-check"></i> Aprobado</span>';
+            statusClass = 'approved';
         } else if (transaction.status === 'rejected') {
-            statusBadge = '<span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; margin-left: 8px;">Rechazado</span>';
+            statusBadge = '<span class="transaction-status-badge rejected"><i class="fas fa-times"></i> Rechazado</span>';
+            statusClass = 'rejected';
+        }
+
+        // Crear mensaje del admin si existe
+        let adminMessageHtml = '';
+        if (transaction.adminMessage) {
+            const messageClass = transaction.status === 'rejected' ? 'rejected' : 
+                                transaction.status === 'completed' ? 'approved' : 'info';
+            const messageIcon = transaction.status === 'rejected' ? 'fas fa-times' : 
+                               transaction.status === 'completed' ? 'fas fa-check' : 'fas fa-info-circle';
+            const messageTitle = transaction.status === 'rejected' ? 'Transacción Rechazada' : 
+                                transaction.status === 'completed' ? 'Transacción Aprobada' : 'Mensaje del Administrador';
+            
+            adminMessageHtml = `
+                <div class="admin-message ${messageClass}">
+                    <div class="admin-message-header">
+                        <div class="admin-message-icon ${messageClass}">
+                            <i class="${messageIcon}"></i>
+                        </div>
+                        <h4 class="admin-message-title">${messageTitle}</h4>
+                    </div>
+                    <p class="admin-message-content">${transaction.adminMessage}</p>
+                    ${transaction.adminActionDate ? `
+                        <div class="admin-message-date">
+                            <i class="fas fa-calendar"></i>
+                            ${this.formatDate(transaction.adminActionDate)}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
         }
 
         div.innerHTML = `
@@ -278,6 +429,7 @@ class InlineWalletManager {
                     <h4>${transaction.description || 'Transacción'}${statusBadge}</h4>
                     <p>${transaction.method || 'Método'} • ${this.formatDate(transaction.timestamp || transaction.date || new Date().toISOString())}</p>
                     ${transaction.nequiNumber ? `<p style=\"font-size: 12px; color: #666;\">Nequi: ${transaction.nequiNumber}</p>` : ''}
+                    ${adminMessageHtml}
                 </div>
             </div>
             <div class="transaction-amount ${amountClass}">

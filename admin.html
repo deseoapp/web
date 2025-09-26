@@ -611,23 +611,355 @@
             line-height: 1.4;
         }
         
+        /* Estilos para secciones avanzadas */
+        .advanced-filters, .user-filters, .analytics-controls {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 150px;
+        }
+
+        .filter-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .filter-select, .filter-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(96, 196, 142, 0.2);
+        }
+
+        .btn-filter, .btn-clear, .btn-export, .btn-primary, .btn-secondary, .btn-warning, .btn-danger {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-filter, .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-clear, .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-export {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-filter:hover, .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .btn-clear:hover, .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-export:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .transaction-stats, .user-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-header h3 {
+            margin: 0;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .users-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .user-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+        }
+
+        .user-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .user-details h4 {
+            margin: 0 0 5px 0;
+            color: var(--text-color);
+        }
+
+        .user-details p {
+            margin: 2px 0;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .analytics-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .metric-content h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .metric-content p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .analytics-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .reports-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .reports-section h3 {
+            margin: 0 0 20px 0;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .settings-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .settings-section h3 {
+            margin: 0 0 20px 0;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-item label {
+            font-weight: 500;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .setting-input, .setting-select {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .setting-input:focus, .setting-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(96, 196, 142, 0.2);
+        }
+
+        .setting-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+        }
+
+        .system-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .dashboard-content {
                 grid-template-columns: 1fr;
             }
             
-            .stats-grid {
+            .stats-grid, .transaction-stats, .user-stats, .analytics-metrics {
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             }
             
-            .transaction-item {
+            .transaction-item, .user-item {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 15px;
             }
             
-            .transaction-actions {
+            .transaction-actions, .user-actions {
                 flex-direction: row;
                 width: 100%;
                 justify-content: flex-end;
@@ -646,6 +978,27 @@
             
             .admin-main {
                 margin-left: 0;
+            }
+
+            .advanced-filters, .user-filters, .analytics-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                min-width: auto;
+            }
+
+            .analytics-charts {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .system-actions, .report-actions, .export-actions {
+                flex-direction: column;
             }
         }
     </style>
@@ -784,12 +1137,12 @@
                             Transacciones Recientes
                         </h3>
                         
-                        <div class="filter-tabs">
-                            <button class="filter-tab active" data-filter="pending">Pendientes</button>
-                            <button class="filter-tab" data-filter="all">Todas</button>
-                            <button class="filter-tab" data-filter="approved">Aprobadas</button>
-                            <button class="filter-tab" data-filter="rejected">Rechazadas</button>
-                        </div>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-filter="pending">Pendientes</button>
+                    <button class="filter-tab" data-filter="all">Todas</button>
+                    <button class="filter-tab" data-filter="approved">Aprobadas</button>
+                    <button class="filter-tab" data-filter="rejected">Rechazadas</button>
+                </div>
                         
                         <div id="transactionsList" class="transactions-list">
                             <div class="loading">
@@ -801,37 +1154,414 @@
                 </div>
             </div>
 
-            <!-- Other sections will be added here -->
+            <!-- Sección de Gestión de Transacciones -->
             <div id="transactionsSection" class="dashboard-section" style="display: none;">
                 <div class="dashboard-header">
-                    <h1>Gestión de Transacciones</h1>
+                    <h1><i class="fas fa-exchange-alt"></i> Gestión de Transacciones</h1>
                     <p>Administra todas las transacciones del sistema</p>
                 </div>
-                <!-- Transaction management content will go here -->
+
+                <!-- Filtros avanzados -->
+                <div class="advanced-filters">
+                    <div class="filter-group">
+                        <label>Filtrar por estado:</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">Todos los estados</option>
+                            <option value="pending_verification">Pendientes</option>
+                            <option value="completed">Aprobadas</option>
+                            <option value="rejected">Rechazadas</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Filtrar por tipo:</label>
+                        <select id="typeFilter" class="filter-select">
+                            <option value="all">Todos los tipos</option>
+                            <option value="income">Depósitos</option>
+                            <option value="outcome">Retiros</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Rango de fechas:</label>
+                        <input type="date" id="dateFrom" class="filter-input">
+                        <input type="date" id="dateTo" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>Buscar usuario:</label>
+                        <input type="text" id="userSearch" class="filter-input" placeholder="ID o email del usuario">
+                    </div>
+                    <button class="btn-filter" onclick="adminApp.applyAdvancedFilters()">
+                        <i class="fas fa-search"></i> Aplicar Filtros
+                    </button>
+                    <button class="btn-clear" onclick="adminApp.clearFilters()">
+                        <i class="fas fa-times"></i> Limpiar
+                    </button>
+                </div>
+
+                <!-- Estadísticas de transacciones -->
+                <div class="transaction-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon income">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <h3 id="totalDeposits">$0</h3>
+                        <p>Total Depósitos</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon outcome">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <h3 id="totalWithdrawals">$0</h3>
+                        <p>Total Retiros</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon pending">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h3 id="pendingCount">0</h3>
+                        <p>Pendientes</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon users">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3 id="activeUsers">0</h3>
+                        <p>Usuarios Activos</p>
+                    </div>
+                </div>
+
+                <!-- Lista de transacciones -->
+                <div class="transactions-section">
+                    <div class="section-header">
+                        <h3><i class="fas fa-list"></i> Transacciones</h3>
+                        <div class="export-actions">
+                            <button class="btn-export" onclick="adminApp.exportTransactions('csv')">
+                                <i class="fas fa-file-csv"></i> Exportar CSV
+                            </button>
+                            <button class="btn-export" onclick="adminApp.exportTransactions('excel')">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                        </div>
+                    </div>
+                    <div id="advancedTransactionsList" class="transactions-list">
+                        <div class="loading">
+                            <i class="fas fa-spinner"></i>
+                            <p>Cargando transacciones...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Sección de Gestión de Usuarios -->
             <div id="usersSection" class="dashboard-section" style="display: none;">
                 <div class="dashboard-header">
-                    <h1>Gestión de Usuarios</h1>
-                    <p>Administra usuarios y permisos</p>
+                    <h1><i class="fas fa-users"></i> Gestión de Usuarios</h1>
+                    <p>Administra usuarios y permisos del sistema</p>
                 </div>
-                <!-- User management content will go here -->
+
+                <!-- Filtros de usuarios -->
+                <div class="user-filters">
+                    <div class="filter-group">
+                        <label>Buscar usuario:</label>
+                        <input type="text" id="userSearchInput" class="filter-input" placeholder="Email, nombre o ID">
+                    </div>
+                    <div class="filter-group">
+                        <label>Filtrar por estado:</label>
+                        <select id="userStatusFilter" class="filter-select">
+                            <option value="all">Todos</option>
+                            <option value="active">Activos</option>
+                            <option value="inactive">Inactivos</option>
+                            <option value="banned">Suspendidos</option>
+                        </select>
+                    </div>
+                    <button class="btn-filter" onclick="adminApp.searchUsers()">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+
+                <!-- Estadísticas de usuarios -->
+                <div class="user-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon users">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h3 id="totalUsersCount">0</h3>
+                        <p>Total Usuarios</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon income">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h3 id="activeUsersCount">0</h3>
+                        <p>Usuarios Activos</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon pending">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                        <h3 id="newUsersCount">0</h3>
+                        <p>Nuevos (7 días)</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon outcome">
+                            <i class="fas fa-user-times"></i>
+                        </div>
+                        <h3 id="bannedUsersCount">0</h3>
+                        <p>Suspendidos</p>
+                    </div>
+                </div>
+
+                <!-- Lista de usuarios -->
+                <div class="users-section">
+                    <div class="section-header">
+                        <h3><i class="fas fa-list"></i> Usuarios</h3>
+                        <button class="btn-primary" onclick="adminApp.showCreateUserModal()">
+                            <i class="fas fa-plus"></i> Nuevo Usuario
+                        </button>
+                    </div>
+                    <div id="usersList" class="users-list">
+                        <div class="loading">
+                            <i class="fas fa-spinner"></i>
+                            <p>Cargando usuarios...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Sección de Analytics Avanzados -->
             <div id="analyticsSection" class="dashboard-section" style="display: none;">
                 <div class="dashboard-header">
-                    <h1>Analytics Avanzados</h1>
-                    <p>Métricas detalladas y reportes</p>
+                    <h1><i class="fas fa-chart-bar"></i> Analytics Avanzados</h1>
+                    <p>Métricas detalladas y reportes del sistema</p>
                 </div>
-                <!-- Analytics content will go here -->
+
+                <!-- Selector de período -->
+                <div class="analytics-controls">
+                    <div class="period-selector">
+                        <label>Período de análisis:</label>
+                        <select id="analyticsPeriod" class="filter-select">
+                            <option value="7">Últimos 7 días</option>
+                            <option value="30" selected>Últimos 30 días</option>
+                            <option value="90">Últimos 90 días</option>
+                            <option value="365">Último año</option>
+                        </select>
+                    </div>
+                    <button class="btn-filter" onclick="adminApp.updateAnalytics()">
+                        <i class="fas fa-sync"></i> Actualizar
+                    </button>
+                </div>
+
+                <!-- Métricas principales -->
+                <div class="analytics-metrics">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="revenueGrowth">+0%</h3>
+                            <p>Crecimiento de Ingresos</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="userGrowth">+0%</h3>
+                            <p>Crecimiento de Usuarios</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="transactionVolume">0</h3>
+                            <p>Volumen de Transacciones</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="approvalRate">0%</h3>
+                            <p>Tasa de Aprobación</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="analytics-charts">
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-area"></i> Ingresos por Día</h3>
+                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-pie"></i> Distribución de Transacciones</h3>
+                        <canvas id="transactionDistributionChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-bar"></i> Usuarios por Día</h3>
+                        <canvas id="userActivityChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3><i class="fas fa-chart-line"></i> Tendencias de Aprobación</h3>
+                        <canvas id="approvalTrendsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Reportes -->
+                <div class="reports-section">
+                    <h3><i class="fas fa-file-alt"></i> Reportes</h3>
+                    <div class="report-actions">
+                        <button class="btn-export" onclick="adminApp.generateReport('financial')">
+                            <i class="fas fa-file-invoice-dollar"></i> Reporte Financiero
+                        </button>
+                        <button class="btn-export" onclick="adminApp.generateReport('users')">
+                            <i class="fas fa-file-user"></i> Reporte de Usuarios
+                        </button>
+                        <button class="btn-export" onclick="adminApp.generateReport('transactions')">
+                            <i class="fas fa-file-exchange-alt"></i> Reporte de Transacciones
+                        </button>
+                    </div>
+                </div>
             </div>
 
+            <!-- Sección de Configuración del Sistema -->
             <div id="settingsSection" class="dashboard-section" style="display: none;">
                 <div class="dashboard-header">
-                    <h1>Configuración del Sistema</h1>
-                    <p>Ajustes y configuraciones del panel</p>
+                    <h1><i class="fas fa-cog"></i> Configuración del Sistema</h1>
+                    <p>Ajustes y configuraciones del panel administrativo</p>
                 </div>
-                <!-- Settings content will go here -->
+
+                <!-- Configuraciones generales -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-sliders-h"></i> Configuraciones Generales</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>Nombre de la plataforma:</label>
+                            <input type="text" id="platformName" class="setting-input" value="Deseo">
+                        </div>
+                        <div class="setting-item">
+                            <label>Email de contacto:</label>
+                            <input type="email" id="contactEmail" class="setting-input" value="admin@deseo.com">
+                        </div>
+                        <div class="setting-item">
+                            <label>Límite de depósito diario:</label>
+                            <input type="number" id="dailyDepositLimit" class="setting-input" value="1000000">
+                        </div>
+                        <div class="setting-item">
+                            <label>Límite de retiro diario:</label>
+                            <input type="number" id="dailyWithdrawalLimit" class="setting-input" value="500000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuraciones de transacciones -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-exchange-alt"></i> Configuraciones de Transacciones</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoApproveSmall" checked>
+                                Aprobación automática para montos menores a $50,000
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="requireProof" checked>
+                                Requerir comprobante para todas las transacciones
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>Tiempo de espera para aprobación (horas):</label>
+                            <input type="number" id="approvalTimeout" class="setting-input" value="24">
+                        </div>
+                        <div class="setting-item">
+                            <label>Comisión por transacción (%):</label>
+                            <input type="number" id="transactionFee" class="setting-input" value="2.5" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuraciones de seguridad -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-shield-alt"></i> Configuraciones de Seguridad</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="twoFactorAuth" checked>
+                                Requerir autenticación de dos factores
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="sessionTimeout" checked>
+                                Cerrar sesión automática después de 30 minutos
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>Intentos máximos de login:</label>
+                            <input type="number" id="maxLoginAttempts" class="setting-input" value="5">
+                        </div>
+                        <div class="setting-item">
+                            <label>Duración del bloqueo (minutos):</label>
+                            <input type="number" id="lockoutDuration" class="setting-input" value="30">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuraciones de notificaciones -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-bell"></i> Configuraciones de Notificaciones</h3>
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="emailNotifications" checked>
+                                Notificaciones por email
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="pushNotifications" checked>
+                                Notificaciones push
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="transactionAlerts" checked>
+                                Alertas de transacciones pendientes
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>Frecuencia de reportes (días):</label>
+                            <select id="reportFrequency" class="setting-select">
+                                <option value="1">Diario</option>
+                                <option value="7" selected>Semanal</option>
+                                <option value="30">Mensual</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Acciones del sistema -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-tools"></i> Acciones del Sistema</h3>
+                    <div class="system-actions">
+                        <button class="btn-primary" onclick="adminApp.saveSettings()">
+                            <i class="fas fa-save"></i> Guardar Configuraciones
+                        </button>
+                        <button class="btn-secondary" onclick="adminApp.resetSettings()">
+                            <i class="fas fa-undo"></i> Restaurar Valores por Defecto
+                        </button>
+                        <button class="btn-warning" onclick="adminApp.clearCache()">
+                            <i class="fas fa-broom"></i> Limpiar Caché
+                        </button>
+                        <button class="btn-danger" onclick="adminApp.backupData()">
+                            <i class="fas fa-download"></i> Respaldar Datos
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -861,7 +1591,7 @@
                 <button class="close-btn" onclick="adminApp.closeModal('messageModal')">
                     <i class="fas fa-times"></i>
                 </button>
-            </div>
+                    </div>
             <div class="modal-body">
                 <div class="message-form">
                     <label for="adminMessage">Mensaje para el usuario (opcional):</label>
@@ -873,7 +1603,7 @@
                 </div>
             </div>
         </div>
-    </div>
+                        </div>
 
     <!-- Scripts -->
     <script src="config.js"></script>

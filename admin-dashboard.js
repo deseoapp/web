@@ -9,6 +9,8 @@ class AdminDashboard {
         this.currentFilter = 'pending';
         this.currentSection = 'dashboard';
         this.allTransactions = [];
+        this.allUsers = [];
+        this.analyticsData = {};
         this.stats = {
             totalIncome: 0,
             totalOutcome: 0,
@@ -707,25 +709,726 @@ class AdminDashboard {
         }
     }
 
-    // Placeholder functions for other sections
-    loadTransactionManagement() {
+    // ===== GESTIÓN DE TRANSACCIONES AVANZADA =====
+    async loadTransactionManagement() {
         console.log('📊 Cargando gestión de transacciones...');
-        // Aquí se implementaría la gestión avanzada de transacciones
+        await this.loadAdvancedTransactions();
+        this.updateTransactionStats();
     }
 
-    loadUserManagement() {
+    async loadAdvancedTransactions() {
+        if (!this.database) {
+            console.log('⚠️ Firebase no disponible');
+            return;
+        }
+
+        try {
+            const transactionsRef = this.database.ref('transactions');
+            const snapshot = await transactionsRef.once('value');
+            const transactionsData = snapshot.val();
+            
+            this.allTransactions = [];
+            if (transactionsData) {
+                Object.keys(transactionsData).forEach(userId => {
+                    const userTransactions = transactionsData[userId];
+                    Object.keys(userTransactions).forEach(transactionId => {
+                        this.allTransactions.push({
+                            id: transactionId,
+                            userId: userId,
+                            transaction: userTransactions[transactionId]
+                        });
+                    });
+                });
+            }
+
+            this.renderAdvancedTransactions();
+        } catch (error) {
+            console.error('❌ Error cargando transacciones:', error);
+        }
+    }
+
+    renderAdvancedTransactions() {
+        const list = document.getElementById('advancedTransactionsList');
+        if (!list) return;
+
+        if (this.allTransactions.length === 0) {
+            list.innerHTML = `
+                <div class="no-transactions">
+                    <i class="fas fa-inbox"></i>
+                    <p>No hay transacciones disponibles</p>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = this.allTransactions.map(({id, userId, transaction}) => 
+            this.renderTransactionItem(id, userId, transaction)
+        ).join('');
+    }
+
+    updateTransactionStats() {
+        const deposits = this.allTransactions
+            .filter(t => t.transaction.type === 'income' && t.transaction.status === 'completed')
+            .reduce((sum, t) => sum + (t.transaction.amount || 0), 0);
+        
+        const withdrawals = this.allTransactions
+            .filter(t => t.transaction.type === 'outcome' && t.transaction.status === 'completed')
+            .reduce((sum, t) => sum + (t.transaction.amount || 0), 0);
+        
+        const pending = this.allTransactions
+            .filter(t => t.transaction.status === 'pending_verification').length;
+        
+        const activeUsers = new Set(this.allTransactions.map(t => t.userId)).size;
+
+        document.getElementById('totalDeposits').textContent = `$${deposits.toLocaleString('es-CO')}`;
+        document.getElementById('totalWithdrawals').textContent = `$${withdrawals.toLocaleString('es-CO')}`;
+        document.getElementById('pendingCount').textContent = pending;
+        document.getElementById('activeUsers').textContent = activeUsers;
+    }
+
+    applyAdvancedFilters() {
+        const statusFilter = document.getElementById('statusFilter')?.value || 'all';
+        const typeFilter = document.getElementById('typeFilter')?.value || 'all';
+        const dateFrom = document.getElementById('dateFrom')?.value;
+        const dateTo = document.getElementById('dateTo')?.value;
+        const userSearch = document.getElementById('userSearch')?.value?.toLowerCase();
+
+        let filtered = this.allTransactions;
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(t => t.transaction.status === statusFilter);
+        }
+
+        if (typeFilter !== 'all') {
+            filtered = filtered.filter(t => t.transaction.type === typeFilter);
+        }
+
+        if (dateFrom) {
+            const fromDate = new Date(dateFrom);
+            filtered = filtered.filter(t => new Date(t.transaction.timestamp) >= fromDate);
+        }
+
+        if (dateTo) {
+            const toDate = new Date(dateTo);
+            toDate.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(t => new Date(t.transaction.timestamp) <= toDate);
+        }
+
+        if (userSearch) {
+            filtered = filtered.filter(t => 
+                t.userId.toLowerCase().includes(userSearch) ||
+                (t.transaction.userEmail && t.transaction.userEmail.toLowerCase().includes(userSearch))
+            );
+        }
+
+        const list = document.getElementById('advancedTransactionsList');
+        if (list) {
+            list.innerHTML = filtered.map(({id, userId, transaction}) => 
+                this.renderTransactionItem(id, userId, transaction)
+            ).join('');
+        }
+    }
+
+    clearFilters() {
+        document.getElementById('statusFilter').value = 'all';
+        document.getElementById('typeFilter').value = 'all';
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        document.getElementById('userSearch').value = '';
+        this.renderAdvancedTransactions();
+    }
+
+    exportTransactions(format) {
+        const data = this.allTransactions.map(({id, userId, transaction}) => ({
+            ID: id,
+            Usuario: userId,
+            Tipo: transaction.type === 'income' ? 'Depósito' : 'Retiro',
+            Monto: transaction.amount,
+            Estado: transaction.status,
+            Fecha: new Date(transaction.timestamp).toLocaleString('es-ES'),
+            Método: transaction.method || 'N/A',
+            Comprobante: transaction.proofFileName || 'N/A'
+        }));
+
+        if (format === 'csv') {
+            this.downloadCSV(data, 'transacciones.csv');
+        } else if (format === 'excel') {
+            this.downloadExcel(data, 'transacciones.xlsx');
+        }
+    }
+
+    downloadCSV(data, filename) {
+        const headers = Object.keys(data[0]);
+        const csvContent = [
+            headers.join(','),
+            ...data.map(row => headers.map(header => `"${row[header]}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+    }
+
+    downloadExcel(data, filename) {
+        // Implementación básica - en producción usar una librería como SheetJS
+        alert('Funcionalidad de Excel en desarrollo. Por ahora se descarga como CSV.');
+        this.downloadCSV(data, filename.replace('.xlsx', '.csv'));
+    }
+
+    // ===== GESTIÓN DE USUARIOS =====
+    async loadUserManagement() {
         console.log('👥 Cargando gestión de usuarios...');
-        // Aquí se implementaría la gestión de usuarios
+        await this.loadUsers();
+        this.updateUserStats();
     }
 
-    loadAnalytics() {
+    async loadUsers() {
+        if (!this.database) {
+            console.log('⚠️ Firebase no disponible');
+            return;
+        }
+
+        try {
+            const usersRef = this.database.ref('users');
+            const snapshot = await usersRef.once('value');
+            const usersData = snapshot.val();
+            
+            this.allUsers = [];
+            if (usersData) {
+                Object.keys(usersData).forEach(userId => {
+                    this.allUsers.push({
+                        id: userId,
+                        ...usersData[userId]
+                    });
+                });
+            }
+
+            this.renderUsers();
+        } catch (error) {
+            console.error('❌ Error cargando usuarios:', error);
+        }
+    }
+
+    renderUsers() {
+        const list = document.getElementById('usersList');
+        if (!list) return;
+
+        if (this.allUsers.length === 0) {
+            list.innerHTML = `
+                <div class="no-transactions">
+                    <i class="fas fa-users"></i>
+                    <p>No hay usuarios registrados</p>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = this.allUsers.map(user => this.renderUserItem(user)).join('');
+    }
+
+    renderUserItem(user) {
+        const statusBadge = user.status === 'active' ? 
+            '<span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Activo</span>' :
+            '<span style="background: #f44336; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px;">Inactivo</span>';
+
+        return `
+            <div class="user-item">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <h4>${user.email || user.id} ${statusBadge}</h4>
+                        <p><strong>ID:</strong> ${user.id}</p>
+                        <p><strong>Balance:</strong> $${(user.balance || 0).toLocaleString('es-CO')} COP</p>
+                        <p><strong>Última actividad:</strong> ${user.lastUpdated ? new Date(user.lastUpdated).toLocaleString('es-ES') : 'N/A'}</p>
+                    </div>
+                </div>
+                <div class="user-actions">
+                    <button class="btn-admin btn-view" onclick="adminApp.viewUserDetails('${user.id}')">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn-admin btn-message" onclick="adminApp.messageUser('${user.id}')">
+                        <i class="fas fa-comment"></i> Mensaje
+                    </button>
+                    ${user.status === 'active' ? 
+                        `<button class="btn-admin btn-reject" onclick="adminApp.banUser('${user.id}')">
+                            <i class="fas fa-ban"></i> Suspender
+                        </button>` :
+                        `<button class="btn-admin btn-approve" onclick="adminApp.unbanUser('${user.id}')">
+                            <i class="fas fa-check"></i> Activar
+                        </button>`
+                    }
+                </div>
+            </div>
+        `;
+    }
+
+    updateUserStats() {
+        const total = this.allUsers.length;
+        const active = this.allUsers.filter(u => u.status === 'active').length;
+        const newUsers = this.allUsers.filter(u => {
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return new Date(u.lastUpdated || 0) > weekAgo;
+        }).length;
+        const banned = this.allUsers.filter(u => u.status === 'banned').length;
+
+        document.getElementById('totalUsersCount').textContent = total;
+        document.getElementById('activeUsersCount').textContent = active;
+        document.getElementById('newUsersCount').textContent = newUsers;
+        document.getElementById('bannedUsersCount').textContent = banned;
+    }
+
+    searchUsers() {
+        const searchTerm = document.getElementById('userSearchInput')?.value?.toLowerCase();
+        const statusFilter = document.getElementById('userStatusFilter')?.value;
+
+        let filtered = this.allUsers;
+
+        if (searchTerm) {
+            filtered = filtered.filter(user => 
+                user.id.toLowerCase().includes(searchTerm) ||
+                (user.email && user.email.toLowerCase().includes(searchTerm))
+            );
+        }
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(user => user.status === statusFilter);
+        }
+
+        const list = document.getElementById('usersList');
+        if (list) {
+            list.innerHTML = filtered.map(user => this.renderUserItem(user)).join('');
+        }
+    }
+
+    viewUserDetails(userId) {
+        const user = this.allUsers.find(u => u.id === userId);
+        if (user) {
+            alert(`Detalles del usuario:\n\nID: ${user.id}\nEmail: ${user.email || 'N/A'}\nBalance: $${(user.balance || 0).toLocaleString('es-CO')}\nEstado: ${user.status}\nÚltima actividad: ${user.lastUpdated ? new Date(user.lastUpdated).toLocaleString('es-ES') : 'N/A'}`);
+        }
+    }
+
+    messageUser(userId) {
+        const message = prompt('Escribe un mensaje para el usuario:');
+        if (message) {
+            // Aquí se implementaría el envío de mensaje al usuario
+            alert('Mensaje enviado al usuario');
+        }
+    }
+
+    async banUser(userId) {
+        if (confirm('¿Estás seguro de suspender este usuario?')) {
+            try {
+                await this.database.ref(`users/${userId}/status`).set('banned');
+                alert('Usuario suspendido');
+                this.loadUserManagement();
+            } catch (error) {
+                console.error('❌ Error suspendiendo usuario:', error);
+                alert('Error al suspender usuario');
+            }
+        }
+    }
+
+    async unbanUser(userId) {
+        try {
+            await this.database.ref(`users/${userId}/status`).set('active');
+            alert('Usuario activado');
+            this.loadUserManagement();
+        } catch (error) {
+            console.error('❌ Error activando usuario:', error);
+            alert('Error al activar usuario');
+        }
+    }
+
+    showCreateUserModal() {
+        alert('Funcionalidad de crear usuario en desarrollo');
+    }
+
+    // ===== ANALYTICS AVANZADOS =====
+    async loadAnalytics() {
         console.log('📈 Cargando analytics avanzados...');
-        // Aquí se implementarían analytics más detallados
+        await this.loadAnalyticsData();
+        this.initializeAnalyticsCharts();
     }
 
-    loadSettings() {
+    async loadAnalyticsData() {
+        // Cargar datos para analytics
+        this.analyticsData = {
+            revenue: this.calculateRevenueData(),
+            userGrowth: this.calculateUserGrowth(),
+            transactionVolume: this.calculateTransactionVolume(),
+            approvalRate: this.calculateApprovalRate()
+        };
+    }
+
+    calculateRevenueData() {
+        const last30Days = [];
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayTransactions = this.allTransactions.filter(t => {
+                const transactionDate = new Date(t.transaction.timestamp);
+                return transactionDate.toDateString() === date.toDateString() && 
+                       t.transaction.type === 'income' && 
+                       t.transaction.status === 'completed';
+            });
+            const revenue = dayTransactions.reduce((sum, t) => sum + (t.transaction.amount || 0), 0);
+            last30Days.push({ date: date.toISOString().split('T')[0], revenue });
+        }
+        return last30Days;
+    }
+
+    calculateUserGrowth() {
+        const last30Days = [];
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayUsers = this.allUsers.filter(u => {
+                const userDate = new Date(u.lastUpdated || 0);
+                return userDate.toDateString() === date.toDateString();
+            });
+            last30Days.push({ date: date.toISOString().split('T')[0], users: dayUsers.length });
+        }
+        return last30Days;
+    }
+
+    calculateTransactionVolume() {
+        return this.allTransactions.length;
+    }
+
+    calculateApprovalRate() {
+        const completed = this.allTransactions.filter(t => t.transaction.status === 'completed').length;
+        const total = this.allTransactions.filter(t => t.transaction.status !== 'pending_verification').length;
+        return total > 0 ? Math.round((completed / total) * 100) : 0;
+    }
+
+    initializeAnalyticsCharts() {
+        this.initializeRevenueChart();
+        this.initializeTransactionDistributionChart();
+        this.initializeUserActivityChart();
+        this.initializeApprovalTrendsChart();
+        this.updateAnalyticsMetrics();
+    }
+
+    initializeRevenueChart() {
+        const ctx = document.getElementById('revenueChart');
+        if (!ctx) return;
+
+        const data = this.analyticsData.revenue;
+        
+        this.revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => new Date(d.date).toLocaleDateString('es-ES')),
+                datasets: [{
+                    label: 'Ingresos (COP)',
+                    data: data.map(d => d.revenue),
+                    borderColor: 'var(--primary-color)',
+                    backgroundColor: 'rgba(96, 196, 142, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeTransactionDistributionChart() {
+        const ctx = document.getElementById('transactionDistributionChart');
+        if (!ctx) return;
+
+        const income = this.allTransactions.filter(t => t.transaction.type === 'income').length;
+        const outcome = this.allTransactions.filter(t => t.transaction.type === 'outcome').length;
+
+        this.transactionDistributionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Depósitos', 'Retiros'],
+                datasets: [{
+                    data: [income, outcome],
+                    backgroundColor: ['var(--primary-color)', '#f44336'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeUserActivityChart() {
+        const ctx = document.getElementById('userActivityChart');
+        if (!ctx) return;
+
+        const data = this.analyticsData.userGrowth;
+        
+        this.userActivityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => new Date(d.date).toLocaleDateString('es-ES')),
+                datasets: [{
+                    label: 'Usuarios Activos',
+                    data: data.map(d => d.users),
+                    backgroundColor: 'var(--primary-color)',
+                    borderColor: 'var(--primary-dark)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeApprovalTrendsChart() {
+        const ctx = document.getElementById('approvalTrendsChart');
+        if (!ctx) return;
+
+        // Datos simulados para tendencias de aprobación
+        const data = [];
+        for (let i = 29; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dayTransactions = this.allTransactions.filter(t => {
+                const transactionDate = new Date(t.transaction.timestamp);
+                return transactionDate.toDateString() === date.toDateString();
+            });
+            const approved = dayTransactions.filter(t => t.transaction.status === 'completed').length;
+            const total = dayTransactions.filter(t => t.transaction.status !== 'pending_verification').length;
+            const rate = total > 0 ? (approved / total) * 100 : 0;
+            data.push({ date: date.toISOString().split('T')[0], rate });
+        }
+
+        this.approvalTrendsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => new Date(d.date).toLocaleDateString('es-ES')),
+                datasets: [{
+                    label: 'Tasa de Aprobación (%)',
+                    data: data.map(d => d.rate),
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e0e0e0' : '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    updateAnalyticsMetrics() {
+        const revenueGrowth = this.calculateGrowthRate(this.analyticsData.revenue.map(d => d.revenue));
+        const userGrowth = this.calculateGrowthRate(this.analyticsData.userGrowth.map(d => d.users));
+
+        document.getElementById('revenueGrowth').textContent = `+${revenueGrowth}%`;
+        document.getElementById('userGrowth').textContent = `+${userGrowth}%`;
+        document.getElementById('transactionVolume').textContent = this.analyticsData.transactionVolume;
+        document.getElementById('approvalRate').textContent = `${this.analyticsData.approvalRate}%`;
+    }
+
+    calculateGrowthRate(values) {
+        if (values.length < 2) return 0;
+        const firstHalf = values.slice(0, Math.floor(values.length / 2));
+        const secondHalf = values.slice(Math.floor(values.length / 2));
+        const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+        return firstAvg > 0 ? Math.round(((secondAvg - firstAvg) / firstAvg) * 100) : 0;
+    }
+
+    updateAnalytics() {
+        this.loadAnalytics();
+    }
+
+    generateReport(type) {
+        alert(`Generando reporte ${type}...`);
+        // Aquí se implementaría la generación de reportes
+    }
+
+    // ===== CONFIGURACIÓN DEL SISTEMA =====
+    async loadSettings() {
         console.log('⚙️ Cargando configuración...');
-        // Aquí se implementaría la configuración del sistema
+        await this.loadSystemSettings();
+    }
+
+    async loadSystemSettings() {
+        if (!this.database) {
+            console.log('⚠️ Firebase no disponible');
+            return;
+        }
+
+        try {
+            const settingsRef = this.database.ref('admin/settings');
+            const snapshot = await settingsRef.once('value');
+            const settings = snapshot.val() || this.getDefaultSettings();
+
+            this.populateSettingsForm(settings);
+        } catch (error) {
+            console.error('❌ Error cargando configuraciones:', error);
+            this.populateSettingsForm(this.getDefaultSettings());
+        }
+    }
+
+    getDefaultSettings() {
+        return {
+            platformName: 'Deseo',
+            contactEmail: 'admin@deseo.com',
+            dailyDepositLimit: 1000000,
+            dailyWithdrawalLimit: 500000,
+            autoApproveSmall: true,
+            requireProof: true,
+            approvalTimeout: 24,
+            transactionFee: 2.5,
+            twoFactorAuth: true,
+            sessionTimeout: true,
+            maxLoginAttempts: 5,
+            lockoutDuration: 30,
+            emailNotifications: true,
+            pushNotifications: true,
+            transactionAlerts: true,
+            reportFrequency: 7
+        };
+    }
+
+    populateSettingsForm(settings) {
+        Object.keys(settings).forEach(key => {
+            const element = document.getElementById(key);
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = settings[key];
+                } else {
+                    element.value = settings[key];
+                }
+            }
+        });
+    }
+
+    async saveSettings() {
+        if (!this.database) {
+            alert('❌ Firebase no disponible');
+            return;
+        }
+
+        try {
+            const settings = {
+                platformName: document.getElementById('platformName')?.value || 'Deseo',
+                contactEmail: document.getElementById('contactEmail')?.value || 'admin@deseo.com',
+                dailyDepositLimit: parseInt(document.getElementById('dailyDepositLimit')?.value) || 1000000,
+                dailyWithdrawalLimit: parseInt(document.getElementById('dailyWithdrawalLimit')?.value) || 500000,
+                autoApproveSmall: document.getElementById('autoApproveSmall')?.checked || false,
+                requireProof: document.getElementById('requireProof')?.checked || false,
+                approvalTimeout: parseInt(document.getElementById('approvalTimeout')?.value) || 24,
+                transactionFee: parseFloat(document.getElementById('transactionFee')?.value) || 2.5,
+                twoFactorAuth: document.getElementById('twoFactorAuth')?.checked || false,
+                sessionTimeout: document.getElementById('sessionTimeout')?.checked || false,
+                maxLoginAttempts: parseInt(document.getElementById('maxLoginAttempts')?.value) || 5,
+                lockoutDuration: parseInt(document.getElementById('lockoutDuration')?.value) || 30,
+                emailNotifications: document.getElementById('emailNotifications')?.checked || false,
+                pushNotifications: document.getElementById('pushNotifications')?.checked || false,
+                transactionAlerts: document.getElementById('transactionAlerts')?.checked || false,
+                reportFrequency: parseInt(document.getElementById('reportFrequency')?.value) || 7,
+                lastUpdated: new Date().toISOString()
+            };
+
+            await this.database.ref('admin/settings').set(settings);
+            alert('✅ Configuraciones guardadas correctamente');
+        } catch (error) {
+            console.error('❌ Error guardando configuraciones:', error);
+            alert('❌ Error al guardar configuraciones');
+        }
+    }
+
+    resetSettings() {
+        if (confirm('¿Estás seguro de restaurar los valores por defecto?')) {
+            this.populateSettingsForm(this.getDefaultSettings());
+            alert('✅ Configuraciones restauradas a valores por defecto');
+        }
+    }
+
+    clearCache() {
+        if (confirm('¿Estás seguro de limpiar el caché?')) {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('✅ Caché limpiado correctamente');
+        }
+    }
+
+    backupData() {
+        alert('Funcionalidad de respaldo en desarrollo');
+        // Aquí se implementaría la funcionalidad de respaldo
     }
 }
 

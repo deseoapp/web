@@ -6,11 +6,19 @@ class InlineWalletManager {
     constructor() {
         this.balance = 0;
         this.transactions = [];
+        this.currentAmount = 0;
+        this.currentProofFile = null;
+        this.firebase = null;
+        this.database = null;
         this.init();
     }
 
     async init() {
         console.log('🟣 InlineWalletManager: Inicializando...');
+        
+        // Inicializar Firebase primero
+        await this.initializeFirebase();
+        
         await this.loadBalance();
         await this.loadTransactions();
         this.initializeTheme();
@@ -20,6 +28,80 @@ class InlineWalletManager {
         console.log('✅ InlineWalletManager: Inicializado correctamente');
     }
     
+    async initializeFirebase() {
+        console.log('🔍 [DEBUG] Iniciando Firebase en wallet...');
+        console.log('🔍 [DEBUG] CONFIG disponible:', typeof CONFIG);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE disponible:', typeof CONFIG.FIREBASE);
+        console.log('🔍 [DEBUG] CONFIG.FIREBASE.enabled:', CONFIG.FIREBASE.enabled);
+        
+        if (!CONFIG.FIREBASE.enabled) {
+            console.log('❌ Firebase está deshabilitado en la configuración');
+            return;
+        }
+
+        // Verificar si Firebase está disponible
+        console.log('🔍 [DEBUG] typeof firebase:', typeof firebase);
+        if (typeof firebase === 'undefined') {
+            console.warn('⚠️ Firebase SDK no está cargado, reintentando en 2 segundos...');
+            setTimeout(() => this.initializeFirebase(), 2000);
+            return;
+        }
+
+        try {
+            // Verificar si ya está inicializado
+            if (this.firebase) {
+                console.log('✅ Firebase ya está inicializado en wallet');
+                return;
+            }
+
+            // Verificar que firebase.database esté disponible
+            console.log('🔍 [DEBUG] typeof firebase.database:', typeof firebase.database);
+            if (typeof firebase.database === 'undefined') {
+                console.warn('⚠️ Firebase Database no está cargado, reintentando en 2 segundos...');
+                setTimeout(() => this.initializeFirebase(), 2000);
+                return;
+            }
+
+            // Verificar configuración
+            console.log('🔍 [DEBUG] Configuración Firebase:', CONFIG.FIREBASE.config);
+            console.log('🔍 [DEBUG] databaseURL:', CONFIG.FIREBASE.config.databaseURL);
+            
+            // Verificar si la configuración es válida
+            if (!CONFIG.FIREBASE.config.databaseURL) {
+                console.warn('⚠️ databaseURL no está definido en la configuración');
+                console.log('🔍 [DEBUG] Firebase deshabilitado por databaseURL faltante, usando modo local');
+                this.showNotification('Configuración de Firebase incompleta. Usando modo local.', 'warning');
+                return;
+            }
+            
+            // Verificar si es una configuración válida
+            if (CONFIG.FIREBASE.config.databaseURL.includes('parcero-6b971')) {
+                console.log('🔍 [DEBUG] Usando configuración de Firebase real del proyecto parcero');
+            } else if (CONFIG.FIREBASE.config.databaseURL.includes('samplep-d6b68')) {
+                console.log('🔍 [DEBUG] Usando configuración de Firebase de prueba válida');
+            } else if (CONFIG.FIREBASE.config.databaseURL.includes('firebaseio.com')) {
+                console.warn('⚠️ Configuración de Firebase parece ser placeholder/falsa');
+                console.log('🔍 [DEBUG] Firebase deshabilitado por configuración placeholder, usando modo local');
+                this.showNotification('Configuración de Firebase no válida. Usando modo local.', 'warning');
+                return;
+            }
+
+            // Inicializar Firebase
+            console.log('🔍 [DEBUG] Intentando inicializar Firebase en wallet...');
+            this.firebase = firebase.initializeApp(CONFIG.FIREBASE.config);
+            this.database = firebase.database();
+            
+            console.log('✅ Firebase Realtime Database inicializado en wallet');
+            console.log('📊 Database URL:', CONFIG.FIREBASE.config.databaseURL);
+            
+        } catch (error) {
+            console.error('❌ Error inicializando Firebase en wallet:', error);
+            console.error('🔍 [DEBUG] Error details:', error.message);
+            console.error('🔍 [DEBUG] Error code:', error.code);
+            this.showNotification(`Error Firebase: ${error.message} (${error.code || 'Sin código'})`, 'error');
+        }
+    }
+
     initializeTheme() {
         this.syncWithMainTheme();
         this.observeThemeChanges();
@@ -68,27 +150,31 @@ class InlineWalletManager {
 
     async loadBalance() {
         try {
-            if (typeof window.firebase === 'undefined') {
-                this.balance = 0;
-                return;
-            }
-            
             const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
             const userId = user.id || user.uid;
+            
             if (!userId) {
+                console.log('⚠️ Usuario no autenticado, balance inicial: 0');
                 this.balance = 0;
                 return;
             }
             
-            const db = window.firebase.database();
-            const userRef = db.ref(`users/${userId}`);
+            if (!this.database) {
+                console.log('⚠️ Firebase no inicializado, balance en 0');
+                this.balance = 0;
+                return;
+            }
+            
+            const userRef = this.database.ref(`users/${userId}`);
             const snapshot = await userRef.once('value');
             const userData = snapshot.val();
             
             if (userData && userData.balance !== undefined) {
                 this.balance = parseFloat(userData.balance);
+                console.log('✅ Balance cargado desde Firebase:', this.balance);
             } else {
                 this.balance = 0;
+                console.log('ℹ️ Usuario nuevo, balance inicial: 0');
             }
         } catch (error) {
             console.error('❌ Error loading balance from Firebase:', error);
@@ -98,28 +184,32 @@ class InlineWalletManager {
 
     async loadTransactions() {
         try {
-            if (typeof window.firebase === 'undefined') {
-                this.transactions = [];
-                return;
-            }
-            
             const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
             const userId = user.id || user.uid;
+            
             if (!userId) {
+                console.log('⚠️ Usuario no autenticado, transacciones vacías');
                 this.transactions = [];
                 return;
             }
             
-            const db = window.firebase.database();
-            const transactionsRef = db.ref(`transactions/${userId}`);
+            if (!this.database) {
+                console.log('⚠️ Firebase no inicializado, transacciones vacías');
+                this.transactions = [];
+                return;
+            }
+            
+            const transactionsRef = this.database.ref(`transactions/${userId}`);
             const snapshot = await transactionsRef.once('value');
             const transactionsData = snapshot.val();
             
             if (transactionsData) {
                 this.transactions = Object.values(transactionsData)
                     .sort((a, b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+                console.log('✅ Transacciones cargadas desde Firebase:', this.transactions.length);
             } else {
                 this.transactions = [];
+                console.log('ℹ️ No hay transacciones para este usuario');
             }
         } catch (error) {
             console.error('❌ Error loading transactions from Firebase:', error);
@@ -235,10 +325,7 @@ class InlineWalletManager {
                 if (amount && amount >= 1000) {
                     this.showNequiInstructions(amount);
                 } else {
-                    const container = document.querySelector('.nequi-payment-container');
-                    if (container) {
-                        container.innerHTML = '<div id="nequiInstructionsPlaceholder"><p style="text-align: center; color: #666; padding: 20px;"><i class="fas fa-mobile-alt" style="font-size: 48px; color: #E91E63; margin-bottom: 15px;"></i><br>Ingresa una cantidad para ver las instrucciones de transferencia</p></div>';
-                    }
+                    this.resetNequiInstructions();
                 }
             });
         }
@@ -265,10 +352,31 @@ class InlineWalletManager {
             this.showNotification('Error al mostrar las instrucciones', 'error');
         }
     }
+    
+    resetNequiInstructions() {
+        const container = document.querySelector('.nequi-payment-container');
+        if (container) {
+            container.innerHTML = `
+                <div id="nequiInstructionsPlaceholder">
+                    <p style="text-align: center; color: #666; padding: 20px;">
+                        <i class="fas fa-mobile-alt" style="font-size: 48px; color: #E91E63; margin-bottom: 15px;"></i><br>
+                        Ingresa una cantidad para ver las instrucciones de transferencia
+                    </p>
+                </div>
+            `;
+        }
+        
+        // Limpiar estado
+        this.currentProofFile = null;
+        this.currentAmount = 0;
+    }
 
     showNequiInstructions(amount) {
         const container = document.querySelector('.nequi-payment-container');
         if (!container) return;
+
+        // Guardar el monto actual
+        this.currentAmount = amount;
 
         const currentTheme = document.documentElement.getAttribute('data-theme') || 
                            localStorage.getItem('deseo-theme') || 'dark';
@@ -356,7 +464,10 @@ class InlineWalletManager {
                     <div style="margin-bottom: 15px; padding: 15px; background: ${isDarkMode ? '#2a2a2a' : '#f8f9fa'}; border-radius: 8px; border-left: 4px solid ${appColors.primary};">
                         <strong style="color: ${appColors.primary}; font-size: 16px;">3.</strong> 
                         <span style="color: ${theme.text}; font-size: 14px;">Ingresa el número: </span>
-                        <strong style="color: ${appColors.primary}; font-size: 18px; background: ${theme.bg}; padding: 4px 8px; border-radius: 4px;">3146959639</strong>
+                        <strong style="color: ${appColors.primary}; font-size: 18px; background: ${theme.bg}; padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="navigator.clipboard.writeText('3146959639'); window.inlineWalletManager.showNotification('Número copiado al portapapeles', 'success');">3146959639</strong>
+                        <button onclick="navigator.clipboard.writeText('3146959639'); window.inlineWalletManager.showNotification('Número copiado al portapapeles', 'success');" style="background: ${appColors.primary}; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-left: 8px; cursor: pointer;">
+                            <i class="fas fa-copy"></i> Copiar
+                        </button>
                     </div>
                     
                     <div style="margin-bottom: 15px; padding: 15px; background: ${isDarkMode ? '#2a2a2a' : '#f8f9fa'}; border-radius: 8px; border-left: 4px solid ${appColors.primary};">
@@ -459,9 +570,32 @@ class InlineWalletManager {
         
         const fileInput = document.getElementById('paymentProof');
         if (fileInput) {
+            // Restaurar archivo si existe
+            if (this.currentProofFile) {
+                // Crear un nuevo FileList con el archivo guardado
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(this.currentProofFile);
+                fileInput.files = dataTransfer.files;
+                
+                // Mostrar previsualización
+                const preview = document.getElementById('imagePreview');
+                const previewImage = document.getElementById('previewImage');
+                if (preview && previewImage) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImage.src = e.target.result;
+                        preview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(this.currentProofFile);
+                }
+            }
+
             fileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (file) {
+                    // Guardar el archivo
+                    this.currentProofFile = file;
+                    
                     // Mostrar previsualización de la imagen
                     const preview = document.getElementById('imagePreview');
                     const previewImage = document.getElementById('previewImage');
@@ -483,17 +617,43 @@ class InlineWalletManager {
     
     async handleNequiPayment(amount) {
         try {
-            const fileInput = document.getElementById('paymentProof');
-            const hasProof = fileInput && fileInput.files && fileInput.files.length > 0;
-            if (!hasProof) {
+            // Verificar autenticación primero (más rápido)
+            const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+            if (!user.id && !user.uid) {
+                this.showNotification('Debes iniciar sesión para realizar transacciones', 'error');
+                return;
+            }
+
+            // Usar el archivo guardado o el del input
+            let proofFile = this.currentProofFile;
+            
+            if (!proofFile) {
+                const fileInput = document.getElementById('paymentProof');
+                if (fileInput && fileInput.files && fileInput.files.length > 0) {
+                    proofFile = fileInput.files[0];
+                }
+            }
+            
+            if (!proofFile) {
                 this.showNotification('Por favor sube la captura del comprobante antes de continuar', 'warning');
                 return;
             }
+
+            // Validar tamaño de archivo (máximo 5MB)
+            if (proofFile.size > 5 * 1024 * 1024) {
+                this.showNotification('La imagen es muy grande. Máximo 5MB permitido.', 'error');
+                return;
+            }
+
             const confirmed = confirm(`¿Confirmas que ya enviaste $${amount.toLocaleString('es-CO')} COP por Nequi al número 3146959639?\n\nIMPORTANTE: Este pago será verificado por un administrador.`);
             if (!confirmed) return;
+
+            // Mostrar indicador de carga inmediatamente
             this.showNotification('Procesando pago por Nequi...', 'info');
-            const proofFile = fileInput.files[0];
+
+            // Procesar archivo de forma asíncrona para no bloquear la UI
             const proofBase64 = await this.fileToBase64(proofFile);
+            
             const transaction = {
                 id: `nequi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 type: 'income',
@@ -503,16 +663,56 @@ class InlineWalletManager {
                 nequiNumber: '3146959639',
                 proofImage: proofBase64,
                 proofFileName: proofFile.name,
+                proofFileSize: proofFile.size,
                 timestamp: new Date().toISOString(),
                 status: 'pending_verification',
-                needsAdminApproval: true
+                needsAdminApproval: true,
+                adminNotified: false,
+                userId: user.id || user.uid
             };
+
+            // Agregar a transacciones locales inmediatamente para feedback rápido
             this.transactions.unshift(transaction);
-            await this.saveToFirebase(this.balance, transaction);
             this.renderTransactions();
-            this.closeModal('addMoneyModal');
-            document.getElementById('addMoneyForm').reset();
-            this.showNotification('¡Pago por Nequi registrado! Se verificará en las próximas 24 horas.', 'success');
+            
+            // Procesar en background
+            setTimeout(async () => {
+                try {
+                    // Verificar conexión Firebase antes de procesar
+                    const isConnected = await this.checkFirebaseConnection();
+                    if (!isConnected) {
+                        throw new Error('Sin conexión a la base de datos. Verifica tu conexión a internet.');
+                    }
+                    
+                    // Guardar en Firebase
+                    await this.saveToFirebase(this.balance, transaction);
+                    
+                    // Notificar al admin
+                    await this.notifyAdmin(transaction);
+                    
+                    this.closeModal('addMoneyModal');
+                    document.getElementById('addMoneyForm').reset();
+                    this.resetNequiInstructions();
+                    
+                    // Limpiar estado
+                    this.currentProofFile = null;
+                    this.currentAmount = 0;
+                    
+                    this.showNotification('¡Pago por Nequi registrado! Se verificará en las próximas 24 horas.', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Error procesando pago por Nequi:', error);
+                    this.showNotification(`Error: ${error.message}`, 'error');
+                    
+                    // Remover transacción local si falló
+                    const index = this.transactions.findIndex(t => t.id === transaction.id);
+                    if (index !== -1) {
+                        this.transactions.splice(index, 1);
+                        this.renderTransactions();
+                    }
+                }
+            }, 50); // Reducido el delay para mejor rendimiento
+            
         } catch (error) {
             console.error('❌ Error procesando pago por Nequi:', error);
             this.showNotification('Error al procesar el pago por Nequi', 'error');
@@ -521,33 +721,105 @@ class InlineWalletManager {
     
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
+            // Validar que el archivo existe
+            if (!file) {
+                reject(new Error('No se proporcionó archivo'));
+                return;
+            }
+            
             const reader = new FileReader();
-            reader.readAsDataURL(file);
+            
+            // Configurar eventos
             reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
+            reader.onerror = (error) => reject(error);
+            
+            // Leer archivo con optimización para imágenes
+            reader.readAsDataURL(file);
         });
     }
     
     async saveToFirebase(balance, transaction) {
         try {
-            if (typeof window.firebase === 'undefined') {
-                throw new Error('Firebase no disponible');
+            if (!this.database) {
+                throw new Error('Firebase no inicializado. No se puede procesar la transacción sin conexión a la base de datos.');
             }
+            
             const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
             const userId = user.id || user.uid;
             if (!userId) {
                 throw new Error('Usuario no autenticado');
             }
-            const db = window.firebase.database();
-            const transactionRef = db.ref(`transactions/${userId}/${transaction.id}`);
+            
+            // Guardar transacción
+            const transactionRef = this.database.ref(`transactions/${userId}/${transaction.id}`);
             await transactionRef.set({
                 ...transaction,
                 userId: userId,
                 createdAt: new Date().toISOString()
             });
+            
+            // Guardar balance del usuario
+            const userRef = this.database.ref(`users/${userId}`);
+            await userRef.update({
+                balance: this.balance,
+                lastUpdated: new Date().toISOString()
+            });
+            
+            console.log('✅ Datos guardados en Firebase correctamente');
+            
         } catch (error) {
             console.error('❌ Error guardando en Firebase:', error);
             throw error;
+        }
+    }
+    
+    async checkFirebaseConnection() {
+        try {
+            if (!this.database) {
+                return false;
+            }
+            
+            // Hacer una consulta simple para verificar conexión
+            const testRef = this.database.ref('.info/connected');
+            const snapshot = await testRef.once('value');
+            return snapshot.val() === true;
+        } catch (error) {
+            console.error('❌ Error verificando conexión Firebase:', error);
+            return false;
+        }
+    }
+
+    async notifyAdmin(transaction) {
+        try {
+            console.log('📧 Notificando al administrador sobre nueva transacción:', transaction.id);
+            
+            // Verificar Firebase primero
+            if (!this.database) {
+                console.log('⚠️ Firebase no inicializado, notificación simulada');
+                return;
+            }
+            
+            // En producción, aquí se enviaría una notificación real al admin
+            const adminNotification = {
+                type: 'payment_verification_required',
+                transactionId: transaction.id,
+                userId: transaction.userId,
+                amount: transaction.amount,
+                method: transaction.method,
+                nequiNumber: transaction.nequiNumber,
+                proofImage: transaction.proofImage,
+                timestamp: new Date().toISOString(),
+                status: 'pending'
+            };
+            
+            // Guardar notificación para el admin en Firebase
+            const adminRef = this.database.ref('admin_notifications').push();
+            await adminRef.set(adminNotification);
+            console.log('✅ Notificación enviada al admin');
+            
+        } catch (error) {
+            console.error('❌ Error notificando al admin:', error);
+            // No lanzar error para no interrumpir el flujo principal
         }
     }
     

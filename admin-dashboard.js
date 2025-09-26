@@ -7,6 +7,7 @@ class AdminDashboard {
         this.database = null;
         this.transactionsChart = null;
         this.currentFilter = 'pending';
+        this.currentSection = 'dashboard';
         this.allTransactions = [];
         this.stats = {
             totalIncome: 0,
@@ -14,6 +15,8 @@ class AdminDashboard {
             pendingTransactions: 0,
             totalUsers: 0
         };
+        this.pendingMessage = null;
+        this.pendingAction = null;
         this.init();
     }
 
@@ -24,6 +27,7 @@ class AdminDashboard {
         await this.initializeFirebase();
         
         // Inicializar componentes
+        this.initializeTheme();
         this.initializeChart();
         this.setupEventListeners();
         this.loadDashboardData();
@@ -118,6 +122,42 @@ class AdminDashboard {
         }
     }
 
+    initializeTheme() {
+        // Cargar tema guardado o usar tema por defecto
+        const savedTheme = localStorage.getItem('admin-theme') || 'light';
+        this.setTheme(savedTheme);
+        
+        // Configurar botón de tema
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+                this.setTheme(newTheme);
+            });
+        }
+    }
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('admin-theme', theme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+        }
+        
+        // Actualizar gráfico si existe
+        if (this.transactionsChart) {
+            this.transactionsChart.options.plugins.legend.labels.color = 
+                theme === 'dark' ? '#e0e0e0' : '#333';
+            this.transactionsChart.update();
+        }
+    }
+
     initializeChart() {
         const ctx = document.getElementById('transactionsChart');
         if (!ctx) return;
@@ -175,6 +215,70 @@ class AdminDashboard {
                 this.renderTransactions();
             });
         });
+
+        // Navegación del sidebar
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = link.getAttribute('data-section');
+                this.navigateToSection(section);
+            });
+        });
+
+        // Toggle del sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                const sidebar = document.getElementById('adminSidebar');
+                if (sidebar) {
+                    sidebar.classList.toggle('collapsed');
+                }
+            });
+        }
+
+        // Botón de guardar mensaje
+        const saveMessageBtn = document.getElementById('saveMessageBtn');
+        if (saveMessageBtn) {
+            saveMessageBtn.addEventListener('click', () => {
+                this.saveAdminMessage();
+            });
+        }
+    }
+
+    navigateToSection(section) {
+        // Actualizar navegación activa
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('data-section') === section) {
+                link.classList.add('active');
+            }
+        });
+
+        // Ocultar todas las secciones
+        const sections = document.querySelectorAll('.dashboard-section');
+        sections.forEach(sec => {
+            sec.style.display = 'none';
+        });
+
+        // Mostrar sección seleccionada
+        const targetSection = document.getElementById(section + 'Section');
+        if (targetSection) {
+            targetSection.style.display = 'block';
+            this.currentSection = section;
+        }
+
+        // Cargar datos específicos de la sección si es necesario
+        if (section === 'transactions') {
+            this.loadTransactionManagement();
+        } else if (section === 'users') {
+            this.loadUserManagement();
+        } else if (section === 'analytics') {
+            this.loadAnalytics();
+        } else if (section === 'settings') {
+            this.loadSettings();
+        }
     }
 
     async loadDashboardData() {
@@ -388,7 +492,7 @@ class AdminDashboard {
         }
 
         const transactionIcon = transaction.type === 'income' ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
-        const transactionColor = transaction.type === 'income' ? '#4CAF50' : '#f44336';
+        const transactionColor = transaction.type === 'income' ? 'var(--primary-color)' : '#f44336';
 
         return `
             <div class="transaction-item">
@@ -408,6 +512,12 @@ class AdminDashboard {
                         <p><strong>Método:</strong> ${transaction.method || 'N/A'}</p>
                         <p><strong>Fecha:</strong> ${new Date(transaction.timestamp).toLocaleString('es-ES')}</p>
                         ${transaction.proofFileName ? `<p><strong>Comprobante:</strong> ${transaction.proofFileName}</p>` : ''}
+                        ${transaction.adminMessage ? `
+                            <div class="admin-message">
+                                <h4><i class="fas fa-comment"></i> Mensaje del Administrador:</h4>
+                                <p>${transaction.adminMessage}</p>
+                            </div>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="transaction-actions">
@@ -417,13 +527,16 @@ class AdminDashboard {
                         </button>
                     ` : ''}
                     ${transaction.status === 'pending_verification' ? `
-                        <button class="btn-admin btn-approve" onclick="adminApp.approveTransaction('${transactionId}', '${userId}', ${transaction.amount})">
+                        <button class="btn-admin btn-approve" onclick="adminApp.showMessageModal('${transactionId}', '${userId}', ${transaction.amount}, 'approve')">
                             <i class="fas fa-check"></i> Aprobar
                         </button>
-                        <button class="btn-admin btn-reject" onclick="adminApp.rejectTransaction('${transactionId}', '${userId}')">
+                        <button class="btn-admin btn-reject" onclick="adminApp.showMessageModal('${transactionId}', '${userId}', ${transaction.amount}, 'reject')">
                             <i class="fas fa-times"></i> Rechazar
                         </button>
                     ` : ''}
+                    <button class="btn-admin btn-message" onclick="adminApp.showMessageModal('${transactionId}', '${userId}', ${transaction.amount}, 'message')">
+                        <i class="fas fa-comment"></i> Mensaje
+                    </button>
                 </div>
             </div>
         `;
@@ -441,17 +554,79 @@ class AdminDashboard {
         }
     }
 
-    async approveTransaction(transactionId, userId, amount) {
+    showMessageModal(transactionId, userId, amount, action) {
+        this.pendingAction = {
+            transactionId,
+            userId,
+            amount,
+            action
+        };
+        
+        const modal = document.getElementById('messageModal');
+        const messageInput = document.getElementById('adminMessage');
+        
+        if (modal && messageInput) {
+            // Limpiar mensaje anterior
+            messageInput.value = '';
+            
+            // Cambiar placeholder según la acción
+            if (action === 'approve') {
+                messageInput.placeholder = 'Escribe un mensaje explicando por qué se aprueba la transacción...';
+            } else if (action === 'reject') {
+                messageInput.placeholder = 'Escribe un mensaje explicando por qué se rechaza la transacción...';
+            } else {
+                messageInput.placeholder = 'Escribe un mensaje para el usuario...';
+            }
+            
+            modal.style.display = 'flex';
+        }
+    }
+
+    async saveAdminMessage() {
+        const messageInput = document.getElementById('adminMessage');
+        const message = messageInput ? messageInput.value.trim() : '';
+        
+        if (!this.pendingAction) {
+            console.error('❌ No hay acción pendiente');
+            return;
+        }
+
+        const { transactionId, userId, amount, action } = this.pendingAction;
+
+        try {
+            if (action === 'approve') {
+                await this.approveTransactionWithMessage(transactionId, userId, amount, message);
+            } else if (action === 'reject') {
+                await this.rejectTransactionWithMessage(transactionId, userId, message);
+            } else if (action === 'message') {
+                await this.addMessageToTransaction(transactionId, userId, message);
+            }
+
+            this.closeModal('messageModal');
+            this.loadDashboardData(); // Recargar datos
+            
+        } catch (error) {
+            console.error('❌ Error procesando acción:', error);
+            alert('❌ Error al procesar la acción');
+        }
+    }
+
+    async approveTransactionWithMessage(transactionId, userId, amount, message) {
         if (!this.database) {
             alert('❌ Firebase no disponible');
             return;
         }
 
         try {
-            console.log('🔍 Debug: Aprobando transacción:', transactionId);
+            console.log('🔍 Debug: Aprobando transacción con mensaje:', transactionId);
             
-            // Actualizar estado de la transacción
-            await this.database.ref(`transactions/${userId}/${transactionId}/status`).set('completed');
+            // Actualizar estado de la transacción y agregar mensaje
+            const transactionRef = this.database.ref(`transactions/${userId}/${transactionId}`);
+            await transactionRef.update({
+                status: 'completed',
+                adminMessage: message || null,
+                adminActionDate: new Date().toISOString()
+            });
             
             // Actualizar balance del usuario
             const userRef = this.database.ref(`users/${userId}`);
@@ -465,39 +640,63 @@ class AdminDashboard {
                 lastUpdated: new Date().toISOString()
             });
             
-            console.log('✅ Transacción aprobada exitosamente');
+            console.log('✅ Transacción aprobada con mensaje exitosamente');
             alert('✅ Transacción aprobada. El dinero se ha acreditado a la billetera del usuario.');
-            
-            // Recargar datos
-            this.loadDashboardData();
             
         } catch (error) {
             console.error('❌ Error aprobando transacción:', error);
-            alert('❌ Error al aprobar la transacción');
+            throw error;
         }
     }
 
-    async rejectTransaction(transactionId, userId) {
+    async rejectTransactionWithMessage(transactionId, userId, message) {
         if (!this.database) {
             alert('❌ Firebase no disponible');
             return;
         }
 
         try {
-            console.log('🔍 Debug: Rechazando transacción:', transactionId);
+            console.log('🔍 Debug: Rechazando transacción con mensaje:', transactionId);
             
-            // Actualizar estado de la transacción
-            await this.database.ref(`transactions/${userId}/${transactionId}/status`).set('rejected');
+            // Actualizar estado de la transacción y agregar mensaje
+            const transactionRef = this.database.ref(`transactions/${userId}/${transactionId}`);
+            await transactionRef.update({
+                status: 'rejected',
+                adminMessage: message || null,
+                adminActionDate: new Date().toISOString()
+            });
             
-            console.log('✅ Transacción rechazada');
+            console.log('✅ Transacción rechazada con mensaje');
             alert('✅ Transacción rechazada.');
-            
-            // Recargar datos
-            this.loadDashboardData();
             
         } catch (error) {
             console.error('❌ Error rechazando transacción:', error);
-            alert('❌ Error al rechazar la transacción');
+            throw error;
+        }
+    }
+
+    async addMessageToTransaction(transactionId, userId, message) {
+        if (!this.database) {
+            alert('❌ Firebase no disponible');
+            return;
+        }
+
+        try {
+            console.log('🔍 Debug: Agregando mensaje a transacción:', transactionId);
+            
+            // Solo agregar mensaje sin cambiar estado
+            const transactionRef = this.database.ref(`transactions/${userId}/${transactionId}`);
+            await transactionRef.update({
+                adminMessage: message || null,
+                adminActionDate: new Date().toISOString()
+            });
+            
+            console.log('✅ Mensaje agregado a transacción');
+            alert('✅ Mensaje agregado correctamente.');
+            
+        } catch (error) {
+            console.error('❌ Error agregando mensaje:', error);
+            throw error;
         }
     }
 
@@ -506,6 +705,27 @@ class AdminDashboard {
         if (modal) {
             modal.style.display = 'none';
         }
+    }
+
+    // Placeholder functions for other sections
+    loadTransactionManagement() {
+        console.log('📊 Cargando gestión de transacciones...');
+        // Aquí se implementaría la gestión avanzada de transacciones
+    }
+
+    loadUserManagement() {
+        console.log('👥 Cargando gestión de usuarios...');
+        // Aquí se implementaría la gestión de usuarios
+    }
+
+    loadAnalytics() {
+        console.log('📈 Cargando analytics avanzados...');
+        // Aquí se implementarían analytics más detallados
+    }
+
+    loadSettings() {
+        console.log('⚙️ Cargando configuración...');
+        // Aquí se implementaría la configuración del sistema
     }
 }
 

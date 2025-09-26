@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Chats | Deseo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="chats-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="chats-page">
+    <!-- Header -->
+    <header class="chats-header">
+        <div class="header-content">
+            <button class="back-btn" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1>Mis Chats</h1>
+            <button class="search-btn" id="searchBtn">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <!-- Barra de búsqueda -->
+        <div class="search-bar" id="searchBar" style="display: none;">
+            <input type="text" id="searchInput" placeholder="Buscar en chats...">
+            <button class="close-search" id="closeSearch">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Filtros -->
+    <div class="filters-section">
+        <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">Todos</button>
+            <button class="filter-tab" data-filter="active">Activos</button>
+            <button class="filter-tab" data-filter="unread">No leídos</button>
+            <button class="filter-tab" data-filter="archived">Archivados</button>
+        </div>
+    </div>
+
+    <!-- Lista de chats -->
+    <main class="chats-list" id="chatsList">
+        <!-- Los chats se cargarán aquí dinámicamente -->
+        
+        <!-- Estado vacío -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-icon">
+                <i class="fas fa-comments"></i>
+            </div>
+            <h3>No tienes chats aún</h3>
+            <p>Cuando contactes con otros usuarios, aparecerán aquí tus conversaciones.</p>
+            <button class="btn-primary" onclick="goToMap()">
+                <i class="fas fa-map"></i> Ir al Mapa
+            </button>
+        </div>
+    </main>
+
+    <!-- Botón flotante para nuevo chat -->
+    <button class="fab" id="newChatFab" title="Nuevo chat">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- Modal para nuevo chat -->
+    <div class="modal" id="newChatModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nuevo Chat</h2>
+                <button class="close-btn" onclick="closeModal('newChatModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="searchUser">Buscar usuario</label>
+                    <input type="text" id="searchUser" placeholder="Nombre o email del usuario...">
+                </div>
+                <div class="users-list" id="usersList">
+                    <!-- Lista de usuarios disponibles -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para notificaciones -->
+    <div class="modal" id="notificationsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Notificaciones</h2>
+                <button class="close-btn" onclick="closeModal('notificationsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="notifications-list" id="notificationsList">
+                    <!-- Las notificaciones se cargarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <script src="chats.js"></script>
+</body>
+</html>

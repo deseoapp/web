@@ -2859,9 +2859,146 @@ class DeseoApp {
         } catch (err) { console.warn('Photo interactions init failed:', err); }
     }
 
-    contactProfile(userId) {
+    async contactProfile(userId) {
         console.log('Contactando usuario:', userId);
-        this.showNotification('Función de contacto en desarrollo', 'info');
+        
+        try {
+            // Verificar que el usuario esté autenticado
+            if (!this.currentUser || !this.currentUser.id) {
+                this.showNotification('Debes iniciar sesión para contactar usuarios', 'error');
+                return;
+            }
+
+            // No permitir contactarse a sí mismo
+            if (userId === this.currentUser.id) {
+                this.showNotification('No puedes contactarte a ti mismo', 'error');
+                return;
+            }
+
+            // Crear o obtener ID del chat
+            const chatId = await this.createOrGetChat(userId);
+            
+            // Determinar el tipo de usuario y redirigir
+            const userType = await this.determineUserType(userId);
+            
+            if (userType === 'provider') {
+                // El usuario actual es cliente, redirigir a chat-client
+                window.location.href = `chat-client.html?chatId=${chatId}&userId=${userId}`;
+            } else {
+                // El usuario actual es proveedor, redirigir a chat-provider
+                window.location.href = `chat-provider.html?chatId=${chatId}&userId=${userId}`;
+            }
+
+        } catch (error) {
+            console.error('❌ Error contactando usuario:', error);
+            this.showNotification('Error al contactar usuario', 'error');
+        }
+    }
+
+    async createOrGetChat(userId) {
+        if (!this.database) {
+            throw new Error('Firebase no inicializado');
+        }
+
+        // Crear ID único para el chat
+        const chatId = `chat_${Math.min(this.currentUser.id, userId)}_${Math.max(this.currentUser.id, userId)}`;
+        
+        try {
+            // Verificar si el chat ya existe
+            const chatRef = this.database.ref(`chats/${chatId}`);
+            const snapshot = await chatRef.once('value');
+            
+            if (!snapshot.exists()) {
+                // Crear nuevo chat
+                const chatData = {
+                    id: chatId,
+                    participants: {
+                        [this.currentUser.id]: {
+                            id: this.currentUser.id,
+                            name: this.currentUser.name,
+                            type: 'contacting'
+                        },
+                        [userId]: {
+                            id: userId,
+                            name: 'Usuario', // Se actualizará cuando se cargue el perfil
+                            type: 'contacted'
+                        }
+                    },
+                    createdAt: new Date().toISOString(),
+                    lastMessage: null,
+                    status: 'active'
+                };
+                
+                await chatRef.set(chatData);
+                
+                // Crear mensaje inicial del sistema
+                const systemMessage = {
+                    id: `msg_${Date.now()}`,
+                    senderId: 'system',
+                    senderName: 'Sistema',
+                    message: `Chat iniciado entre ${this.currentUser.name} y el usuario contactado.`,
+                    timestamp: new Date().toISOString(),
+                    type: 'system'
+                };
+                
+                await chatRef.child('messages').child(systemMessage.id).set(systemMessage);
+                
+                // Notificar al usuario contactado
+                await this.notifyUserContacted(userId, chatId);
+            }
+            
+            return chatId;
+            
+        } catch (error) {
+            console.error('❌ Error creando/obteniendo chat:', error);
+            throw error;
+        }
+    }
+
+    async determineUserType(userId) {
+        try {
+            // Obtener información del usuario contactado
+            const userRef = this.database.ref(`users/${userId}`);
+            const snapshot = await userRef.once('value');
+            const userData = snapshot.val();
+            
+            if (userData && userData.isAvailable) {
+                // Si el usuario contactado está disponible, el usuario actual es cliente
+                return 'provider';
+            } else {
+                // Si el usuario contactado no está disponible, el usuario actual es proveedor
+                return 'client';
+            }
+        } catch (error) {
+            console.error('❌ Error determinando tipo de usuario:', error);
+            // Por defecto, asumir que el usuario contactado es proveedor
+            return 'provider';
+        }
+    }
+
+    async notifyUserContacted(userId, chatId) {
+        try {
+            // Crear notificación para el usuario contactado
+            const notificationRef = this.database.ref(`notifications/${userId}`);
+            const notification = {
+                id: `notif_${Date.now()}`,
+                type: 'chat_request',
+                title: 'Nuevo contacto',
+                message: `${this.currentUser.name} quiere contactarte`,
+                chatId: chatId,
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.name,
+                timestamp: new Date().toISOString(),
+                read: false
+            };
+            
+            await notificationRef.push().set(notification);
+            
+            console.log('✅ Notificación enviada al usuario contactado');
+            
+        } catch (error) {
+            console.error('❌ Error enviando notificación:', error);
+        }
     }
 
     // ===== FUNCIÓN PARA IR AL MAPA DESDE SIDEBAR =====

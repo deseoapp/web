@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Cliente | Deseo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="chat-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="chat-page client-chat">
+    <!-- Header del Chat -->
+    <header class="chat-header">
+        <div class="chat-header-content">
+            <button class="back-btn" onclick="goBack()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="chat-user-info">
+                <div class="user-avatar" id="chatUserAvatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="user-details">
+                    <h3 id="chatUserName">Proveedor</h3>
+                    <p id="chatUserStatus">En línea</p>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button class="action-btn" id="callBtn" title="Llamar">
+                    <i class="fas fa-phone"></i>
+                </button>
+                <button class="action-btn" id="videoBtn" title="Video llamada">
+                    <i class="fas fa-video"></i>
+                </button>
+                <button class="action-btn" id="moreBtn" title="Más opciones">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Información del Servicio -->
+    <div class="service-info" id="serviceInfo">
+        <div class="service-card">
+            <div class="service-icon">
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="service-details">
+                <h4 id="serviceTitle">Mi Solicitud</h4>
+                <p id="serviceDescription">Descripción de lo que necesito</p>
+                <div class="service-meta">
+                    <span class="service-budget" id="serviceBudget">Presupuesto: $0.00</span>
+                    <span class="service-location" id="serviceLocation">
+                        <i class="fas fa-map-marker-alt"></i> Ubicación
+                    </span>
+                </div>
+            </div>
+            <div class="service-status">
+                <span class="status-badge" id="serviceStatus">Esperando respuesta</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Área de Mensajes -->
+    <main class="chat-main">
+        <div class="chat-messages" id="chatMessages">
+            <!-- Los mensajes se cargarán aquí dinámicamente -->
+        </div>
+        
+        <!-- Indicador de escritura -->
+        <div class="typing-indicator" id="typingIndicator" style="display: none;">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <p>El proveedor está escribiendo...</p>
+        </div>
+    </main>
+
+    <!-- Input de Mensaje -->
+    <footer class="chat-footer">
+        <div class="chat-input-container">
+            <button class="attach-btn" id="attachBtn" title="Adjuntar archivo">
+                <i class="fas fa-paperclip"></i>
+            </button>
+            <div class="message-input-wrapper">
+                <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." maxlength="500">
+                <button class="emoji-btn" id="emojiBtn" title="Emoji">
+                    <i class="fas fa-smile"></i>
+                </button>
+            </div>
+            <button class="send-btn" id="sendBtn" title="Enviar mensaje">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        
+        <!-- Acciones rápidas para clientes -->
+        <div class="quick-actions" id="quickActions">
+            <button class="quick-action-btn" data-action="urgent">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Urgente</span>
+            </button>
+            <button class="quick-action-btn" data-action="modify">
+                <i class="fas fa-edit"></i>
+                <span>Modificar</span>
+            </button>
+            <button class="quick-action-btn" data-action="cancel">
+                <i class="fas fa-times-circle"></i>
+                <span>Cancelar</span>
+            </button>
+            <button class="quick-action-btn" data-action="rate">
+                <i class="fas fa-star"></i>
+                <span>Calificar</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Modal para modificar solicitud -->
+    <div class="modal" id="modifyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Modificar Solicitud</h2>
+                <button class="close-btn" onclick="closeModal('modifyModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="modifyTitle">Título del servicio</label>
+                    <input type="text" id="modifyTitle" placeholder="Título de tu solicitud">
+                </div>
+                <div class="form-group">
+                    <label for="modifyDescription">Descripción</label>
+                    <textarea id="modifyDescription" placeholder="Describe qué necesitas..." rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="modifyBudget">Presupuesto</label>
+                    <input type="number" id="modifyBudget" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="modifyLocation">Ubicación</label>
+                    <input type="text" id="modifyLocation" placeholder="¿Dónde necesitas el servicio?">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('modifyModal')">Cancelar</button>
+                <button class="btn-primary" id="sendModifyBtn">Actualizar Solicitud</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para cancelar -->
+    <div class="modal" id="cancelModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cancelar Solicitud</h2>
+                <button class="close-btn" onclick="closeModal('cancelModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres cancelar esta solicitud?</p>
+                <div class="form-group">
+                    <label for="cancelReason">Motivo de cancelación (opcional)</label>
+                    <textarea id="cancelReason" placeholder="Explica por qué cancelas..." rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('cancelModal')">No cancelar</button>
+                <button class="btn-danger" id="confirmCancelBtn">Sí, cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para calificar -->
+    <div class="modal" id="rateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Calificar Servicio</h2>
+                <button class="close-btn" onclick="closeModal('rateModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="rating-section">
+                    <h3>¿Cómo calificarías el servicio?</h3>
+                    <div class="star-rating" id="starRating">
+                        <i class="fas fa-star" data-rating="1"></i>
+                        <i class="fas fa-star" data-rating="2"></i>
+                        <i class="fas fa-star" data-rating="3"></i>
+                        <i class="fas fa-star" data-rating="4"></i>
+                        <i class="fas fa-star" data-rating="5"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="rateComment">Comentario (opcional)</label>
+                    <textarea id="rateComment" placeholder="Comparte tu experiencia..." rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('rateModal')">Cancelar</button>
+                <button class="btn-primary" id="sendRateBtn">Enviar Calificación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="config.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    
+    <script src="chat-client.js"></script>
+</body>
+</html>

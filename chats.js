@@ -445,7 +445,27 @@ class ChatsManager {
             throw new Error('Firebase no inicializado');
         }
 
-        const chatId = `chat_${Math.min(this.currentUser.id, userId)}_${Math.max(this.currentUser.id, userId)}`;
+        // Validar que tenemos los IDs necesarios
+        if (!this.currentUser || !this.currentUser.id) {
+            throw new Error('Usuario actual no válido');
+        }
+        
+        if (!userId) {
+            throw new Error('ID de usuario contactado no válido');
+        }
+
+        console.log('🔍 [DEBUG] currentUser.id:', this.currentUser.id);
+        console.log('🔍 [DEBUG] userId:', userId);
+
+        // Crear ID único para el chat usando strings para evitar NaN
+        const currentUserId = String(this.currentUser.id);
+        const contactUserId = String(userId);
+        
+        // Ordenar IDs para crear un ID único consistente
+        const sortedIds = [currentUserId, contactUserId].sort();
+        const chatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
+        
+        console.log('🔍 [DEBUG] chatId generado:', chatId);
         
         try {
             // Verificar si el chat ya existe
@@ -453,20 +473,37 @@ class ChatsManager {
             const snapshot = await chatRef.once('value');
             
             if (!snapshot.exists()) {
+                console.log('📝 Creando nuevo chat desde chats.js:', chatId);
+                
+                // Obtener información del usuario contactado
+                let contactUserInfo = {
+                    id: contactUserId,
+                    name: 'Usuario',
+                    type: 'contacted'
+                };
+                
+                try {
+                    const userRef = this.database.ref(`users/${contactUserId}`);
+                    const userSnapshot = await userRef.once('value');
+                    const userData = userSnapshot.val();
+                    
+                    if (userData && userData.name) {
+                        contactUserInfo.name = userData.name;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ No se pudo obtener información del usuario contactado:', error);
+                }
+                
                 // Crear nuevo chat
                 const chatData = {
                     id: chatId,
                     participants: {
-                        [this.currentUser.id]: {
-                            id: this.currentUser.id,
-                            name: this.currentUser.name,
+                        [currentUserId]: {
+                            id: currentUserId,
+                            name: this.currentUser.name || 'Usuario',
                             type: 'contacting'
                         },
-                        [userId]: {
-                            id: userId,
-                            name: 'Usuario',
-                            type: 'contacted'
-                        }
+                        [contactUserId]: contactUserInfo
                     },
                     createdAt: new Date().toISOString(),
                     lastMessage: null,
@@ -474,6 +511,9 @@ class ChatsManager {
                 };
                 
                 await chatRef.set(chatData);
+                console.log('✅ Chat creado exitosamente desde chats.js');
+            } else {
+                console.log('✅ Chat existente encontrado en chats.js:', chatId);
             }
             
             return chatId;

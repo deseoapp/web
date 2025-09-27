@@ -710,6 +710,11 @@ class DeseoApp {
             this.setupEventListeners();
             this.initializeFirebase();
             
+            // Limpiar chats con IDs incorrectos al inicializar
+            setTimeout(() => {
+                this.cleanupInvalidChats();
+            }, 2000);
+            
             // Solo generar deseos de muestra si Firebase no está habilitado
             if (!CONFIG.FIREBASE.enabled) {
             this.generateSampleWishes();
@@ -2900,8 +2905,27 @@ class DeseoApp {
             throw new Error('Firebase no inicializado');
         }
 
-        // Crear ID único para el chat
-        const chatId = `chat_${Math.min(this.currentUser.id, userId)}_${Math.max(this.currentUser.id, userId)}`;
+        // Validar que tenemos los IDs necesarios
+        if (!this.currentUser || !this.currentUser.id) {
+            throw new Error('Usuario actual no válido');
+        }
+        
+        if (!userId) {
+            throw new Error('ID de usuario contactado no válido');
+        }
+
+        console.log('🔍 [DEBUG] currentUser.id:', this.currentUser.id);
+        console.log('🔍 [DEBUG] userId:', userId);
+
+        // Crear ID único para el chat usando strings para evitar NaN
+        const currentUserId = String(this.currentUser.id);
+        const contactUserId = String(userId);
+        
+        // Ordenar IDs para crear un ID único consistente
+        const sortedIds = [currentUserId, contactUserId].sort();
+        const chatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
+        
+        console.log('🔍 [DEBUG] chatId generado:', chatId);
         
         try {
             // Verificar si el chat ya existe
@@ -2909,20 +2933,37 @@ class DeseoApp {
             const snapshot = await chatRef.once('value');
             
             if (!snapshot.exists()) {
+                console.log('📝 Creando nuevo chat:', chatId);
+                
+                // Obtener información del usuario contactado
+                let contactUserInfo = {
+                    id: contactUserId,
+                    name: 'Usuario',
+                    type: 'contacted'
+                };
+                
+                try {
+                    const userRef = this.database.ref(`users/${contactUserId}`);
+                    const userSnapshot = await userRef.once('value');
+                    const userData = userSnapshot.val();
+                    
+                    if (userData && userData.name) {
+                        contactUserInfo.name = userData.name;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ No se pudo obtener información del usuario contactado:', error);
+                }
+                
                 // Crear nuevo chat
                 const chatData = {
                     id: chatId,
                     participants: {
-                        [this.currentUser.id]: {
-                            id: this.currentUser.id,
-                            name: this.currentUser.name,
+                        [currentUserId]: {
+                            id: currentUserId,
+                            name: this.currentUser.name || 'Usuario',
                             type: 'contacting'
                         },
-                        [userId]: {
-                            id: userId,
-                            name: 'Usuario', // Se actualizará cuando se cargue el perfil
-                            type: 'contacted'
-                        }
+                        [contactUserId]: contactUserInfo
                     },
                     createdAt: new Date().toISOString(),
                     lastMessage: null,
@@ -2930,13 +2971,14 @@ class DeseoApp {
                 };
                 
                 await chatRef.set(chatData);
+                console.log('✅ Chat creado exitosamente');
                 
                 // Crear mensaje inicial del sistema
                 const systemMessage = {
                     id: `msg_${Date.now()}`,
                     senderId: 'system',
                     senderName: 'Sistema',
-                    message: `Chat iniciado entre ${this.currentUser.name} y el usuario contactado.`,
+                    message: `Chat iniciado entre ${this.currentUser.name || 'Usuario'} y ${contactUserInfo.name}.`,
                     timestamp: new Date().toISOString(),
                     type: 'system'
                 };
@@ -2944,7 +2986,9 @@ class DeseoApp {
                 await chatRef.child('messages').child(systemMessage.id).set(systemMessage);
                 
                 // Notificar al usuario contactado
-                await this.notifyUserContacted(userId, chatId);
+                await this.notifyUserContacted(contactUserId, chatId);
+            } else {
+                console.log('✅ Chat existente encontrado:', chatId);
             }
             
             return chatId;
@@ -2998,6 +3042,42 @@ class DeseoApp {
             
         } catch (error) {
             console.error('❌ Error enviando notificación:', error);
+        }
+    }
+
+    // Función para limpiar chats con IDs incorrectos (NaN)
+    async cleanupInvalidChats() {
+        if (!this.database) return;
+
+        try {
+            console.log('🧹 Limpiando chats con IDs incorrectos...');
+            
+            const chatsRef = this.database.ref('chats');
+            const snapshot = await chatsRef.once('value');
+            const chatsData = snapshot.val();
+            
+            if (chatsData) {
+                const invalidChats = Object.keys(chatsData).filter(chatId => 
+                    chatId.includes('NaN') || chatId.includes('undefined') || chatId.includes('null')
+                );
+                
+                console.log(`🔍 Encontrados ${invalidChats.length} chats con IDs incorrectos:`, invalidChats);
+                
+                // Eliminar chats inválidos
+                for (const invalidChatId of invalidChats) {
+                    await chatsRef.child(invalidChatId).remove();
+                    console.log(`🗑️ Chat eliminado: ${invalidChatId}`);
+                }
+                
+                if (invalidChats.length > 0) {
+                    console.log(`✅ Limpieza completada: ${invalidChats.length} chats eliminados`);
+                } else {
+                    console.log('✅ No se encontraron chats con IDs incorrectos');
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error limpiando chats inválidos:', error);
         }
     }
 

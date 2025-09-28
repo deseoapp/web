@@ -14,6 +14,9 @@ class ChatsManager {
         this.currentFilter = 'all';
         this.searchQuery = '';
         
+        // Notificaciones
+        this.notificationPermission = false;
+        
         this.init();
     }
 
@@ -35,6 +38,9 @@ class ChatsManager {
         
         // Inicializar tema
         this.initializeTheme();
+        
+        // Inicializar notificaciones
+        await this.initializeNotifications();
         
         console.log('✅ ChatsManager: Inicializado correctamente');
     }
@@ -233,6 +239,9 @@ class ChatsManager {
                         const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(b.createdAt);
                         return bTime - aTime;
                     });
+                
+                // Verificar si hay nuevos mensajes para notificar
+                this.checkForNewMessages(newChats);
                 
                 this.chats = newChats;
                 this.renderChats();
@@ -734,6 +743,84 @@ class ChatsManager {
             if (icon) {
                 icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             }
+        }
+    }
+
+    checkForNewMessages(newChats) {
+        if (!this.chats || this.chats.length === 0) return;
+
+        newChats.forEach(newChat => {
+            const oldChat = this.chats.find(old => old.id === newChat.id);
+            
+            if (oldChat && newChat.lastMessage && oldChat.lastMessage) {
+                // Si hay un nuevo mensaje y no es del usuario actual
+                if (newChat.lastMessage.id !== oldChat.lastMessage.id && 
+                    newChat.lastMessage.senderId !== this.currentUser.id &&
+                    newChat.lastMessage.senderId !== 'system') {
+                    
+                    console.log('🔍 [DEBUG] Nuevo mensaje detectado en chats:', newChat.lastMessage);
+                    this.sendBrowserNotification(newChat.lastMessage.senderName, newChat.lastMessage.message);
+                }
+            }
+        });
+    }
+
+    // ===== NOTIFICACIONES =====
+    async initializeNotifications() {
+        console.log('🔍 [DEBUG] Inicializando notificaciones en chats...');
+        this.notificationPermission = await this.requestNotificationPermission();
+        console.log('🔍 [DEBUG] Permisos de notificación:', this.notificationPermission);
+    }
+
+    async requestNotificationPermission() {
+        if (!('Notification' in window)) {
+            console.log('❌ Este navegador no soporta notificaciones');
+            return false;
+        }
+
+        if (Notification.permission === 'granted') {
+            return true;
+        }
+
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+
+        return false;
+    }
+
+    async sendBrowserNotification(senderName, message) {
+        try {
+            if (!this.notificationPermission) {
+                console.log('⚠️ Permisos de notificación denegados');
+                return;
+            }
+
+            const notification = new Notification('Nuevo mensaje de ' + senderName, {
+                body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+                icon: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                badge: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                tag: 'deseo-chat',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Cerrar la notificación después de 5 segundos
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+
+            // Al hacer click en la notificación, enfocar la ventana
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+
+            console.log('✅ [DEBUG] Notificación del navegador enviada desde chats para:', senderName);
+            
+        } catch (error) {
+            console.error('❌ Error enviando notificación del navegador:', error);
         }
     }
 }

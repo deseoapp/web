@@ -15,6 +15,9 @@ class ChatClient {
         this.typingTimeout = null;
         this.serviceData = null;
         
+        // Notificaciones
+        this.notificationPermission = false;
+        
         this.init();
     }
 
@@ -38,6 +41,9 @@ class ChatClient {
         
         // Cargar datos del servicio
         await this.loadServiceData();
+        
+        // Inicializar notificaciones
+        await this.initializeNotifications();
         
         console.log('✅ ChatClient: Inicializado correctamente');
     }
@@ -178,6 +184,14 @@ class ChatClient {
                     this.messages.push(message);
                     this.renderMessages();
                     this.scrollToBottom();
+                    
+                    // Enviar notificación si el mensaje no es del usuario actual
+                    if (message.senderId !== this.currentUser.id && 
+                        message.senderId !== 'system' && 
+                        message.senderName) {
+                        console.log('🔍 [DEBUG] Nuevo mensaje recibido en chat-client:', message);
+                        this.sendBrowserNotification(message.senderName, message.message);
+                    }
                 }
             });
 
@@ -663,6 +677,65 @@ class ChatClient {
             if (icon) {
                 icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             }
+        }
+    }
+
+    // ===== NOTIFICACIONES =====
+    async initializeNotifications() {
+        console.log('🔍 [DEBUG] Inicializando notificaciones en chat-client...');
+        this.notificationPermission = await this.requestNotificationPermission();
+        console.log('🔍 [DEBUG] Permisos de notificación:', this.notificationPermission);
+    }
+
+    async requestNotificationPermission() {
+        if (!('Notification' in window)) {
+            console.log('❌ Este navegador no soporta notificaciones');
+            return false;
+        }
+
+        if (Notification.permission === 'granted') {
+            return true;
+        }
+
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+
+        return false;
+    }
+
+    async sendBrowserNotification(senderName, message) {
+        try {
+            if (!this.notificationPermission) {
+                console.log('⚠️ Permisos de notificación denegados');
+                return;
+            }
+
+            const notification = new Notification('Nuevo mensaje de ' + senderName, {
+                body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+                icon: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                badge: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                tag: 'deseo-chat',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Cerrar la notificación después de 5 segundos
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+
+            // Al hacer click en la notificación, enfocar la ventana
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+
+            console.log('✅ [DEBUG] Notificación del navegador enviada desde chat-client para:', senderName);
+            
+        } catch (error) {
+            console.error('❌ Error enviando notificación del navegador:', error);
         }
     }
 }

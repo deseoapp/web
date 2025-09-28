@@ -1,30 +1,30 @@
 /* ===== ESTILOS PARA PÁGINA DE CHATS ===== */
 
-/* Variables CSS para mantener identidad del sitio */
+/* Variables CSS para mantener identidad del sitio - Dark Mode por defecto */
 :root {
     --primary-color: #60c48e;
     --primary-dark: #4a9d73;
     --accent-color: #e88dff;
-    --text-color: #333;
-    --text-light: #666;
-    --bg-color: #f8f9fa;
-    --card-bg: rgba(255, 255, 255, 0.95);
-    --border-color: #e0e0e0;
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --text-color: #e0e0e0;
+    --text-light: #b0b0b0;
+    --bg-color: #0f0f0f;
+    --card-bg: rgba(30, 30, 30, 0.95);
+    --border-color: #333;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --success-color: #4CAF50;
     --warning-color: #ff9800;
     --danger-color: #f44336;
     --info-color: #2196F3;
 }
 
-/* Tema oscuro */
-[data-theme="dark"] {
-    --text-color: #e0e0e0;
-    --text-light: #b0b0b0;
-    --bg-color: #1a1a1a;
-    --card-bg: rgba(30, 30, 30, 0.95);
-    --border-color: #404040;
-    --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+/* Tema claro (opcional) */
+[data-theme="light"] {
+    --text-color: #333;
+    --text-light: #666;
+    --bg-color: #f8f9fa;
+    --card-bg: rgba(255, 255, 255, 0.95);
+    --border-color: #e0e0e0;
+    --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 /* Estilos base */
@@ -80,6 +80,28 @@ body.chats-page {
     color: var(--text-color);
     flex: 1;
     text-align: center;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    background: var(--border-color);
+    transform: scale(1.1);
 }
 
 /* Barra de búsqueda */

@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="chats-page">
+<body class="chats-page" data-theme="dark">
     <!-- Header -->
     <header class="chats-header">
         <div class="header-content">
@@ -17,9 +17,14 @@
                 <i class="fas fa-arrow-left"></i>
             </button>
             <h1>Mis Chats</h1>
-            <button class="search-btn" id="searchBtn">
-                <i class="fas fa-search"></i>
-            </button>
+            <div class="header-actions">
+                <button class="search-btn" id="searchBtn">
+                    <i class="fas fa-search"></i>
+                </button>
+                <button class="theme-toggle" id="themeToggle" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
         </div>
         
         <!-- Barra de búsqueda -->

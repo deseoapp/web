@@ -33,6 +33,9 @@ class ChatsManager {
         await this.loadChats();
         await this.loadNotifications();
         
+        // Inicializar tema
+        this.initializeTheme();
+        
         console.log('✅ ChatsManager: Inicializado correctamente');
     }
 
@@ -148,6 +151,16 @@ class ChatsManager {
                 e.target.style.display = 'none';
             }
         });
+
+        // Tema
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                this.setTheme(newTheme);
+            });
+        }
     }
 
     async loadChats() {
@@ -380,10 +393,12 @@ class ChatsManager {
         const otherParticipant = this.getOtherParticipant(chat);
         
         // LÓGICA CORREGIDA:
-        // Necesitamos determinar si el usuario actual es el que inició el chat (cliente)
-        // o el que fue contactado (proveedor)
+        // Determinar si el usuario actual es proveedor o cliente basándose en el rol guardado
         
         const userType = this.determineUserType(chat);
+        
+        console.log('🔍 [DEBUG] Tipo de usuario determinado:', userType);
+        console.log('🔍 [DEBUG] Redirigiendo a:', userType === 'provider' ? 'chat-provider.html' : 'chat-client.html');
         
         if (userType === 'provider') {
             // El usuario actual es el proveedor, va a chat-provider.html
@@ -396,7 +411,7 @@ class ChatsManager {
 
     determineUserType(chat) {
         // Determinar si el usuario actual es el proveedor o el cliente
-        // basándose en quién inició el chat
+        // basándose en el rol guardado en el chat
         
         if (!chat.participants || !this.currentUser) {
             return 'client'; // Por defecto asumir que es cliente
@@ -404,11 +419,15 @@ class ChatsManager {
         
         const currentUserParticipant = chat.participants[this.currentUser.id];
         
+        if (currentUserParticipant && currentUserParticipant.role) {
+            console.log('🔍 [DEBUG] Rol del usuario en el chat:', currentUserParticipant.role);
+            return currentUserParticipant.role; // 'client' o 'provider'
+        }
+        
+        // Fallback: usar la lógica anterior si no hay rol guardado
         if (currentUserParticipant && currentUserParticipant.type === 'contacting') {
-            // El usuario actual es el que inició el contacto (cliente)
             return 'client';
         } else {
-            // El usuario actual es el que fue contactado (proveedor)
             return 'provider';
         }
     }
@@ -556,9 +575,13 @@ class ChatsManager {
                         [currentUserId]: {
                             id: currentUserId,
                             name: this.currentUser.name || 'Usuario',
+                            role: 'client', // Quien inicia el chat es el CLIENTE
                             type: 'contacting'
                         },
-                        [contactUserId]: contactUserInfo
+                        [contactUserId]: {
+                            ...contactUserInfo,
+                            role: 'provider' // Quien es contactado es el PROVEEDOR
+                        }
                     },
                     createdAt: new Date().toISOString(),
                     lastMessage: null,
@@ -692,6 +715,26 @@ class ChatsManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    initializeTheme() {
+        // Cargar tema guardado
+        const savedTheme = localStorage.getItem('deseo_theme') || 'light';
+        this.setTheme(savedTheme);
+    }
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('deseo_theme', theme);
+        
+        // Actualizar icono del botón
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
     }
 }
 

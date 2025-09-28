@@ -2958,9 +2958,13 @@ class DeseoApp {
                         [currentUserId]: {
                             id: currentUserId,
                             name: this.currentUser.name || 'Usuario',
+                            role: 'client', // Quien presiona "Contactar" es el CLIENTE
                             type: 'contacting'
                         },
-                        [contactUserId]: contactUserInfo
+                        [contactUserId]: {
+                            ...contactUserInfo,
+                            role: 'provider' // Quien es contactado es el PROVEEDOR
+                        }
                     },
                     createdAt: new Date().toISOString(),
                     lastMessage: null,

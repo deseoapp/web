@@ -57,12 +57,18 @@ class ChatsManager {
     async loadCurrentUser() {
         try {
             const userData = localStorage.getItem('deseo_user');
+            console.log('🔍 Datos de usuario en localStorage:', userData);
+            
             if (!userData) {
                 throw new Error('Usuario no autenticado');
             }
             
             this.currentUser = JSON.parse(userData);
-            console.log('👤 Usuario actual cargado:', this.currentUser.name);
+            console.log('👤 Usuario actual cargado:', {
+                id: this.currentUser.id,
+                name: this.currentUser.name,
+                email: this.currentUser.email
+            });
         } catch (error) {
             console.error('❌ Error cargando usuario:', error);
             this.showError('Error de autenticación');
@@ -145,24 +151,46 @@ class ChatsManager {
     }
 
     async loadChats() {
-        if (!this.database || !this.currentUser) return;
+        if (!this.database || !this.currentUser) {
+            console.error('❌ Firebase o usuario no inicializado');
+            return;
+        }
 
         try {
+            console.log('🔍 Cargando chats para usuario:', this.currentUser.id);
+            
             const chatsRef = this.database.ref('chats');
             const snapshot = await chatsRef.once('value');
             const chatsData = snapshot.val();
             
+            console.log('📊 Datos de chats desde Firebase:', chatsData);
+            
             if (chatsData) {
                 // Filtrar chats donde el usuario actual es participante
-                this.chats = Object.values(chatsData)
-                    .filter(chat => chat.participants && chat.participants[this.currentUser.id])
+                const allChats = Object.values(chatsData);
+                console.log('📋 Total de chats en Firebase:', allChats.length);
+                
+                this.chats = allChats
+                    .filter(chat => {
+                        const hasParticipant = chat.participants && chat.participants[this.currentUser.id];
+                        console.log(`🔍 Chat ${chat.id}:`, {
+                            hasParticipants: !!chat.participants,
+                            hasCurrentUser: hasParticipant,
+                            participants: chat.participants
+                        });
+                        return hasParticipant;
+                    })
                     .sort((a, b) => {
                         const aTime = a.lastMessage ? new Date(a.lastMessage.timestamp) : new Date(a.createdAt);
                         const bTime = b.lastMessage ? new Date(b.lastMessage.timestamp) : new Date(b.createdAt);
                         return bTime - aTime;
                     });
                 
-                console.log('✅ Chats cargados:', this.chats.length);
+                console.log('✅ Chats filtrados para usuario actual:', this.chats.length);
+                this.renderChats();
+            } else {
+                console.log('ℹ️ No hay chats en Firebase');
+                this.chats = [];
                 this.renderChats();
             }
 
@@ -171,6 +199,8 @@ class ChatsManager {
 
         } catch (error) {
             console.error('❌ Error cargando chats:', error);
+            this.chats = [];
+            this.renderChats();
         }
     }
 
@@ -238,7 +268,10 @@ class ChatsManager {
         const chatsList = document.getElementById('chatsList');
         const emptyState = document.getElementById('emptyState');
         
-        if (!chatsList) return;
+        if (!chatsList) {
+            console.error('❌ Elemento chatsList no encontrado');
+            return;
+        }
 
         // Filtrar chats
         let filteredChats = this.chats;
@@ -269,11 +302,15 @@ class ChatsManager {
         chatsList.innerHTML = '';
 
         if (filteredChats.length === 0) {
-            emptyState.style.display = 'flex';
+            if (emptyState) {
+                emptyState.style.display = 'flex';
+            }
             return;
         }
 
-        emptyState.style.display = 'none';
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
 
         // Renderizar chats
         filteredChats.forEach(chat => {

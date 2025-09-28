@@ -342,20 +342,38 @@ class ChatsManager {
     openChat(chat) {
         const otherParticipant = this.getOtherParticipant(chat);
         
-        // Determinar el tipo de usuario y redirigir
+        // LÓGICA CORREGIDA:
+        // Necesitamos determinar si el usuario actual es el que inició el chat (cliente)
+        // o el que fue contactado (proveedor)
+        
         const userType = this.determineUserType(chat);
         
         if (userType === 'provider') {
+            // El usuario actual es el proveedor, va a chat-provider.html
             window.location.href = `chat-provider.html?chatId=${chat.id}&userId=${otherParticipant.id}`;
         } else {
+            // El usuario actual es el cliente, va a chat-client.html
             window.location.href = `chat-client.html?chatId=${chat.id}&userId=${otherParticipant.id}`;
         }
     }
 
     determineUserType(chat) {
-        // Lógica para determinar si el usuario actual es proveedor o cliente
-        // Por ahora, asumir que es cliente si está contactando a alguien
-        return 'client';
+        // Determinar si el usuario actual es el proveedor o el cliente
+        // basándose en quién inició el chat
+        
+        if (!chat.participants || !this.currentUser) {
+            return 'client'; // Por defecto asumir que es cliente
+        }
+        
+        const currentUserParticipant = chat.participants[this.currentUser.id];
+        
+        if (currentUserParticipant && currentUserParticipant.type === 'contacting') {
+            // El usuario actual es el que inició el contacto (cliente)
+            return 'client';
+        } else {
+            // El usuario actual es el que fue contactado (proveedor)
+            return 'provider';
+        }
     }
 
     async searchUsers(query) {

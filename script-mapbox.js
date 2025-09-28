@@ -2883,16 +2883,13 @@ class DeseoApp {
             // Crear o obtener ID del chat
             const chatId = await this.createOrGetChat(userId);
             
-            // Determinar el tipo de usuario y redirigir
-            const userType = await this.determineUserType(userId);
+            // LÓGICA CORREGIDA:
+            // El usuario actual (que presiona "Contactar") es el CLIENTE
+            // El usuario contactado (que está en el mapa) es el PROVEEDOR
+            // Por lo tanto, el usuario actual va a chat-client.html
+            // Y el usuario contactado debe ir a chat-provider.html cuando abra el chat
             
-            if (userType === 'provider') {
-                // El usuario actual es cliente, redirigir a chat-client
-                window.location.href = `chat-client.html?chatId=${chatId}&userId=${userId}`;
-            } else {
-                // El usuario actual es proveedor, redirigir a chat-provider
-                window.location.href = `chat-provider.html?chatId=${chatId}&userId=${userId}`;
-            }
+            window.location.href = `chat-client.html?chatId=${chatId}&userId=${userId}`;
 
         } catch (error) {
             console.error('❌ Error contactando usuario:', error);
@@ -3000,23 +2997,28 @@ class DeseoApp {
     }
 
     async determineUserType(userId) {
+        // LÓGICA CORREGIDA:
+        // El usuario actual (que presiona "Contactar") es siempre el CLIENTE
+        // El usuario contactado (que está en el mapa) es siempre el PROVEEDOR
+        // Esta función ya no es necesaria, pero la mantenemos por compatibilidad
+        
         try {
-            // Obtener información del usuario contactado
+            // Obtener información del usuario contactado para verificar que existe
             const userRef = this.database.ref(`users/${userId}`);
             const snapshot = await userRef.once('value');
             const userData = snapshot.val();
             
-            if (userData && userData.isAvailable) {
-                // Si el usuario contactado está disponible, el usuario actual es cliente
+            if (userData) {
+                console.log('✅ Usuario contactado encontrado:', userData.name);
+                // El usuario contactado es el proveedor
                 return 'provider';
             } else {
-                // Si el usuario contactado no está disponible, el usuario actual es proveedor
-                return 'client';
+                console.warn('⚠️ Usuario contactado no encontrado');
+                return 'provider'; // Por defecto asumir que es proveedor
             }
         } catch (error) {
             console.error('❌ Error determinando tipo de usuario:', error);
-            // Por defecto, asumir que el usuario contactado es proveedor
-            return 'provider';
+            return 'provider'; // Por defecto asumir que es proveedor
         }
     }
 

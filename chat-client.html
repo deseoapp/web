@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="chat-page client-chat">
+<body class="chat-page client-chat" data-theme="light">
     <!-- Header del Chat -->
     <header class="chat-header">
         <div class="chat-header-content">
@@ -26,6 +26,9 @@
                 </div>
             </div>
             <div class="chat-actions">
+                <button class="action-btn" id="themeToggle" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
                 <button class="action-btn" id="callBtn" title="Llamar">
                     <i class="fas fa-phone"></i>
                 </button>

@@ -119,6 +119,9 @@ class ChatClient {
 
         // Modales
         this.setupModalListeners();
+        
+        // Tema
+        this.initializeTheme();
     }
 
     setupModalListeners() {
@@ -678,6 +681,36 @@ class ChatClient {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    initializeTheme() {
+        // Cargar tema guardado
+        const savedTheme = localStorage.getItem('deseo_theme') || 'light';
+        this.setTheme(savedTheme);
+        
+        // Configurar botón de tema
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                this.setTheme(newTheme);
+            });
+        }
+    }
+
+    setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('deseo_theme', theme);
+        
+        // Actualizar icono del botón
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+        }
     }
 }
 

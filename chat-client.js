@@ -197,59 +197,12 @@ class ChatClient {
             const snapshot = await serviceRef.once('value');
             const serviceData = snapshot.val();
             
-            if (serviceData) {
-                this.serviceData = serviceData;
-                this.updateServiceInfo();
-            }
-
-            // Escuchar cambios en el servicio
-            serviceRef.on('value', (snapshot) => {
-                const newServiceData = snapshot.val();
-                if (newServiceData) {
-                    this.serviceData = newServiceData;
-                    this.updateServiceInfo();
-                }
-            });
 
         } catch (error) {
             console.error('❌ Error cargando datos del servicio:', error);
         }
     }
 
-    updateServiceInfo() {
-        if (!this.serviceData) return;
-
-        // Actualizar título
-        const titleElement = document.getElementById('serviceTitle');
-        if (titleElement && this.serviceData.title) {
-            titleElement.textContent = this.serviceData.title;
-        }
-
-        // Actualizar descripción
-        const descElement = document.getElementById('serviceDescription');
-        if (descElement && this.serviceData.description) {
-            descElement.textContent = this.serviceData.description;
-        }
-
-        // Actualizar presupuesto
-        const budgetElement = document.getElementById('serviceBudget');
-        if (budgetElement && this.serviceData.budget) {
-            budgetElement.textContent = `Presupuesto: $${this.serviceData.budget}`;
-        }
-
-        // Actualizar ubicación
-        const locationElement = document.getElementById('serviceLocation');
-        if (locationElement && this.serviceData.location) {
-            locationElement.innerHTML = `<i class="fas fa-map-marker-alt"></i> ${this.serviceData.location}`;
-        }
-
-        // Actualizar estado
-        const statusElement = document.getElementById('serviceStatus');
-        if (statusElement && this.serviceData.status) {
-            statusElement.textContent = this.getStatusText(this.serviceData.status);
-            statusElement.className = `status-badge ${this.serviceData.status}`;
-        }
-    }
 
     getStatusText(status) {
         const statusTexts = {

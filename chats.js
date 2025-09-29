@@ -13,6 +13,8 @@ class ChatsManager {
         this.users = [];
         this.currentFilter = 'all';
         this.searchQuery = '';
+      // Cache de perfiles para resolver alias/apodo sin repetir lecturas
+      this.userProfilesCache = {};
         
         // Notificaciones
         this.notificationPermission = false;
@@ -345,7 +347,7 @@ class ChatsManager {
         const div = document.createElement('div');
         div.className = 'chat-item';
         
-        const otherParticipant = this.getOtherParticipant(chat);
+      const otherParticipant = this.getOtherParticipant(chat);
         const hasUnread = this.hasUnreadMessages(chat);
         
         if (hasUnread) {
@@ -356,7 +358,7 @@ class ChatsManager {
             div.classList.add('archived');
         }
 
-        const lastMessage = chat.lastMessage ? chat.lastMessage.message : 'No hay mensajes';
+      const lastMessage = chat.lastMessage ? chat.lastMessage.message : 'No hay mensajes';
         const lastMessageTime = chat.lastMessage ? 
             this.formatTime(chat.lastMessage.timestamp) : 
             this.formatTime(chat.createdAt);
@@ -366,7 +368,7 @@ class ChatsManager {
                 <i class="fas fa-user"></i>
             </div>
             <div class="chat-info">
-                <h3 class="chat-name">${this.escapeHtml(otherParticipant.name)}</h3>
+              <h3 class="chat-name">${this.escapeHtml(otherParticipant.name || 'Usuario')}</h3>
                 <p class="chat-last-message">${this.escapeHtml(lastMessage)}</p>
             </div>
             <div class="chat-meta">
@@ -378,6 +380,19 @@ class ChatsManager {
             </div>
         `;
 
+      // Resolver alias/apodo desde Firebase y actualizar el nombre mostrado
+      const nameEl = div.querySelector('.chat-name');
+      const fallbackName = otherParticipant.name || 'Usuario';
+      if (nameEl && otherParticipant && otherParticipant.id) {
+          this.getDisplayNameForUser(otherParticipant.id, fallbackName)
+              .then((displayName) => {
+                  nameEl.textContent = displayName;
+              })
+              .catch(() => {
+                  // Mantener fallback silenciosamente
+              });
+      }
+
         // Agregar evento de click
         div.addEventListener('click', () => {
             this.openChat(chat);
@@ -388,7 +403,7 @@ class ChatsManager {
 
     getOtherParticipant(chat) {
         const participants = Object.values(chat.participants);
-        return participants.find(p => p.id !== this.currentUser.id) || { name: 'Usuario', isOnline: false };
+      return participants.find(p => p.id !== this.currentUser.id) || { name: 'Usuario', isOnline: false };
     }
 
     hasUnreadMessages(chat) {
@@ -439,6 +454,48 @@ class ChatsManager {
         } else {
             return 'provider';
         }
+    }
+
+    // ===== PERFIL/ALIAS =====
+    async getDisplayNameForUser(userId, fallbackName = 'Usuario') {
+        try {
+            // Cache primero
+            if (this.userProfilesCache[userId]) {
+                return this.resolveAliasFromProfile(this.userProfilesCache[userId], fallbackName);
+            }
+
+            if (!this.database) return fallbackName;
+            // Intentar bajo users/{userId}/profile
+            const profileRef = this.database.ref(`users/${userId}/profile`);
+            const snap = await profileRef.once('value');
+            let profileData = snap.val();
+            
+            // Fallback: users/{userId}
+            if (!profileData) {
+                const userRootRef = this.database.ref(`users/${userId}`);
+                const rootSnap = await userRootRef.once('value');
+                profileData = rootSnap.val();
+            }
+
+            if (profileData) {
+                this.userProfilesCache[userId] = profileData;
+                return this.resolveAliasFromProfile(profileData, fallbackName);
+            }
+        } catch (e) {
+            // Silencioso; usaremos fallback
+        }
+        return fallbackName;
+    }
+
+    resolveAliasFromProfile(profileData, fallbackName = 'Usuario') {
+        // Soportar múltiples campos posibles para el alias
+        // Estructuras posibles:
+        // - profileData.nickname / alias / apodo
+        // - profileData.userInfo.name (si no hay alias)
+        // - profileData.name
+        const alias = profileData?.nickname || profileData?.alias || profileData?.apodo;
+        const userInfoName = profileData?.userInfo?.name || profileData?.name;
+        return alias || userInfoName || fallbackName;
     }
 
     async searchUsers(query) {

@@ -838,7 +838,10 @@ class DeseoApp {
         // Toggle del sidebar para ocultar/mostrar el menú
         const sidebarToggle = document.getElementById('sidebarToggle');
         if (sidebarToggle) {
-            sidebarToggle.addEventListener('click', () => this.toggleSidebarMenu());
+            sidebarToggle.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevenir que se propague el evento
+                this.toggleSidebarMenu();
+            });
         } else {
             console.warn('⚠️ sidebarToggle not found');
         }
@@ -3915,15 +3918,21 @@ class DeseoApp {
             if (isHidden) {
                 // Mostrar el menú
                 mainNav.classList.remove('hidden');
-                if (isMobile) document.body.classList.add('mobile-menu-open');
-                sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
-                console.log('✅ Sidebar menu shown');
+                if (isMobile) {
+                    document.body.classList.add('mobile-menu-open');
+                    console.log('✅ Sidebar menu shown - móvil');
+                } else {
+                    console.log('✅ Sidebar menu shown - desktop');
+                }
             } else {
                 // Ocultar el menú
                 mainNav.classList.add('hidden');
-                if (isMobile) document.body.classList.remove('mobile-menu-open');
-                sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>'; // Mantener el mismo icono
-                console.log('✅ Sidebar menu hidden');
+                if (isMobile) {
+                    document.body.classList.remove('mobile-menu-open');
+                    console.log('✅ Sidebar menu hidden - móvil');
+                } else {
+                    console.log('✅ Sidebar menu hidden - desktop');
+                }
             }
         } else {
             console.warn('⚠️ main-nav or sidebarToggle not found');
@@ -3943,16 +3952,27 @@ class DeseoApp {
         
         menuLinks.forEach(link => {
             link.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevenir propagación del evento
+                
                 const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
                 
                 if (isMobile) {
-                    console.log('🔍 [DEBUG] Click en enlace móvil:', link.href || link.textContent);
-                    console.log('🔍 [DEBUG] Link href:', link.href);
+                    const href = link.getAttribute('href');
+                    const linkId = link.getAttribute('id');
+                    
+                    console.log('🔍 [DEBUG] Click en enlace móvil:', href || link.textContent);
+                    console.log('🔍 [DEBUG] Link href:', href);
+                    console.log('🔍 [DEBUG] Link ID:', linkId);
                     console.log('🔍 [DEBUG] Link text:', link.textContent.trim());
                     
-                    // Verificar si es un enlace de navegación (no # y no javascript:)
-                    const href = link.getAttribute('href');
-                    if (href && href !== '#' && !href.includes('javascript:')) {
+                    // Manejar diferentes tipos de enlaces
+                    if (linkId === 'authButton') {
+                        console.log('🔍 [DEBUG] Botón de autenticación - no cerrar menú');
+                        // No cerrar el menú para el botón de auth
+                    } else if (linkId === 'themeToggle') {
+                        console.log('🔍 [DEBUG] Botón de tema - no cerrar menú');
+                        // No cerrar el menú para el botón de tema
+                    } else if (href && href !== '#' && !href.includes('javascript:')) {
                         console.log('🔍 [DEBUG] Enlace de navegación detectado, cerrando menú móvil');
                         
                         // Cerrar el menú después de un pequeño delay para permitir la navegación
@@ -3961,7 +3981,6 @@ class DeseoApp {
                         }, 100);
                         
                         // Permitir que el enlace funcione normalmente
-                        // No prevenir el comportamiento por defecto
                     } else {
                         console.log('🔍 [DEBUG] Enlace interno o especial, no cerrando menú');
                     }
@@ -3971,13 +3990,30 @@ class DeseoApp {
 
         console.log('✅ Event listeners configurados para', menuLinks.length, 'enlaces del menú móvil');
         
-        // Añadir event listener para cerrar menú al hacer clic fuera
+        // Añadir event listener para cerrar menú al hacer clic fuera (con delay)
+        let clickOutsideTimeout;
         document.addEventListener('click', (e) => {
             const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-            if (isMobile && !mainNav.contains(e.target) && !document.getElementById('sidebarToggle').contains(e.target)) {
-                if (!mainNav.classList.contains('hidden')) {
-                    console.log('🔍 [DEBUG] Click fuera del menú móvil, cerrando...');
-                    this.closeMobileMenu();
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const mainNav = document.querySelector('.main-nav');
+            
+            // Solo procesar si es móvil y el menú está abierto
+            if (isMobile && mainNav && !mainNav.classList.contains('hidden')) {
+                // Verificar si el click fue fuera del menú y del botón
+                const clickedInsideMenu = mainNav.contains(e.target);
+                const clickedOnToggle = sidebarToggle && sidebarToggle.contains(e.target);
+                
+                if (!clickedInsideMenu && !clickedOnToggle) {
+                    // Limpiar timeout anterior si existe
+                    if (clickOutsideTimeout) {
+                        clearTimeout(clickOutsideTimeout);
+                    }
+                    
+                    // Añadir delay para evitar cierre inmediato
+                    clickOutsideTimeout = setTimeout(() => {
+                        console.log('🔍 [DEBUG] Click fuera del menú móvil, cerrando...');
+                        this.closeMobileMenu();
+                    }, 300); // Aumentar delay a 300ms
                 }
             }
         });

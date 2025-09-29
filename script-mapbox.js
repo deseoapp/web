@@ -63,6 +63,16 @@ class DeseoApp {
         this.currentSlide = 0;
         this.totalSlides = 0;
         this.aiResponses = this.initializeAIResponses();
+        
+        // Alerta de chats sin responder
+        this.unreadChatsCount = 0;
+        this.unreadChatsListener = null;
+        
+        // Notificación de mensajes nuevos
+        this.newMessagesCount = 0;
+        this.newMessagesListener = null;
+        this.allMessages = new Map(); // Cache de mensajes para comparar nuevos
+        
         this.exposeGetTopInterests();
         this.initializeApp();
     }
@@ -709,6 +719,8 @@ class DeseoApp {
             await this.initializeMapbox();
             this.setupEventListeners();
             this.initializeFirebase();
+            this.initializeUnreadChatsAlert();
+            this.initializeNewMessagesNotification();
             
             // Limpiar chats con IDs incorrectos al inicializar
             setTimeout(() => {
@@ -4582,6 +4594,475 @@ class DeseoApp {
         if (typingMessage) {
             typingMessage.remove();
         }
+    }
+
+    // ===== ALERTA DE CHATS SIN RESPONDER =====
+    initializeUnreadChatsAlert() {
+        // Configurar botón para marcar todos como leídos
+        const markAllReadBtn = document.getElementById('markAllReadBtn');
+        if (markAllReadBtn) {
+            markAllReadBtn.addEventListener('click', () => {
+                this.markAllChatsAsRead();
+            });
+        }
+
+        // Solicitar permisos de notificación
+        this.requestNotificationPermission();
+
+        // Iniciar listener de chats sin responder
+        this.setupUnreadChatsListener();
+    }
+
+    setupUnreadChatsListener() {
+        if (!this.database || !this.currentUser) {
+            console.log('⚠️ Firebase o usuario no disponible para alerta de chats');
+            return;
+        }
+
+        // Detener listener anterior si existe
+        if (this.unreadChatsListener) {
+            this.unreadChatsListener.off();
+        }
+
+        console.log('🔍 Configurando listener de chats sin responder...');
+
+        // Escuchar todos los chats del usuario
+        const chatsRef = this.database.ref('chats');
+        this.unreadChatsListener = chatsRef.on('value', (snapshot) => {
+            const chatsData = snapshot.val();
+            console.log('🔍 [DEBUG] Chats data recibida:', chatsData);
+            
+            if (!chatsData) {
+                console.log('🔍 [DEBUG] No hay chats, ocultando alerta');
+                this.updateUnreadChatsAlert(0);
+                return;
+            }
+
+            let unreadCount = 0;
+            const currentUserId = this.currentUser.id;
+            const unreadChats = [];
+
+            console.log('🔍 [DEBUG] Usuario actual ID:', currentUserId);
+
+            // Contar chats sin responder
+            Object.values(chatsData).forEach(chat => {
+                console.log('🔍 [DEBUG] Procesando chat:', chat.id);
+                
+                if (chat.participants && chat.participants[currentUserId]) {
+                    const userParticipant = chat.participants[currentUserId];
+                    console.log('🔍 [DEBUG] Participante del usuario:', userParticipant);
+                    
+                    // Solo contar si el usuario es proveedor (debe responder)
+                    if (userParticipant.role === 'provider') {
+                        console.log('🔍 [DEBUG] Usuario es proveedor, verificando mensajes...');
+                        
+                        // Verificar si hay mensajes sin responder
+                        if (chat.messages) {
+                            const messages = Object.values(chat.messages);
+                            const lastMessage = messages[messages.length - 1];
+                            
+                            console.log('🔍 [DEBUG] Último mensaje:', lastMessage);
+                            
+                            // Si el último mensaje no es del usuario actual y no es del sistema
+                            if (lastMessage && 
+                                lastMessage.senderId !== currentUserId && 
+                                lastMessage.senderId !== 'system' &&
+                                !lastMessage.responded) {
+                                
+                                unreadCount++;
+                                unreadChats.push({
+                                    chatId: chat.id,
+                                    senderName: lastMessage.senderName,
+                                    message: lastMessage.message
+                                });
+                                
+                                console.log('🔍 [DEBUG] Chat sin responder encontrado:', {
+                                    chatId: chat.id,
+                                    senderName: lastMessage.senderName,
+                                    message: lastMessage.message
+                                });
+                                
+                                // Enviar notificación del navegador
+                                this.sendBrowserNotification(lastMessage.senderName, lastMessage.message);
+                            }
+                        }
+                    } else {
+                        console.log('🔍 [DEBUG] Usuario no es proveedor, rol:', userParticipant.role);
+                    }
+                } else {
+                    console.log('🔍 [DEBUG] Usuario no participa en este chat');
+                }
+            });
+
+            console.log('🔍 [DEBUG] Total chats sin responder:', unreadCount);
+            console.log('🔍 [DEBUG] Chats sin responder:', unreadChats);
+            
+            this.updateUnreadChatsAlert(unreadCount);
+        });
+    }
+
+    updateUnreadChatsAlert(count) {
+        const alert = document.getElementById('unreadChatsAlert');
+        const countElement = document.getElementById('unreadChatsCount');
+        
+        console.log('🔍 [DEBUG] Actualizando alerta de chats:', count);
+        console.log('🔍 [DEBUG] Elementos encontrados:', { alert: !!alert, countElement: !!countElement });
+        
+        if (!alert || !countElement) {
+            console.error('❌ Elementos de alerta no encontrados');
+            return;
+        }
+
+        this.unreadChatsCount = count;
+
+        if (count > 0) {
+            countElement.textContent = count;
+            alert.style.display = 'block';
+            
+            console.log('🔍 [DEBUG] Mostrando alerta con', count, 'chats sin responder');
+            
+            // Agregar animación de pulso si hay muchos chats
+            if (count >= 3) {
+                alert.classList.add('pulse');
+            } else {
+                alert.classList.remove('pulse');
+            }
+        } else {
+            alert.style.display = 'none';
+            alert.classList.remove('pulse');
+            console.log('🔍 [DEBUG] Ocultando alerta - no hay chats sin responder');
+        }
+    }
+
+    // Solicitar permisos de notificación del navegador
+    async requestNotificationPermission() {
+        if (!('Notification' in window)) {
+            console.log('❌ Este navegador no soporta notificaciones');
+            return false;
+        }
+
+        if (Notification.permission === 'granted') {
+            return true;
+        }
+
+        if (Notification.permission !== 'denied') {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        }
+
+        return false;
+    }
+
+    // Enviar notificación del navegador
+    async sendBrowserNotification(senderName, message) {
+        try {
+            const hasPermission = await this.requestNotificationPermission();
+            
+            if (!hasPermission) {
+                console.log('⚠️ Permisos de notificación denegados');
+                return;
+            }
+
+            const notification = new Notification('Nuevo mensaje de ' + senderName, {
+                body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+                icon: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                badge: 'https://www.gravatar.com/avatar/?d=mp&f=y',
+                tag: 'deseo-chat',
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Cerrar la notificación después de 5 segundos
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+
+            // Al hacer click en la notificación, abrir la página de chats
+            notification.onclick = () => {
+                window.focus();
+                window.location.href = 'chats.html';
+                notification.close();
+            };
+
+            console.log('✅ Notificación del navegador enviada para:', senderName);
+            
+        } catch (error) {
+            console.error('❌ Error enviando notificación del navegador:', error);
+        }
+    }
+
+    async markAllChatsAsRead() {
+        if (!this.database || !this.currentUser) {
+            console.error('❌ Firebase o usuario no disponible');
+            return;
+        }
+
+        try {
+            const currentUserId = this.currentUser.id;
+            const chatsRef = this.database.ref('chats');
+            const snapshot = await chatsRef.once('value');
+            const chatsData = snapshot.val();
+
+            if (!chatsData) return;
+
+            const updatePromises = [];
+
+            Object.entries(chatsData).forEach(([chatId, chat]) => {
+                if (chat.participants && chat.participants[currentUserId]) {
+                    const userParticipant = chat.participants[currentUserId];
+                    
+                    // Solo marcar como leídos si el usuario es proveedor
+                    if (userParticipant.role === 'provider' && chat.messages) {
+                        const messages = Object.values(chat.messages);
+                        
+                        messages.forEach(message => {
+                            if (message.senderId !== currentUserId && 
+                                message.senderId !== 'system' && 
+                                !message.responded) {
+                                
+                                // Marcar mensaje como respondido
+                                const messageRef = this.database.ref(`chats/${chatId}/messages/${message.id}`);
+                                updatePromises.push(
+                                    messageRef.update({ responded: true, respondedAt: new Date().toISOString() })
+                                );
+                            }
+                        });
+                    }
+                }
+            });
+
+            await Promise.all(updatePromises);
+            
+            this.showNotification('Todos los chats marcados como leídos', 'success');
+            console.log('✅ Todos los chats marcados como leídos');
+            
+        } catch (error) {
+            console.error('❌ Error marcando chats como leídos:', error);
+            this.showNotification('Error al marcar chats como leídos', 'error');
+        }
+    }
+
+    // ===== NOTIFICACIÓN DE MENSAJES NUEVOS =====
+    initializeNewMessagesNotification() {
+        console.log('🔍 [DEBUG] Inicializando notificación de mensajes nuevos...');
+        
+        const notificationElement = document.getElementById('newMessagesNotification');
+        if (!notificationElement) {
+            console.error('❌ Elemento newMessagesNotification no encontrado');
+            return;
+        }
+
+        // Event listener para click en la notificación
+        notificationElement.addEventListener('click', () => {
+            console.log('🔍 [DEBUG] Click en notificación de mensajes nuevos');
+            this.markNewMessagesAsRead();
+        });
+
+        // Cargar mensajes existentes y establecer listener
+        this.loadAllMessages();
+        this.setupNewMessagesListener();
+        
+        // Función de prueba temporal (eliminar en producción)
+        this.addTestButton();
+        
+        console.log('✅ [DEBUG] Notificación de mensajes nuevos inicializada');
+    }
+
+    async loadAllMessages() {
+        if (!this.database || !this.currentUser) return;
+
+        try {
+            const chatsRef = this.database.ref('chats');
+            const snapshot = await chatsRef.once('value');
+            const chatsData = snapshot.val();
+
+            if (!chatsData) return;
+
+            const currentUserId = this.currentUser.id;
+            let initialNewMessagesCount = 0;
+
+            console.log('🔍 [DEBUG] Cargando mensajes existentes...');
+
+            // Cargar todos los mensajes de chats donde participa el usuario
+            Object.entries(chatsData).forEach(([chatId, chat]) => {
+                if (chat.participants && chat.participants[currentUserId]) {
+                    if (chat.messages) {
+                        Object.values(chat.messages).forEach(message => {
+                            this.allMessages.set(message.id, message);
+                            
+                            // Si es un mensaje que no es del usuario actual y no es del sistema,
+                            // considerarlo como "nuevo" inicialmente
+                            if (message.senderId !== currentUserId && 
+                                message.senderId !== 'system') {
+                                initialNewMessagesCount++;
+                            }
+                        });
+                    }
+                }
+            });
+
+            console.log('🔍 [DEBUG] Mensajes cargados:', this.allMessages.size);
+            console.log('🔍 [DEBUG] Mensajes nuevos iniciales detectados:', initialNewMessagesCount);
+
+            // Si hay mensajes nuevos iniciales, mostrar la notificación
+            if (initialNewMessagesCount > 0) {
+                this.newMessagesCount = initialNewMessagesCount;
+                this.updateNewMessagesNotification(this.newMessagesCount);
+            }
+        } catch (error) {
+            console.error('❌ Error cargando mensajes:', error);
+        }
+    }
+
+    setupNewMessagesListener() {
+        if (!this.database || !this.currentUser) {
+            console.error('❌ Firebase o usuario no disponible');
+            return;
+        }
+
+        // Limpiar listener anterior si existe
+        if (this.newMessagesListener) {
+            this.newMessagesListener.off();
+        }
+
+        const chatsRef = this.database.ref('chats');
+
+        this.newMessagesListener = chatsRef.on('value', (snapshot) => {
+            const chatsData = snapshot.val();
+            
+            if (!chatsData) {
+                this.updateNewMessagesNotification(0);
+                return;
+            }
+
+            console.log('🔍 [DEBUG] Verificando mensajes nuevos en chats...');
+            
+            let newMessagesCount = 0;
+            const currentUserId = this.currentUser.id;
+
+            Object.values(chatsData).forEach(chat => {
+                if (chat.participants && chat.participants[currentUserId]) {
+                    if (chat.messages) {
+                        const messages = Object.values(chat.messages);
+                        
+                        messages.forEach(message => {
+                            const messageId = message.id;
+                            const previouslyKnown = this.allMessages.has(messageId);
+                            
+                            // Si es un mensaje nuevo Y no es del usuario actual Y no es del sistema
+                            if (!previouslyKnown && 
+                                message.senderId !== currentUserId && 
+                                message.senderId !== 'system') {
+                                console.log('🔍 [DEBUG] Nuevo mensaje detectado:', message);
+                                console.log('🔍 [DEBUG] - Chat ID:', chat.id);
+                                console.log('🔍 [DEBUG] - Sender ID:', message.senderId);
+                                console.log('🔍 [DEBUG] - Current User ID:', currentUserId);
+                                console.log('🔍 [DEBUG] - Message:', message.message);
+                                newMessagesCount++;
+                            }
+                            
+                            // Actualizar cache
+                            this.allMessages.set(messageId, message);
+                        });
+                    }
+                }
+            });
+
+            console.log('🔍 [DEBUG] Mensajes nuevos encontrados en esta verificación:', newMessagesCount);
+            console.log('🔍 [DEBUG] Total mensajes en cache:', this.allMessages.size);
+
+            if (newMessagesCount > 0) {
+                this.newMessagesCount += newMessagesCount;
+                console.log('🔍 [DEBUG] Total mensajes nuevos acumulados:', this.newMessagesCount);
+                this.updateNewMessagesNotification(this.newMessagesCount);
+            }
+        });
+    }
+
+    updateNewMessagesNotification(count) {
+        const notificationElement = document.getElementById('newMessagesNotification');
+        const countElement = document.getElementById('newMessagesCount');
+
+        if (!notificationElement || !countElement) {
+            console.error('❌ Elementos de notificación no encontrados');
+            return;
+        }
+
+        if (count > 0) {
+            countElement.textContent = count;
+            notificationElement.style.display = 'block';
+            
+            // Añadir animación de pulso si hay 3 o más mensajes nuevos
+            if (count >= 3) {
+                notificationElement.classList.add('pulse');
+                setTimeout(() => {
+                    notificationElement.classList.remove('pulse');
+                }, 2000);
+            }
+            
+            console.log('🔍 [DEBUG] Notificación mostrada con', count, 'mensajes nuevos');
+        } else {
+            notificationElement.style.display = 'none';
+            notificationElement.classList.remove('pulse');
+            console.log('🔍 [DEBUG] Notificación ocultada');
+        }
+    }
+
+    markNewMessagesAsRead() {
+        console.log('🔍 [DEBUG] Marcando todos los mensajes nuevos como leídos...');
+        
+        const notificationElement = document.getElementById('newMessagesNotification');
+        if (notificationElement) {
+            notificationElement.style.display = 'none';
+            notificationElement.classList.remove('pulse');
+        }
+
+        // Limpiar el cache de mensajes conocidos para que los mensajes actuales
+        // no se consideren "nuevos" en futuras verificaciones
+        this.allMessages.clear();
+        
+        // Recargar mensajes para establecer nueva línea base
+        this.loadAllMessages();
+
+        this.newMessagesCount = 0;
+        
+        this.showNotification('Mensajes marcados como leídos', 'success');
+        console.log('✅ [DEBUG] Mensajes nuevos marcados como leídos');
+    }
+
+    // Función de prueba temporal (eliminar en producción)
+    addTestButton() {
+        // Crear botón de prueba temporal
+        const testButton = document.createElement('button');
+        testButton.innerHTML = '🧪 Test Notificación';
+        testButton.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 9999;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        `;
+        
+        testButton.addEventListener('click', () => {
+            console.log('🧪 [TEST] Simulando mensaje nuevo...');
+            this.newMessagesCount += 1;
+            this.updateNewMessagesNotification(this.newMessagesCount);
+        });
+
+        document.body.appendChild(testButton);
+        
+        // Eliminar botón después de 30 segundos
+        setTimeout(() => {
+            if (testButton.parentNode) {
+                testButton.parentNode.removeChild(testButton);
+            }
+        }, 30000);
     }
 }
 

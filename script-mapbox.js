@@ -4879,9 +4879,8 @@ class DeseoApp {
             if (!chatsData) return;
 
             const currentUserId = this.currentUser.id;
-            let initialNewMessagesCount = 0;
 
-            console.log('🔍 [DEBUG] Cargando mensajes existentes...');
+            console.log('🔍 [DEBUG] Cargando mensajes existentes para establecer línea base...');
 
             // Cargar todos los mensajes de chats donde participa el usuario
             Object.entries(chatsData).forEach(([chatId, chat]) => {
@@ -4889,26 +4888,13 @@ class DeseoApp {
                     if (chat.messages) {
                         Object.values(chat.messages).forEach(message => {
                             this.allMessages.set(message.id, message);
-                            
-                            // Si es un mensaje que no es del usuario actual y no es del sistema,
-                            // considerarlo como "nuevo" inicialmente
-                            if (message.senderId !== currentUserId && 
-                                message.senderId !== 'system') {
-                                initialNewMessagesCount++;
-                            }
                         });
                     }
                 }
             });
 
-            console.log('🔍 [DEBUG] Mensajes cargados:', this.allMessages.size);
-            console.log('🔍 [DEBUG] Mensajes nuevos iniciales detectados:', initialNewMessagesCount);
-
-            // Si hay mensajes nuevos iniciales, mostrar la notificación
-            if (initialNewMessagesCount > 0) {
-                this.newMessagesCount = initialNewMessagesCount;
-                this.updateNewMessagesNotification(this.newMessagesCount);
-            }
+            console.log('🔍 [DEBUG] Mensajes cargados en cache:', this.allMessages.size);
+            console.log('🔍 [DEBUG] Línea base establecida - solo nuevos mensajes activarán notificación');
         } catch (error) {
             console.error('❌ Error cargando mensajes:', error);
         }
@@ -5004,7 +4990,7 @@ class DeseoApp {
         } else {
             notificationElement.style.display = 'none';
             notificationElement.classList.remove('pulse');
-            console.log('🔍 [DEBUG] Notificación ocultada');
+            console.log('🔍 [DEBUG] Notificación ocultada - contador en 0');
         }
     }
 
@@ -5024,10 +5010,11 @@ class DeseoApp {
         // Recargar mensajes para establecer nueva línea base
         this.loadAllMessages();
 
+        // Resetear contador a 0
         this.newMessagesCount = 0;
         
         this.showNotification('Mensajes marcados como leídos', 'success');
-        console.log('✅ [DEBUG] Mensajes nuevos marcados como leídos');
+        console.log('✅ [DEBUG] Mensajes nuevos marcados como leídos - contador en 0');
     }
 
     // Función de prueba temporal (eliminar en producción)
@@ -5053,6 +5040,7 @@ class DeseoApp {
             console.log('🧪 [TEST] Simulando mensaje nuevo...');
             this.newMessagesCount += 1;
             this.updateNewMessagesNotification(this.newMessagesCount);
+            console.log('🧪 [TEST] Contador actual:', this.newMessagesCount);
         });
 
         document.body.appendChild(testButton);

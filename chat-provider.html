@@ -79,46 +79,50 @@
         
         <!-- Acciones rápidas para proveedores -->
         <div class="quick-actions" id="quickActions">
-            <button class="quick-action-btn" data-action="quote">
-                <i class="fas fa-dollar-sign"></i>
-                <span>Cotizar</span>
+            <button class="quick-action-btn" data-action="respond">
+                <i class="fas fa-reply"></i>
+                <span>Responder</span>
             </button>
-            <button class="quick-action-btn" data-action="schedule">
-                <i class="fas fa-calendar"></i>
-                <span>Agendar</span>
+            <button class="quick-action-btn" data-action="paid-photo">
+                <i class="fas fa-image"></i>
+                <span>Foto pagada</span>
             </button>
-            <button class="quick-action-btn" data-action="location">
-                <i class="fas fa-map-marker-alt"></i>
-                <span>Ubicación</span>
+            <button class="quick-action-btn" data-action="offer-service">
+                <i class="fas fa-briefcase"></i>
+                <span>Ofrecer servicio</span>
             </button>
-            <button class="quick-action-btn" data-action="complete">
-                <i class="fas fa-check-circle"></i>
-                <span>Completar</span>
+            <button class="quick-action-btn" data-action="tips">
+                <i class="fas fa-hand-holding-usd"></i>
+                <span>Propinas</span>
+            </button>
+            <button class="quick-action-btn" data-action="client-balance">
+                <i class="fas fa-wallet"></i>
+                <span>Balance cliente</span>
             </button>
         </div>
     </footer>
 
-    <!-- Modal para cotización -->
-    <div class="modal" id="quoteModal">
+    <!-- Modal: Ofrecer servicio -->
+    <div class="modal" id="offerServiceModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Enviar Cotización</h2>
-                <button class="close-btn" onclick="closeModal('quoteModal')">
+                <h2>Ofrecer Servicio</h2>
+                <button class="close-btn" onclick="closeModal('offerServiceModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="quoteAmount">Precio del servicio</label>
-                    <input type="number" id="quoteAmount" placeholder="0.00" step="0.01" min="0">
+                    <label for="offerPrice">Precio del servicio</label>
+                    <input type="number" id="offerPrice" placeholder="0" step="1" min="0">
                 </div>
                 <div class="form-group">
-                    <label for="quoteDescription">Descripción de la cotización</label>
-                    <textarea id="quoteDescription" placeholder="Detalla qué incluye tu servicio..." rows="4"></textarea>
+                    <label for="offerDescription">Descripción</label>
+                    <textarea id="offerDescription" placeholder="Detalla qué incluye tu servicio..." rows="4"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="quoteTime">Tiempo estimado</label>
-                    <select id="quoteTime">
+                    <label for="offerTime">Tiempo estimado</label>
+                    <select id="offerTime">
                         <option value="">Selecciona tiempo</option>
                         <option value="30min">30 minutos</option>
                         <option value="1h">1 hora</option>
@@ -130,42 +134,34 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('quoteModal')">Cancelar</button>
-                <button class="btn-primary" id="sendQuoteBtn">Enviar Cotización</button>
+                <button class="btn-secondary" onclick="closeModal('offerServiceModal')">Cancelar</button>
+                <button class="btn-primary" id="sendOfferServiceBtn">Enviar Oferta</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal para agendar -->
-    <div class="modal" id="scheduleModal">
+    <!-- Modal: Foto pagada -->
+    <div class="modal" id="paidPhotoModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Agendar Servicio</h2>
-                <button class="close-btn" onclick="closeModal('scheduleModal')">
+                <h2>Enviar Foto Pagada</h2>
+                <button class="close-btn" onclick="closeModal('paidPhotoModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="scheduleDate">Fecha</label>
-                    <input type="date" id="scheduleDate">
+                    <label for="paidPhotoPrice">Precio</label>
+                    <input type="number" id="paidPhotoPrice" placeholder="0" min="0" step="1">
                 </div>
                 <div class="form-group">
-                    <label for="scheduleTime">Hora</label>
-                    <input type="time" id="scheduleTime">
-                </div>
-                <div class="form-group">
-                    <label for="scheduleLocation">Ubicación</label>
-                    <input type="text" id="scheduleLocation" placeholder="Dirección o lugar de encuentro">
-                </div>
-                <div class="form-group">
-                    <label for="scheduleNotes">Notas adicionales</label>
-                    <textarea id="scheduleNotes" placeholder="Información adicional..." rows="3"></textarea>
+                    <label for="paidPhotoFile">Imagen</label>
+                    <input type="file" id="paidPhotoFile" accept="image/*">
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('scheduleModal')">Cancelar</button>
-                <button class="btn-primary" id="sendScheduleBtn">Enviar Propuesta</button>
+                <button class="btn-secondary" onclick="closeModal('paidPhotoModal')">Cancelar</button>
+                <button class="btn-primary" id="sendPaidPhotoBtn">Enviar Foto</button>
             </div>
         </div>
     </div>

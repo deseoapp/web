@@ -149,6 +149,18 @@ class ChatClient {
             sendRateBtn.addEventListener('click', () => this.sendRating());
         }
 
+        // Modal: Propina
+        const sendTipBtn = document.getElementById('sendTipBtn');
+        if (sendTipBtn) {
+            sendTipBtn.addEventListener('click', () => this.sendTip());
+        }
+
+        // Modal: Solicitar servicio
+        const sendRequestServiceBtn = document.getElementById('sendRequestServiceBtn');
+        if (sendRequestServiceBtn) {
+            sendRequestServiceBtn.addEventListener('click', () => this.sendServiceRequest());
+        }
+
         // Estrellas de calificación
         const stars = document.querySelectorAll('#starRating i');
         stars.forEach((star, index) => {
@@ -248,6 +260,12 @@ class ChatClient {
         if (!message || !this.database || !this.chatId) return;
 
         try {
+            // Cobro por mensaje de cliente: 100
+            const canCharge = await this.chargeClient(100, 'message');
+            if (!canCharge) {
+                this.showError('Saldo insuficiente para enviar mensaje.');
+                return;
+            }
             const messageData = {
                 id: Date.now().toString(),
                 senderId: this.currentUser.id,
@@ -274,6 +292,142 @@ class ChatClient {
             console.error('❌ Error enviando mensaje:', error);
             this.showError('Error enviando mensaje');
         }
+    }
+
+    async sendTip() {
+        const amountEl = document.getElementById('tipAmount');
+        const noteEl = document.getElementById('tipNote');
+        const amount = parseInt(amountEl && amountEl.value ? amountEl.value : '0', 10);
+        const note = noteEl && noteEl.value ? noteEl.value.trim() : '';
+        if (!amount || amount <= 0) { this.showError('Monto inválido'); return; }
+        if (!this.database || !this.chatId) return;
+        try {
+            const ok = await this.chargeClient(amount, 'tip');
+            if (!ok) { this.showError('Saldo insuficiente para propina.'); return; }
+            const messageData = {
+                id: `tip_${Date.now()}`,
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.name,
+                message: `Propina enviada: ${amount} pesos${note ? ' - ' + note : ''}`,
+                timestamp: new Date().toISOString(),
+                type: 'tip',
+                amount: amount
+            };
+            await this.database.ref(`chats/${this.chatId}/messages/${messageData.id}`).set(messageData);
+            this.closeModalSafe('tipModal');
+        } catch (e) {
+            console.error('❌ Error enviando propina:', e);
+        }
+    }
+
+    async sendServiceRequest() {
+        const title = (document.getElementById('reqTitle') || {}).value || '';
+        const description = (document.getElementById('reqDescription') || {}).value || '';
+        const budgetStr = (document.getElementById('reqBudget') || {}).value || '0';
+        const when = (document.getElementById('reqWhen') || {}).value || '';
+        const budget = parseInt(budgetStr, 10) || 0;
+        if (!title.trim()) { this.showError('Título requerido'); return; }
+        if (!this.database || !this.chatId) return;
+        try {
+            const reqId = `request_${Date.now()}`;
+            const payload = {
+                id: reqId,
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.name,
+                type: 'service_request',
+                title: title.trim(),
+                description: description.trim(),
+                budget: budget,
+                when,
+                timestamp: new Date().toISOString()
+            };
+            await this.database.ref(`chats/${this.chatId}/messages/${reqId}`).set(payload);
+            this.closeModalSafe('requestServiceModal');
+        } catch (e) {
+            console.error('❌ Error solicitando servicio:', e);
+        }
+    }
+
+    async handleQuickAction(action) {
+        switch (action) {
+            case 'tip':
+                this.openModal('tipModal');
+                break;
+            case 'request':
+                this.openModal('requestServiceModal');
+                break;
+            case 'favorite':
+                await this.toggleFavorite(true);
+                break;
+            case 'report':
+                this.openModal('reportModal');
+                break;
+            default:
+                // Acciones existentes
+                break;
+        }
+    }
+
+    async toggleFavorite(state) {
+        if (!this.database || !this.chatId) return;
+        try {
+            await this.database.ref(`chats/${this.chatId}/favorites/${this.currentUser.id}`).set(!!state);
+            this.showNotification(state ? 'Añadido a favoritos' : 'Eliminado de favoritos', 'success');
+        } catch (e) {
+            console.error('❌ Error guardando favorito:', e);
+        }
+    }
+
+    async sendReport() {
+        const reason = (document.getElementById('reportReason') || {}).value || 'otro';
+        const details = (document.getElementById('reportDetails') || {}).value || '';
+        if (!this.database || !this.chatId) return;
+        try {
+            const reportId = `report_${Date.now()}`;
+            await this.database.ref(`chats/${this.chatId}/reports/${reportId}`).set({
+                by: this.currentUser.id,
+                reason,
+                details,
+                timestamp: new Date().toISOString()
+            });
+            this.closeModalSafe('reportModal');
+            this.showNotification('Reporte enviado', 'success');
+        } catch (e) {
+            console.error('❌ Error enviando reporte:', e);
+        }
+    }
+
+    // Simulación de cobro contra saldo del cliente (placeholder)
+    async chargeClient(amount, reason) {
+        try {
+            const balanceRef = this.database.ref(`wallet/${this.currentUser.id}/balance`);
+            const snap = await balanceRef.once('value');
+            const current = parseInt(snap.val() || '0', 10);
+            if (current < amount) return false;
+            await balanceRef.set(current - amount);
+            const txId = `tx_${Date.now()}`;
+            await this.database.ref(`wallet/${this.currentUser.id}/transactions/${txId}`).set({
+                id: txId,
+                type: 'debit',
+                reason,
+                amount,
+                timestamp: new Date().toISOString()
+            });
+            return true;
+        } catch (e) {
+            console.error('❌ Error cobrando al cliente:', e);
+            return false;
+        }
+    }
+
+    openModal(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    }
+
+    closeModalSafe(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     }
 
     handleTyping() {

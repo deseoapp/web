@@ -119,16 +119,14 @@ class ChatProvider {
             });
         });
 
-        // Botones de servicio
-        const acceptBtn = document.getElementById('acceptServiceBtn');
-        const declineBtn = document.getElementById('declineServiceBtn');
-        
-        if (acceptBtn) {
-            acceptBtn.addEventListener('click', () => this.acceptService());
+        // Acciones nuevas proveedor
+        const sendOfferServiceBtn = document.getElementById('sendOfferServiceBtn');
+        if (sendOfferServiceBtn) {
+            sendOfferServiceBtn.addEventListener('click', () => this.sendOfferService());
         }
-        
-        if (declineBtn) {
-            declineBtn.addEventListener('click', () => this.declineService());
+        const sendPaidPhotoBtn = document.getElementById('sendPaidPhotoBtn');
+        if (sendPaidPhotoBtn) {
+            sendPaidPhotoBtn.addEventListener('click', () => this.sendPaidPhoto());
         }
 
         // Modales
@@ -139,17 +137,7 @@ class ChatProvider {
     }
 
     setupModalListeners() {
-        // Modal de cotización
-        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-        if (sendQuoteBtn) {
-            sendQuoteBtn.addEventListener('click', () => this.sendQuote());
-        }
-
-        // Modal de agendar
-        const sendScheduleBtn = document.getElementById('sendScheduleBtn');
-        if (sendScheduleBtn) {
-            sendScheduleBtn.addEventListener('click', () => this.sendSchedule());
-        }
+        // No-op aquí; listeners arriba
     }
 
     async loadMessages() {
@@ -238,6 +226,98 @@ class ChatProvider {
             console.error('❌ Error enviando mensaje:', error);
             this.showError('Error enviando mensaje');
         }
+    }
+
+    async handleQuickAction(action) {
+        switch (action) {
+            case 'respond':
+                // Responder: foco al input
+                const input = document.getElementById('messageInput');
+                if (input) input.focus();
+                break;
+            case 'paid-photo':
+                this.openModal('paidPhotoModal');
+                break;
+            case 'offer-service':
+                this.openModal('offerServiceModal');
+                break;
+            case 'client-balance':
+                await this.viewClientBalance();
+                break;
+            default:
+                break;
+        }
+    }
+
+    async viewClientBalance() {
+        if (!this.database || !this.otherUserId) return;
+        try {
+            const balanceRef = this.database.ref(`wallet/${this.otherUserId}/balance`);
+            const snap = await balanceRef.once('value');
+            const balance = parseInt(snap.val() || '0', 10);
+            this.showNotification(`Balance del cliente: ${balance} pesos`, 'info');
+        } catch (e) {
+            console.error('❌ Error consultando balance del cliente:', e);
+            this.showError('No se pudo obtener el balance del cliente');
+        }
+    }
+
+    async sendOfferService() {
+        const priceStr = (document.getElementById('offerPrice') || {}).value || '0';
+        const description = (document.getElementById('offerDescription') || {}).value || '';
+        const time = (document.getElementById('offerTime') || {}).value || '';
+        const price = parseInt(priceStr, 10) || 0;
+        if (!this.database || !this.chatId) return;
+        try {
+            const msgId = `offer_${Date.now()}`;
+            await this.database.ref(`chats/${this.chatId}/messages/${msgId}`).set({
+                id: msgId,
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.name,
+                type: 'service_offer',
+                price,
+                description: description.trim(),
+                time,
+                timestamp: new Date().toISOString()
+            });
+            this.closeModalSafe('offerServiceModal');
+        } catch (e) {
+            console.error('❌ Error enviando oferta:', e);
+        }
+    }
+
+    async sendPaidPhoto() {
+        const priceStr = (document.getElementById('paidPhotoPrice') || {}).value || '0';
+        const fileInput = document.getElementById('paidPhotoFile');
+        const price = parseInt(priceStr, 10) || 0;
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) { this.showError('Selecciona una imagen'); return; }
+        if (!this.database || !this.chatId) return;
+        try {
+            // Placeholder: no subimos archivo real, solo metadatos
+            const msgId = `photo_${Date.now()}`;
+            await this.database.ref(`chats/${this.chatId}/messages/${msgId}`).set({
+                id: msgId,
+                senderId: this.currentUser.id,
+                senderName: this.currentUser.name,
+                type: 'paid_photo',
+                price,
+                fileName: fileInput.files[0].name,
+                timestamp: new Date().toISOString()
+            });
+            this.closeModalSafe('paidPhotoModal');
+        } catch (e) {
+            console.error('❌ Error enviando foto pagada:', e);
+        }
+    }
+
+    openModal(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    }
+
+    closeModalSafe(id) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     }
 
     handleTyping() {

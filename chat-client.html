@@ -79,6 +79,23 @@
         
         <!-- Acciones rápidas para clientes -->
         <div class="quick-actions" id="quickActions">
+            <!-- Monetización base: mensaje (100) se cobra en JS antes de enviar -->
+            <button class="quick-action-btn" data-action="tip">
+                <i class="fas fa-money-bill-wave"></i>
+                <span>Propina</span>
+            </button>
+            <button class="quick-action-btn" data-action="request">
+                <i class="fas fa-handshake"></i>
+                <span>Solicitar servicio</span>
+            </button>
+            <button class="quick-action-btn" data-action="favorite">
+                <i class="fas fa-heart"></i>
+                <span>Favorito</span>
+            </button>
+            <button class="quick-action-btn" data-action="report">
+                <i class="fas fa-flag"></i>
+                <span>Reportar</span>
+            </button>
             <button class="quick-action-btn" data-action="urgent">
                 <i class="fas fa-exclamation-triangle"></i>
                 <span>Urgente</span>
@@ -151,6 +168,97 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('cancelModal')">No cancelar</button>
                 <button class="btn-danger" id="confirmCancelBtn">Sí, cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Propina -->
+    <div class="modal" id="tipModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enviar Propina</h2>
+                <button class="close-btn" onclick="closeModal('tipModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="tipAmount">Monto</label>
+                    <input type="number" id="tipAmount" placeholder="0" min="1" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="tipNote">Nota (opcional)</label>
+                    <input type="text" id="tipNote" placeholder="Gracias por tu atención...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('tipModal')">Cancelar</button>
+                <button class="btn-primary" id="sendTipBtn">Enviar Propina</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Solicitar servicio -->
+    <div class="modal" id="requestServiceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Solicitar Servicio</h2>
+                <button class="close-btn" onclick="closeModal('requestServiceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="reqTitle">Título</label>
+                    <input type="text" id="reqTitle" placeholder="Título del servicio">
+                </div>
+                <div class="form-group">
+                    <label for="reqDescription">Descripción</label>
+                    <textarea id="reqDescription" rows="4" placeholder="Describe lo que necesitas..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="reqBudget">Presupuesto</label>
+                    <input type="number" id="reqBudget" placeholder="0" min="0" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="reqWhen">¿Cuándo?</label>
+                    <input type="datetime-local" id="reqWhen">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('requestServiceModal')">Cancelar</button>
+                <button class="btn-primary" id="sendRequestServiceBtn">Solicitar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Reportar -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reportar</h2>
+                <button class="close-btn" onclick="closeModal('reportModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="reportReason">Motivo</label>
+                    <select id="reportReason">
+                        <option value="spam">Spam</option>
+                        <option value="abuso">Abuso</option>
+                        <option value="fraude">Fraude</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reportDetails">Detalles</label>
+                    <textarea id="reportDetails" rows="3" placeholder="Describe lo ocurrido..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('reportModal')">Cancelar</button>
+                <button class="btn-danger" id="sendReportBtn">Enviar Reporte</button>
             </div>
         </div>
     </div>

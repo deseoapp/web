@@ -157,7 +157,8 @@ class ChatProvider {
             if (!this.database || !this.otherUserId) return;
             const badge = document.getElementById('clientBalanceBadge');
             // Path real: users/{id}/balance, con fallback a wallet/{id}/balance
-            let snap = await this.database.ref(`users/${this.otherUserId}/balance`).once('value');
+            const balanceRef = this.database.ref(`users/${this.otherUserId}/balance`);
+            let snap = await balanceRef.once('value');
             let balanceValue = snap.val();
             if (balanceValue === null || balanceValue === undefined) {
                 const alt = await this.database.ref(`wallet/${this.otherUserId}/balance`).once('value');
@@ -168,6 +169,11 @@ class ChatProvider {
                 badge.textContent = `${balance} pesos`;
                 badge.style.display = 'inline-block';
             }
+            // Suscribirse a cambios en tiempo real
+            balanceRef.on('value', (s) => {
+                const val = parseInt((s && s.val()) || '0', 10);
+                if (badge) badge.textContent = `${val} pesos`;
+            });
         } catch (e) {
             console.warn('No se pudo cargar balance del cliente:', e);
         }

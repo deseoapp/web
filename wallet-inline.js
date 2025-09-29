@@ -21,9 +21,11 @@ class InlineWalletManager {
         
         await this.loadBalance();
         await this.loadTransactions();
+        await this.loadMicrotransactions();
         this.initializeTheme();
         this.renderBalance();
         this.renderTransactions();
+        this.renderMicrotransactions();
         this.setupEventListeners();
         
         // Configurar limpieza al cerrar la página
@@ -458,7 +460,7 @@ class InlineWalletManager {
                 filterTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 const filter = tab.getAttribute('data-filter');
-                this.renderTransactions(filter);
+                this.applyFilter(filter);
             });
         });
 
@@ -489,6 +491,65 @@ class InlineWalletManager {
                 this.handleWithdraw();
             });
         }
+    }
+
+    applyFilter(filter) {
+        const txList = document.getElementById('transactionsList');
+        const microList = document.getElementById('microtransactionsList');
+        if (!txList || !microList) return;
+        if (filter === 'micro') {
+            txList.style.display = 'none';
+            microList.style.display = 'block';
+            this.renderMicrotransactions();
+        } else {
+            microList.style.display = 'none';
+            txList.style.display = 'block';
+            this.renderTransactions(filter);
+        }
+    }
+
+    async loadMicrotransactions() {
+        try {
+            const userId = this.getCurrentUserId();
+            if (!userId || !this.database) { this.microtransactions = []; return; }
+            const ref = this.database.ref(`users/${userId}/microtransactions`);
+            const snap = await ref.once('value');
+            const data = snap.val();
+            this.microtransactions = data ? Object.values(data).sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp)) : [];
+            // Listener en tiempo real
+            ref.on('value', (s) => {
+                const d = s.val();
+                this.microtransactions = d ? Object.values(d).sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp)) : [];
+                this.renderMicrotransactions();
+            });
+        } catch (e) {
+            console.error('❌ Error cargando microtransacciones:', e);
+            this.microtransactions = [];
+        }
+    }
+
+    renderMicrotransactions() {
+        const container = document.getElementById('microtransactionsList');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!this.microtransactions || this.microtransactions.length === 0) {
+            container.innerHTML = '<p style="padding: 12px; color: #888;">No hay microtransacciones</p>';
+            return;
+        }
+        this.microtransactions.forEach((m) => {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            const sign = m.direction === 'in' ? '+' : '-';
+            const color = m.direction === 'in' ? '#4CAF50' : '#f44336';
+            item.innerHTML = `
+                <div class="transaction-info">
+                    <div class="transaction-title">Mensaje (${m.reason})</div>
+                    <div class="transaction-date">${this.formatDate(m.timestamp)}</div>
+                </div>
+                <div class="transaction-amount" style="color:${color};">${sign}${m.amount}</div>
+            `;
+            container.appendChild(item);
+        });
     }
 
     async handleAddMoney() {

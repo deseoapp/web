@@ -1519,7 +1519,7 @@ body.wallet-page .header {
     top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 1001;
+    z-index: 10002; /* Por encima del sidebar móvil */
     background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-lg);
@@ -1706,7 +1706,7 @@ body.wallet-page .header {
 
 @media (max-width: 768px) {
     .new-messages-notification {
-        top: 10px;
+        top: 70px; /* Por debajo del header del sidebar móvil */
         max-width: 240px;
         min-width: 180px;
     }
@@ -1731,7 +1731,7 @@ body.wallet-page .header {
 
 @media (max-width: 480px) {
     .new-messages-notification {
-        top: 5px;
+        top: 70px; /* Por debajo del header del sidebar móvil */
         max-width: 200px;
         min-width: 160px;
     }

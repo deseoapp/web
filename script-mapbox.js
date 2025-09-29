@@ -843,6 +843,9 @@ class DeseoApp {
             console.warn('⚠️ sidebarToggle not found');
         }
 
+        // Event listeners para cerrar menú móvil al hacer clic en enlaces
+        this.setupMobileMenuLinks();
+
         const authButton = document.getElementById('authButton');
         if (authButton) {
             authButton.addEventListener('click', () => {
@@ -3927,6 +3930,49 @@ class DeseoApp {
         }
     }
 
+    // ===== CONFIGURACIÓN DE ENLACES DEL MENÚ MÓVIL =====
+    setupMobileMenuLinks() {
+        const mainNav = document.querySelector('.main-nav');
+        if (!mainNav) {
+            console.warn('⚠️ main-nav not found for mobile menu links');
+            return;
+        }
+
+        // Obtener todos los enlaces del menú
+        const menuLinks = mainNav.querySelectorAll('a');
+        
+        menuLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+                
+                if (isMobile) {
+                    console.log('🔍 [DEBUG] Click en enlace móvil:', link.href || link.textContent);
+                    
+                    // Si es un enlace interno (no #), cerrar el menú móvil
+                    if (link.href && !link.href.includes('#') && !link.href.includes('javascript:')) {
+                        console.log('🔍 [DEBUG] Cerrando menú móvil para navegación');
+                        this.closeMobileMenu();
+                    }
+                }
+            });
+        });
+
+        console.log('✅ Event listeners configurados para', menuLinks.length, 'enlaces del menú móvil');
+    }
+
+    // ===== CERRAR MENÚ MÓVIL =====
+    closeMobileMenu() {
+        const mainNav = document.querySelector('.main-nav');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        
+        if (mainNav && sidebarToggle) {
+            mainNav.classList.add('hidden');
+            document.body.classList.remove('mobile-menu-open');
+            sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
+            console.log('✅ Menú móvil cerrado');
+        }
+    }
+
     // ===== INICIALIZACIÓN DE FIREBASE =====
     initializeFirebase() {
         console.log('🔍 [DEBUG] Iniciando Firebase...');
@@ -4862,9 +4908,6 @@ class DeseoApp {
         this.loadAllMessages();
         this.setupNewMessagesListener();
         
-        // Función de prueba temporal (eliminar en producción)
-        this.addTestButton();
-        
         console.log('✅ [DEBUG] Notificación de mensajes nuevos inicializada');
     }
 
@@ -5015,42 +5058,6 @@ class DeseoApp {
         
         this.showNotification('Mensajes marcados como leídos', 'success');
         console.log('✅ [DEBUG] Mensajes nuevos marcados como leídos - contador en 0');
-    }
-
-    // Función de prueba temporal (eliminar en producción)
-    addTestButton() {
-        // Crear botón de prueba temporal
-        const testButton = document.createElement('button');
-        testButton.innerHTML = '🧪 Test Notificación';
-        testButton.style.cssText = `
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 9999;
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        `;
-        
-        testButton.addEventListener('click', () => {
-            console.log('🧪 [TEST] Simulando mensaje nuevo...');
-            this.newMessagesCount += 1;
-            this.updateNewMessagesNotification(this.newMessagesCount);
-            console.log('🧪 [TEST] Contador actual:', this.newMessagesCount);
-        });
-
-        document.body.appendChild(testButton);
-        
-        // Eliminar botón después de 30 segundos
-        setTimeout(() => {
-            if (testButton.parentNode) {
-                testButton.parentNode.removeChild(testButton);
-            }
-        }, 30000);
     }
 }
 

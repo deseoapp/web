@@ -1746,7 +1746,7 @@ body.wallet-page .header {
     }
     
     .notification-message {
-        display: none; /* Ocultar texto en pantallas muy pequeñas */
+        font-size: 0.7rem; /* Reducir tamaño pero mantener visible */
     }
     
     .unread-chats-alert {

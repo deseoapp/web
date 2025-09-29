@@ -3947,17 +3947,40 @@ class DeseoApp {
                 
                 if (isMobile) {
                     console.log('🔍 [DEBUG] Click en enlace móvil:', link.href || link.textContent);
+                    console.log('🔍 [DEBUG] Link href:', link.href);
+                    console.log('🔍 [DEBUG] Link text:', link.textContent.trim());
                     
-                    // Si es un enlace interno (no #), cerrar el menú móvil
-                    if (link.href && !link.href.includes('#') && !link.href.includes('javascript:')) {
-                        console.log('🔍 [DEBUG] Cerrando menú móvil para navegación');
-                        this.closeMobileMenu();
+                    // Verificar si es un enlace de navegación (no # y no javascript:)
+                    const href = link.getAttribute('href');
+                    if (href && href !== '#' && !href.includes('javascript:')) {
+                        console.log('🔍 [DEBUG] Enlace de navegación detectado, cerrando menú móvil');
+                        
+                        // Cerrar el menú después de un pequeño delay para permitir la navegación
+                        setTimeout(() => {
+                            this.closeMobileMenu();
+                        }, 100);
+                        
+                        // Permitir que el enlace funcione normalmente
+                        // No prevenir el comportamiento por defecto
+                    } else {
+                        console.log('🔍 [DEBUG] Enlace interno o especial, no cerrando menú');
                     }
                 }
             });
         });
 
         console.log('✅ Event listeners configurados para', menuLinks.length, 'enlaces del menú móvil');
+        
+        // Añadir event listener para cerrar menú al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            if (isMobile && !mainNav.contains(e.target) && !document.getElementById('sidebarToggle').contains(e.target)) {
+                if (!mainNav.classList.contains('hidden')) {
+                    console.log('🔍 [DEBUG] Click fuera del menú móvil, cerrando...');
+                    this.closeMobileMenu();
+                }
+            }
+        });
     }
 
     // ===== CERRAR MENÚ MÓVIL =====
@@ -4938,6 +4961,10 @@ class DeseoApp {
 
             console.log('🔍 [DEBUG] Mensajes cargados en cache:', this.allMessages.size);
             console.log('🔍 [DEBUG] Línea base establecida - solo nuevos mensajes activarán notificación');
+            
+            // NO mostrar notificación inicial - solo establecer línea base
+            this.newMessagesCount = 0;
+            this.updateNewMessagesNotification(0);
         } catch (error) {
             console.error('❌ Error cargando mensajes:', error);
         }

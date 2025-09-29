@@ -33,14 +33,15 @@ class ChatClient {
         // Cargar datos del usuario
         await this.loadCurrentUser();
         
-        // Configurar listeners
-        this.setupEventListeners();
-        
         // Cargar mensajes
         await this.loadMessages();
         
         // Cargar perfil del otro usuario
         await this.loadOtherUserProfileAndHeader();
+        
+        // Configurar listeners DESPUÉS de cargar todo
+        await new Promise(resolve => setTimeout(resolve, 100)); // Pequeño delay para asegurar DOM
+        this.setupEventListeners();
         
         // Inicializar notificaciones
         await this.initializeNotifications();
@@ -156,9 +157,16 @@ class ChatClient {
     // Eliminado: el cliente no ve balance
 
     setupEventListeners() {
+        console.log('🔍 [DEBUG] setupEventListeners called');
+        console.log('🔍 [DEBUG] DOM ready state:', document.readyState);
+        console.log('🔍 [DEBUG] Document body:', document.body);
+        
         // Botón de envío
         const sendBtn = document.getElementById('sendBtn');
         const messageInput = document.getElementById('messageInput');
+        
+        console.log('🔍 [DEBUG] sendBtn found:', sendBtn);
+        console.log('🔍 [DEBUG] messageInput found:', messageInput);
         
         if (sendBtn) {
             sendBtn.addEventListener('click', () => this.sendMessage());
@@ -176,11 +184,60 @@ class ChatClient {
 
         // Botones de acción rápida
         const quickActions = document.querySelectorAll('.quick-action-btn');
-        quickActions.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const action = e.currentTarget.dataset.action;
-                this.handleQuickAction(action);
-            });
+        console.log('🔍 [DEBUG] Found quick action buttons:', quickActions.length);
+        
+        quickActions.forEach((btn, index) => {
+            console.log(`🔍 [DEBUG] Button ${index}:`, btn, 'action:', btn.dataset.action);
+            
+            // NUEVO ENFOQUE: Usar onclick directamente en el HTML
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                console.log('🔍 [DEBUG] Button onclick triggered:', action);
+                
+                // SOLUCIÓN DIRECTA SIN MÉTODOS COMPLEJOS
+                if (action === 'tip') {
+                    console.log('🔍 [DEBUG] Opening tip modal with onclick');
+                    const modal = document.getElementById('tipModal');
+                    console.log('🔍 [DEBUG] Modal found:', modal);
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                        console.log('🔍 [DEBUG] Modal CSS applied');
+                    } else {
+                        console.error('❌ Modal not found!');
+                    }
+                }
+                
+                if (action === 'request') {
+                    const modal = document.getElementById('requestServiceModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+                
+                if (action === 'favorite') {
+                    alert('Añadido a favoritos');
+                }
+                
+                if (action === 'report') {
+                    const modal = document.getElementById('reportModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+                
+                if (action === 'urgent') {
+                    alert('Mensaje urgente enviado');
+                }
+                
+                if (action === 'rate') {
+                    const modal = document.getElementById('rateModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+            };
         });
 
         // Modales
@@ -188,37 +245,75 @@ class ChatClient {
         
         // Tema
         this.initializeTheme();
+        
+        // Prueba inmediata
+        this.testButtonFunctionality();
+    }
+
+    testButtonFunctionality() {
+        console.log('🔍 [DEBUG] Testing button functionality...');
+        const tipBtn = document.querySelector('[data-action="tip"]');
+        console.log('🔍 [DEBUG] Tip button found:', tipBtn);
+        if (tipBtn) {
+            console.log('🔍 [DEBUG] Tip button dataset:', tipBtn.dataset);
+            console.log('🔍 [DEBUG] Tip button onclick:', tipBtn.onclick);
+        }
+        
+        // Verificar si el modal existe
+        const tipModal = document.getElementById('tipModal');
+        console.log('🔍 [DEBUG] Tip modal found:', tipModal);
+        if (tipModal) {
+            console.log('🔍 [DEBUG] Tip modal display:', tipModal.style.display);
+            console.log('🔍 [DEBUG] Tip modal computed display:', window.getComputedStyle(tipModal).display);
+        }
+        
+        // Verificar todos los modales
+        const allModals = document.querySelectorAll('.modal');
+        console.log('🔍 [DEBUG] All modals found:', allModals.length);
+        allModals.forEach((modal, index) => {
+            console.log(`🔍 [DEBUG] Modal ${index}:`, modal.id, modal);
+        });
     }
 
     setupModalListeners() {
-        // Modal de modificar
-        const sendModifyBtn = document.getElementById('sendModifyBtn');
-        if (sendModifyBtn) {
-            sendModifyBtn.addEventListener('click', () => this.sendModification());
+        console.log('🔍 [DEBUG] Setting up modal listeners...');
+        
+        // Modal de propina
+        const sendTipBtn = document.getElementById('sendTipBtn');
+        console.log('🔍 [DEBUG] sendTipBtn found:', sendTipBtn);
+        if (sendTipBtn) {
+            sendTipBtn.addEventListener('click', () => this.sendTip());
+            console.log('🔍 [DEBUG] sendTipBtn listener added');
         }
 
-        // Modal de cancelar
-        const confirmCancelBtn = document.getElementById('confirmCancelBtn');
-        if (confirmCancelBtn) {
-            confirmCancelBtn.addEventListener('click', () => this.confirmCancellation());
+        // Modal de solicitar servicio
+        const sendRequestServiceBtn = document.getElementById('sendRequestServiceBtn');
+        console.log('🔍 [DEBUG] sendRequestServiceBtn found:', sendRequestServiceBtn);
+        if (sendRequestServiceBtn) {
+            sendRequestServiceBtn.addEventListener('click', () => this.sendRequestService());
+            console.log('🔍 [DEBUG] sendRequestServiceBtn listener added');
+        }
+
+        // Modal de reportar
+        const sendReportBtn = document.getElementById('sendReportBtn');
+        console.log('🔍 [DEBUG] sendReportBtn found:', sendReportBtn);
+        if (sendReportBtn) {
+            sendReportBtn.addEventListener('click', () => this.sendReport());
+            console.log('🔍 [DEBUG] sendReportBtn listener added');
         }
 
         // Modal de calificar
         const sendRateBtn = document.getElementById('sendRateBtn');
+        console.log('🔍 [DEBUG] sendRateBtn found:', sendRateBtn);
         if (sendRateBtn) {
             sendRateBtn.addEventListener('click', () => this.sendRating());
+            console.log('🔍 [DEBUG] sendRateBtn listener added');
         }
 
-        // Modal: Propina
-        const sendTipBtn = document.getElementById('sendTipBtn');
-        if (sendTipBtn) {
-            sendTipBtn.addEventListener('click', () => this.sendTip());
-        }
-
-        // Modal: Solicitar servicio
-        const sendRequestServiceBtn = document.getElementById('sendRequestServiceBtn');
-        if (sendRequestServiceBtn) {
-            sendRequestServiceBtn.addEventListener('click', () => this.sendServiceRequest());
+        // Preview de imágenes en reporte
+        const reportImages = document.getElementById('reportImages');
+        if (reportImages) {
+            reportImages.addEventListener('change', () => this.previewReportImages());
         }
 
         // Estrellas de calificación
@@ -411,23 +506,69 @@ class ChatClient {
     }
 
     async handleQuickAction(action) {
-        switch (action) {
-            case 'tip':
-                this.openModal('tipModal');
-                break;
-            case 'request':
-                this.openModal('requestServiceModal');
-                break;
-            case 'favorite':
-                await this.toggleFavorite(true);
-                break;
-            case 'report':
-                this.openModal('reportModal');
-                break;
-            default:
-                // Acciones existentes
-                break;
+        console.log('🔍 [DEBUG] handleQuickAction called with action:', action);
+        
+        // IMPLEMENTACIÓN DIRECTA - SIN SWITCH COMPLEJO
+        if (action === 'tip') {
+            console.log('🔍 [DEBUG] Opening tip modal DIRECTLY');
+            const modal = document.getElementById('tipModal');
+            console.log('🔍 [DEBUG] Modal element:', modal);
+            if (modal) {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.style.zIndex = '9999';
+                console.log('🔍 [DEBUG] Modal forced to show');
+            } else {
+                console.error('❌ Modal not found!');
+            }
+            return;
         }
+        
+        if (action === 'request') {
+            const modal = document.getElementById('requestServiceModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.style.zIndex = '9999';
+            }
+            return;
+        }
+        
+        if (action === 'favorite') {
+            await this.toggleFavorite(true);
+            return;
+        }
+        
+        if (action === 'report') {
+            const modal = document.getElementById('reportModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.style.zIndex = '9999';
+            }
+            return;
+        }
+        
+        if (action === 'urgent') {
+            await this.sendUrgentMessage();
+            return;
+        }
+        
+        if (action === 'rate') {
+            const modal = document.getElementById('rateModal');
+            if (modal) {
+                modal.style.display = 'block';
+                modal.style.visibility = 'visible';
+                modal.style.opacity = '1';
+                modal.style.zIndex = '9999';
+            }
+            return;
+        }
+        
+        console.log('🔍 [DEBUG] Unknown action:', action);
     }
 
     async toggleFavorite(state) {
@@ -441,21 +582,153 @@ class ChatClient {
     }
 
     async sendReport() {
-        const reason = (document.getElementById('reportReason') || {}).value || 'otro';
+        const reason = (document.getElementById('reportReason') || {}).value || '';
         const details = (document.getElementById('reportDetails') || {}).value || '';
+        
+        if (!reason || !details.trim()) {
+            this.showError('Por favor completa todos los campos obligatorios');
+            return;
+        }
+        
         if (!this.database || !this.chatId) return;
+        
         try {
+            // Procesar imágenes si las hay
+            const images = await this.processReportImages();
+            
             const reportId = `report_${Date.now()}`;
-            await this.database.ref(`chats/${this.chatId}/reports/${reportId}`).set({
-                by: this.currentUser.id,
+            const reportData = {
+                id: reportId,
+                reportedBy: this.currentUser.id,
+                reportedUser: this.otherUserId,
+                chatId: this.chatId,
                 reason,
-                details,
+                details: details.trim(),
+                images: images,
+                status: 'pending',
                 timestamp: new Date().toISOString()
-            });
+            };
+            
+            // Guardar en reports globales para admin
+            await this.database.ref(`reports/${reportId}`).set(reportData);
+            
+            // También en el chat para referencia
+            await this.database.ref(`chats/${this.chatId}/reports/${reportId}`).set(reportData);
+            
             this.closeModalSafe('reportModal');
-            this.showNotification('Reporte enviado', 'success');
+            this.showNotification('Reporte enviado correctamente', 'success');
+            
         } catch (e) {
             console.error('❌ Error enviando reporte:', e);
+            this.showError('Error enviando reporte');
+        }
+    }
+
+    async processReportImages() {
+        const fileInput = document.getElementById('reportImages');
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+            return [];
+        }
+        
+        const images = [];
+        const files = Array.from(fileInput.files).slice(0, 5); // Máximo 5 imágenes
+        
+        for (const file of files) {
+            try {
+                const base64 = await this.fileToBase64(file);
+                images.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: base64
+                });
+            } catch (e) {
+                console.error('Error procesando imagen:', e);
+            }
+        }
+        
+        return images;
+    }
+
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async sendUrgentMessage() {
+        try {
+            const urgentMessage = `🚨 **SOLICITUD URGENTE**\n\n` +
+                `Necesito que este servicio se realice con la mayor urgencia posible. ` +
+                `Por favor, confirma si puedes hacerlo pronto.`;
+            
+            await this.sendSpecialMessage(urgentMessage, 'urgent');
+            this.showNotification('Mensaje urgente enviado', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error enviando mensaje urgente:', error);
+            this.showError('Error enviando mensaje urgente');
+        }
+    }
+
+    async sendRequestService() {
+        const title = (document.getElementById('reqTitle') || {}).value || '';
+        const description = (document.getElementById('reqDescription') || {}).value || '';
+        const budget = (document.getElementById('reqBudget') || {}).value || '';
+        const when = (document.getElementById('reqWhen') || {}).value || '';
+        
+        if (!title.trim() || !description.trim()) {
+            this.showError('Por favor completa título y descripción');
+            return;
+        }
+        
+        try {
+            const requestMessage = `🤝 **SOLICITUD DE SERVICIO**\n\n` +
+                `Título: ${title}\n` +
+                `Descripción: ${description}\n` +
+                (budget ? `Presupuesto: $${budget}\n` : '') +
+                (when ? `Cuándo: ${when}\n` : '') +
+                `\nPor favor, confirma si puedes realizar este servicio.`;
+            
+            await this.sendSpecialMessage(requestMessage, 'service_request');
+            this.closeModalSafe('requestServiceModal');
+            this.showNotification('Solicitud de servicio enviada', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error enviando solicitud:', error);
+            this.showError('Error enviando solicitud');
+        }
+    }
+
+    previewReportImages() {
+        const fileInput = document.getElementById('reportImages');
+        const preview = document.getElementById('reportImagePreview');
+        
+        if (!fileInput || !preview) return;
+        
+        preview.innerHTML = '';
+        
+        if (fileInput.files && fileInput.files.length > 0) {
+            const files = Array.from(fileInput.files).slice(0, 5);
+            
+            files.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.objectFit = 'cover';
+                    img.style.margin = '5px';
+                    img.style.borderRadius = '8px';
+                    img.style.border = '2px solid #ccc';
+                    preview.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
         }
     }
 
@@ -518,13 +791,97 @@ class ChatClient {
     }
 
     openModal(id) {
+        console.log('🔍 [DEBUG] openModal called with id:', id);
         const el = document.getElementById(id);
-        if (el) el.style.display = 'block';
+        console.log('🔍 [DEBUG] Modal element found:', el);
+        console.log('🔍 [DEBUG] Modal element style before:', el ? el.style.display : 'N/A');
+        if (el) {
+            el.style.display = 'block';
+            console.log('🔍 [DEBUG] Modal element style after:', el.style.display);
+            console.log('🔍 [DEBUG] Modal computed style:', window.getComputedStyle(el).display);
+            console.log('🔍 [DEBUG] Modal z-index:', window.getComputedStyle(el).zIndex);
+            console.log('🔍 [DEBUG] Modal position:', window.getComputedStyle(el).position);
+            console.log('🔍 [DEBUG] Modal displayed successfully');
+            
+            // Forzar visibilidad
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+        } else {
+            console.error('❌ Modal not found:', id);
+            console.error('❌ Available modals:', document.querySelectorAll('.modal').length);
+        }
+    }
+
+    async sendTip() {
+        const amount = parseInt((document.getElementById('tipAmount') || {}).value || '0', 10);
+        const note = (document.getElementById('tipNote') || {}).value || '';
+        
+        if (amount <= 0) {
+            this.showError('Por favor ingresa un monto válido');
+            return;
+        }
+        
+        try {
+            // Cobrar al cliente
+            const charged = await this.chargeClient(amount, 'Propina');
+            if (!charged) {
+                this.showError('Saldo insuficiente para enviar propina');
+                return;
+            }
+            
+            // Acreditar al proveedor
+            await this.creditProvider(amount, 'Propina recibida');
+            
+            // Enviar mensaje de propina
+            const tipMessage = `💰 **PROPINA ENVIADA**\n\n` +
+                `Monto: $${amount.toLocaleString('es-CO')}\n` +
+                (note ? `Nota: ${note}` : 'Gracias por tu excelente servicio!');
+            
+            await this.sendSpecialMessage(tipMessage, 'tip');
+            
+            this.closeModalSafe('tipModal');
+            this.showNotification(`Propina de $${amount.toLocaleString('es-CO')} enviada`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Error enviando propina:', error);
+            this.showError('Error enviando propina');
+        }
     }
 
     closeModalSafe(id) {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
+    }
+
+    showNotification(message, type = 'info') {
+        console.log(`🔔 [${type.toUpperCase()}] ${message}`);
+        // Crear notificación visual simple
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        // Remover después de 3 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error');
     }
 
     handleTyping() {
@@ -790,6 +1147,18 @@ class ChatClient {
 
     async sendSpecialMessage(message, type) {
         if (!this.database || !this.chatId) return;
+
+        // Solo cobrar para mensajes que requieren pago (urgent, service_request)
+        const paidMessageTypes = ['urgent', 'service_request'];
+        if (paidMessageTypes.includes(type)) {
+            const canCharge = await this.chargeClient(100, type || 'message');
+            if (!canCharge) {
+                this.showError('Saldo insuficiente para enviar mensaje.');
+                return;
+            }
+            // Acreditar al proveedor
+            await this.creditProvider(100, type || 'message');
+        }
 
         const messageData = {
             id: Date.now().toString(),

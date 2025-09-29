@@ -39,9 +39,8 @@ class ChatClient {
         // Cargar mensajes
         await this.loadMessages();
         
-        // Cargar perfil del otro usuario y mi balance
+        // Cargar perfil del otro usuario
         await this.loadOtherUserProfileAndHeader();
-        await this.loadMyBalance();
         
         // Inicializar notificaciones
         await this.initializeNotifications();
@@ -111,37 +110,50 @@ class ChatClient {
             const avatarEl = document.getElementById('chatUserAvatar');
             const nameEl = document.getElementById('chatUserName');
             if (nameEl) nameEl.firstChild && (nameEl.firstChild.nodeValue = alias + ' ');
-            if (avatarEl && profile?.photos && Array.isArray(profile.photos) && profile.photos.length > 0) {
-                avatarEl.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = profile.photos[0];
-                img.alt = alias;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                img.style.borderRadius = '50%';
-                avatarEl.appendChild(img);
+            // Foto: usar primera imagen; soporta base64 u objetos guardados en Firebase
+            if (avatarEl) {
+                const toImageSrc = (input) => {
+                    if (!input) return null;
+                    let value = input;
+                    if (typeof input === 'object') {
+                        if (typeof input.url === 'string') value = input.url;
+                        else if (typeof input.src === 'string') value = input.src;
+                        else if (typeof input.base64 === 'string') value = input.base64;
+                        else if (Array.isArray(input) && input.length > 0) value = input[0];
+                        else return null;
+                    }
+                    if (typeof value !== 'string') return null;
+                    if (value.startsWith('data:image/')) return value;
+                    if (value.startsWith('http') || value.startsWith('https')) return value;
+                    if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+                    return null;
+                };
+
+                let rawPhoto = null;
+                if (profile?.photos && Array.isArray(profile.photos) && profile.photos.length > 0) {
+                    rawPhoto = profile.photos[0];
+                } else if (profile?.profileImageUrl) {
+                    rawPhoto = profile.profileImageUrl;
+                }
+                const photoSrc = toImageSrc(rawPhoto);
+                if (photoSrc) {
+                    avatarEl.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = photoSrc;
+                    img.alt = alias;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '50%';
+                    avatarEl.appendChild(img);
+                }
             }
         } catch (e) {
             console.warn('No se pudo cargar perfil del otro usuario:', e);
         }
     }
 
-    async loadMyBalance() {
-        try {
-            if (!this.database || !this.currentUser?.id) return;
-            const badge = document.getElementById('myBalanceBadge');
-            const balanceRef = this.database.ref(`wallet/${this.currentUser.id}/balance`);
-            const snap = await balanceRef.once('value');
-            const balance = parseInt(snap.val() || '0', 10);
-            if (badge) {
-                badge.textContent = `${balance} pesos`;
-                badge.style.display = 'inline-block';
-            }
-        } catch (e) {
-            console.warn('No se pudo cargar balance:', e);
-        }
-    }
+    // Eliminado: el cliente no ve balance
 
     setupEventListeners() {
         // Botón de envío
@@ -448,13 +460,14 @@ class ChatClient {
     // Simulación de cobro contra saldo del cliente (placeholder)
     async chargeClient(amount, reason) {
         try {
-            const balanceRef = this.database.ref(`wallet/${this.currentUser.id}/balance`);
+            // Ajuste al path real usado en la app: users/{id}/balance
+            const balanceRef = this.database.ref(`users/${this.currentUser.id}/balance`);
             const snap = await balanceRef.once('value');
             const current = parseInt(snap.val() || '0', 10);
             if (current < amount) return false;
             await balanceRef.set(current - amount);
             const txId = `tx_${Date.now()}`;
-            await this.database.ref(`wallet/${this.currentUser.id}/transactions/${txId}`).set({
+            await this.database.ref(`users/${this.currentUser.id}/transactions/${txId}`).set({
                 id: txId,
                 type: 'debit',
                 reason,

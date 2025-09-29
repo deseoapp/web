@@ -109,16 +109,43 @@ class ChatProvider {
             const avatarEl = document.getElementById('chatUserAvatar');
             const nameEl = document.getElementById('chatUserName');
             if (nameEl) nameEl.firstChild && (nameEl.firstChild.nodeValue = alias + ' ');
-            if (avatarEl && profile?.photos && Array.isArray(profile.photos) && profile.photos.length > 0) {
-                avatarEl.innerHTML = '';
-                const img = document.createElement('img');
-                img.src = profile.photos[0];
-                img.alt = alias;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                img.style.borderRadius = '50%';
-                avatarEl.appendChild(img);
+            // Foto: usar primera imagen; soporta base64 u objetos guardados en Firebase
+            if (avatarEl) {
+                const toImageSrc = (input) => {
+                    if (!input) return null;
+                    let value = input;
+                    if (typeof input === 'object') {
+                        if (typeof input.url === 'string') value = input.url;
+                        else if (typeof input.src === 'string') value = input.src;
+                        else if (typeof input.base64 === 'string') value = input.base64;
+                        else if (Array.isArray(input) && input.length > 0) value = input[0];
+                        else return null;
+                    }
+                    if (typeof value !== 'string') return null;
+                    if (value.startsWith('data:image/')) return value;
+                    if (value.startsWith('http') || value.startsWith('https')) return value;
+                    if (value.length > 100 && !value.includes('http')) return `data:image/jpeg;base64,${value}`;
+                    return null;
+                };
+
+                let rawPhoto = null;
+                if (profile?.photos && Array.isArray(profile.photos) && profile.photos.length > 0) {
+                    rawPhoto = profile.photos[0];
+                } else if (profile?.profileImageUrl) {
+                    rawPhoto = profile.profileImageUrl;
+                }
+                const photoSrc = toImageSrc(rawPhoto);
+                if (photoSrc) {
+                    avatarEl.innerHTML = '';
+                    const img = document.createElement('img');
+                    img.src = photoSrc;
+                    img.alt = alias;
+                    img.style.width = '100%';
+                    img.style.height = '100%';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '50%';
+                    avatarEl.appendChild(img);
+                }
             }
         } catch (e) {
             console.warn('No se pudo cargar perfil del otro usuario:', e);
@@ -302,7 +329,8 @@ class ChatProvider {
     async viewClientBalance() {
         if (!this.database || !this.otherUserId) return;
         try {
-            const balanceRef = this.database.ref(`wallet/${this.otherUserId}/balance`);
+            // Ajuste al path real usado en la app: users/{id}/balance
+            const balanceRef = this.database.ref(`users/${this.otherUserId}/balance`);
             const snap = await balanceRef.once('value');
             const balance = parseInt(snap.val() || '0', 10);
             this.showNotification(`Balance del cliente: ${balance} pesos`, 'info');

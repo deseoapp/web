@@ -216,6 +216,10 @@ class ChatProvider {
         if (sendPaidPhotoBtn) {
             sendPaidPhotoBtn.addEventListener('click', () => this.sendPaidPhoto());
         }
+        const sendRatingBtn = document.getElementById('sendRatingBtn');
+        if (sendRatingBtn) {
+            sendRatingBtn.addEventListener('click', () => this.sendRating());
+        }
 
         // Modales
         this.setupModalListeners();
@@ -329,6 +333,12 @@ class ChatProvider {
             case 'offer-service':
                 this.openModal('offerServiceModal');
                 break;
+            case 'tips':
+                this.openModal('tipsModal');
+                break;
+            case 'rate':
+                this.openModal('rateModal');
+                break;
             case 'client-balance':
                 await this.viewClientBalance();
                 break;
@@ -407,6 +417,89 @@ class ChatProvider {
     closeModalSafe(id) {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
+    }
+
+    // ===== CALIFICACIÓN =====
+    openRateModal() {
+        const modal = document.getElementById('rateModal');
+        if (modal) {
+            modal.style.display = 'block';
+        }
+    }
+
+    setRating(rating) {
+        this.currentRating = rating;
+        this.highlightStars(rating);
+    }
+
+    highlightStars(rating) {
+        const stars = document.querySelectorAll('#starRating i');
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.classList.add('active');
+            } else {
+                star.classList.remove('active');
+            }
+        });
+    }
+
+    async sendRating() {
+        if (!this.currentRating) {
+            this.showError('Por favor selecciona una calificación');
+            return;
+        }
+
+        const comment = document.getElementById('rateComment').value;
+        
+        try {
+            const ratingMessage = `⭐ **CALIFICACIÓN DEL CLIENTE**\n\n` +
+                `Calificación: ${this.currentRating}/5 estrellas\n` +
+                (comment ? `Comentario: ${comment}` : 'Sin comentarios');
+            
+            await this.sendSpecialMessage(ratingMessage, 'rating');
+            
+            // Guardar calificación en Firebase
+            await this.saveRating({
+                rating: this.currentRating,
+                comment: comment,
+                ratedAt: new Date().toISOString(),
+                ratedBy: this.currentUser.id,
+                ratedTo: this.otherUserId
+            });
+            
+            this.closeModalSafe('rateModal');
+
+        } catch (error) {
+            console.error('❌ Error enviando calificación:', error);
+            this.showError('Error enviando calificación');
+        }
+    }
+
+    async sendSpecialMessage(message, type) {
+        if (!this.database || !this.chatId) return;
+
+        const messageData = {
+            id: Date.now().toString(),
+            senderId: this.currentUser.id,
+            senderName: this.currentUser.name,
+            message: message,
+            timestamp: new Date().toISOString(),
+            type: type
+        };
+
+        const messagesRef = this.database.ref(`chats/${this.chatId}/messages/${messageData.id}`);
+        await messagesRef.set(messageData);
+    }
+
+    async saveRating(ratingData) {
+        if (!this.database || !this.chatId) return;
+
+        try {
+            const ratingRef = this.database.ref(`chats/${this.chatId}/providerRating`);
+            await ratingRef.set(ratingData);
+        } catch (error) {
+            console.error('❌ Error guardando calificación:', error);
+        }
     }
 
     handleTyping() {
@@ -865,6 +958,12 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
+    }
+}
+
+function setRating(rating) {
+    if (window.chatProvider) {
+        window.chatProvider.setRating(rating);
     }
 }
 

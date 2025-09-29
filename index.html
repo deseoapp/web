@@ -29,10 +29,10 @@
             <nav class="main-nav hidden">
                 <ul>
                     <li><a href="#" id="authButton"><i class="fas fa-user"></i> Iniciar Sesión</a></li> <!-- Botón de Auth -->
-                    <li><a href="#"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li><a href="index.html"><i class="fas fa-home"></i> Inicio</a></li>
                     <li><a href="chats.html"><i class="fas fa-comments"></i> Chats</a></li>
                     <li><a href="wallet.html"><i class="fas fa-wallet"></i> Billetera</a></li>
-                    <li><a href="#"><i class="fas fa-cog"></i> Configuración</a></li>
+                    <li><a href="settings.html"><i class="fas fa-cog"></i> Configuración</a></li>
                     <li><a href="#" id="themeToggle"><i class="fas fa-moon"></i> Tema</a></li> <!-- Botón de alternar tema -->
                 </ul>
             </nav>
@@ -94,6 +94,35 @@
         <!-- Área del mapa -->
         <main class="map-area">
             <div id="map" class="mapbox-map"></div>
+            
+            <!-- Notificación flotante de mensajes nuevos -->
+            <div class="new-messages-notification" id="newMessagesNotification" style="display: none;">
+                <div class="notification-content">
+                    <div class="notification-icon">
+                        <i class="fas fa-message"></i>
+                    </div>
+                    <div class="notification-text">
+                        <span class="notification-count" id="newMessagesCount">0</span>
+                        <span class="notification-message">mensajes nuevos</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Alerta de chats sin responder -->
+            <div class="unread-chats-alert" id="unreadChatsAlert" style="display: none;">
+                <div class="alert-content">
+                    <div class="alert-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <div class="alert-text">
+                        <span class="alert-count" id="unreadChatsCount">0</span>
+                        <span class="alert-message">chats sin responder</span>
+                    </div>
+                    <button class="alert-close" id="markAllReadBtn" title="Marcar todos como leídos">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            </div>
 
             <!-- Overlays móviles sobre el mapa -->
             <div class="mobile-overlays">

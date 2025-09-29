@@ -152,16 +152,25 @@ class DeseoApp {
             const thumbEls = Array.from(modal.querySelectorAll('.thumbs .thumb'));
             let currentIndex = 0;
 
+            // Tomar fuente de fotos de forma segura
+            const photos = (typeof displayProfile !== 'undefined' && displayProfile && Array.isArray(displayProfile.photos))
+                ? displayProfile.photos
+                : [];
+
             const setActiveIndex = (idx) => {
-                if (!displayProfile.photos || displayProfile.photos.length === 0) return;
-                currentIndex = (idx + displayProfile.photos.length) % displayProfile.photos.length;
-                const src = displayProfile.photos[currentIndex];
+                if (!photos || photos.length === 0) return;
+                currentIndex = (idx + photos.length) % photos.length;
+                const src = photos[currentIndex];
                 if (mainPhotoEl && typeof src === 'string') {
                     mainPhotoEl.src = src;
                 }
                 thumbEls.forEach((t, i) => t.classList.toggle('active', i === currentIndex));
             };
 
+            // Si no hay elementos o fotos, salir silenciosamente
+            if (!mainPhotoEl || photos.length === 0) {
+                // No hay nada que inicializar, continuar sin error
+            } else {
             thumbEls.forEach((thumb, idx) => {
                 thumb.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -186,14 +195,13 @@ class DeseoApp {
                 }
                 isTouching = false;
             };
-            if (mainPhotoEl) {
                 mainPhotoEl.addEventListener('touchstart', onTouchStart, { passive: true });
                 mainPhotoEl.addEventListener('touchend', onTouchEnd);
                 mainPhotoEl.addEventListener('mousedown', onTouchStart);
                 mainPhotoEl.addEventListener('mouseup', onTouchEnd);
-            }
 
             setActiveIndex(0);
+            }
         } catch (err) { console.warn('Photo interactions init failed:', err); }
 
         // Agregar estilos
@@ -3952,8 +3960,6 @@ class DeseoApp {
         
         menuLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevenir propagación del evento
-                
                 const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
                 
                 if (isMobile) {
@@ -3968,21 +3974,27 @@ class DeseoApp {
                     // Manejar diferentes tipos de enlaces
                     if (linkId === 'authButton') {
                         console.log('🔍 [DEBUG] Botón de autenticación - no cerrar menú');
+                        e.stopPropagation(); // Solo para auth
                         // No cerrar el menú para el botón de auth
                     } else if (linkId === 'themeToggle') {
                         console.log('🔍 [DEBUG] Botón de tema - no cerrar menú');
+                        e.stopPropagation(); // Solo para tema
                         // No cerrar el menú para el botón de tema
                     } else if (href && href !== '#' && !href.includes('javascript:')) {
-                        console.log('🔍 [DEBUG] Enlace de navegación detectado, cerrando menú móvil');
+                        console.log('🔍 [DEBUG] Enlace de navegación detectado - cerrando menú y navegando');
                         
-                        // Cerrar el menú después de un pequeño delay para permitir la navegación
-                        setTimeout(() => {
-                            this.closeMobileMenu();
-                        }, 100);
+                        // Prevenir que el event listener global interfiera
+                        e.stopPropagation();
+                        
+                        // Cerrar el menú inmediatamente
+                        this.closeMobileMenu();
                         
                         // Permitir que el enlace funcione normalmente
+                        // NO usar preventDefault()
+                        
                     } else {
                         console.log('🔍 [DEBUG] Enlace interno o especial, no cerrando menú');
+                        e.stopPropagation(); // Solo para enlaces especiales
                     }
                 }
             });
@@ -3990,33 +4002,20 @@ class DeseoApp {
 
         console.log('✅ Event listeners configurados para', menuLinks.length, 'enlaces del menú móvil');
         
-        // Añadir event listener para cerrar menú al hacer clic fuera (con delay)
-        let clickOutsideTimeout;
-        document.addEventListener('click', (e) => {
-            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const mainNav = document.querySelector('.main-nav');
-            
-            // Solo procesar si es móvil y el menú está abierto
-            if (isMobile && mainNav && !mainNav.classList.contains('hidden')) {
-                // Verificar si el click fue fuera del menú y del botón
-                const clickedInsideMenu = mainNav.contains(e.target);
-                const clickedOnToggle = sidebarToggle && sidebarToggle.contains(e.target);
+        // Event listener específico para el área del mapa (no global)
+        const mapArea = document.querySelector('.map-area');
+        if (mapArea) {
+            mapArea.addEventListener('click', (e) => {
+                const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+                const mainNav = document.querySelector('.main-nav');
                 
-                if (!clickedInsideMenu && !clickedOnToggle) {
-                    // Limpiar timeout anterior si existe
-                    if (clickOutsideTimeout) {
-                        clearTimeout(clickOutsideTimeout);
-                    }
-                    
-                    // Añadir delay para evitar cierre inmediato
-                    clickOutsideTimeout = setTimeout(() => {
-                        console.log('🔍 [DEBUG] Click fuera del menú móvil, cerrando...');
-                        this.closeMobileMenu();
-                    }, 300); // Aumentar delay a 300ms
+                // Solo si es móvil y el menú está abierto
+                if (isMobile && mainNav && !mainNav.classList.contains('hidden')) {
+                    console.log('🔍 [DEBUG] Click en el mapa, cerrando menú...');
+                    this.closeMobileMenu();
                 }
-            }
-        });
+            });
+        }
     }
 
     // ===== CERRAR MENÚ MÓVIL =====

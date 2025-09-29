@@ -86,7 +86,7 @@
             </button>
             <button class="quick-action-btn" data-action="request">
                 <i class="fas fa-handshake"></i>
-                <span>Solicitar servicio</span>
+                <span>Solicitar encuentro</span>
             </button>
             <button class="quick-action-btn" data-action="favorite">
                 <i class="fas fa-heart"></i>
@@ -100,14 +100,6 @@
                 <i class="fas fa-exclamation-triangle"></i>
                 <span>Urgente</span>
             </button>
-            <button class="quick-action-btn" data-action="modify">
-                <i class="fas fa-edit"></i>
-                <span>Modificar</span>
-            </button>
-            <button class="quick-action-btn" data-action="cancel">
-                <i class="fas fa-times-circle"></i>
-                <span>Cancelar</span>
-            </button>
             <button class="quick-action-btn" data-action="rate">
                 <i class="fas fa-star"></i>
                 <span>Calificar</span>
@@ -115,62 +107,6 @@
         </div>
     </footer>
 
-    <!-- Modal para modificar solicitud -->
-    <div class="modal" id="modifyModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Modificar Solicitud</h2>
-                <button class="close-btn" onclick="closeModal('modifyModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="modifyTitle">Título del servicio</label>
-                    <input type="text" id="modifyTitle" placeholder="Título de tu solicitud">
-                </div>
-                <div class="form-group">
-                    <label for="modifyDescription">Descripción</label>
-                    <textarea id="modifyDescription" placeholder="Describe qué necesitas..." rows="4"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="modifyBudget">Presupuesto</label>
-                    <input type="number" id="modifyBudget" placeholder="0.00" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                    <label for="modifyLocation">Ubicación</label>
-                    <input type="text" id="modifyLocation" placeholder="¿Dónde necesitas el servicio?">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('modifyModal')">Cancelar</button>
-                <button class="btn-primary" id="sendModifyBtn">Actualizar Solicitud</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal para cancelar -->
-    <div class="modal" id="cancelModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Cancelar Solicitud</h2>
-                <button class="close-btn" onclick="closeModal('cancelModal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p>¿Estás seguro de que quieres cancelar esta solicitud?</p>
-                <div class="form-group">
-                    <label for="cancelReason">Motivo de cancelación (opcional)</label>
-                    <textarea id="cancelReason" placeholder="Explica por qué cancelas..." rows="3"></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeModal('cancelModal')">No cancelar</button>
-                <button class="btn-danger" id="confirmCancelBtn">Sí, cancelar</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Modal: Propina -->
     <div class="modal" id="tipModal">
@@ -198,11 +134,11 @@
         </div>
     </div>
 
-    <!-- Modal: Solicitar servicio -->
+    <!-- Modal: Solicitar encuentro -->
     <div class="modal" id="requestServiceModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Solicitar Servicio</h2>
+                <h2>Solicitar Encuentro</h2>
                 <button class="close-btn" onclick="closeModal('requestServiceModal')">
                     <i class="fas fa-times"></i>
                 </button>
@@ -210,11 +146,11 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label for="reqTitle">Título</label>
-                    <input type="text" id="reqTitle" placeholder="Título del servicio">
+                    <input type="text" id="reqTitle" placeholder="Título del encuentro">
                 </div>
                 <div class="form-group">
                     <label for="reqDescription">Descripción</label>
-                    <textarea id="reqDescription" rows="4" placeholder="Describe lo que necesitas..."></textarea>
+                    <textarea id="reqDescription" rows="4" placeholder="Describe el encuentro que deseas organizar..."></textarea>
                 </div>
                 <div class="form-group">
                     <label for="reqBudget">Presupuesto</label>
@@ -236,25 +172,34 @@
     <div class="modal" id="reportModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Reportar</h2>
+                <h2>Reportar Usuario</h2>
                 <button class="close-btn" onclick="closeModal('reportModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="reportReason">Motivo</label>
+                    <label for="reportReason">Motivo del reporte</label>
                     <select id="reportReason">
+                        <option value="">Selecciona un motivo</option>
                         <option value="spam">Spam</option>
-                        <option value="abuso">Abuso</option>
+                        <option value="abuso">Abuso verbal</option>
                         <option value="fraude">Fraude</option>
+                        <option value="contenido_inapropiado">Contenido inapropiado</option>
+                        <option value="acoso">Acoso</option>
                         <option value="otro">Otro</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="reportDetails">Detalles</label>
-                    <textarea id="reportDetails" rows="3" placeholder="Describe lo ocurrido..."></textarea>
+                    <label for="reportDetails">Detalles del reporte</label>
+                    <textarea id="reportDetails" rows="4" placeholder="Describe detalladamente lo que ocurrió..." required></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="reportImages">Imágenes de prueba (opcional)</label>
+                    <input type="file" id="reportImages" accept="image/*" multiple>
+                    <small>Puedes subir hasta 5 imágenes como evidencia</small>
+                </div>
+                <div id="reportImagePreview" class="image-preview"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('reportModal')">Cancelar</button>

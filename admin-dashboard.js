@@ -572,9 +572,6 @@ class AdminDashboard {
                             <i class="fas fa-times"></i> Rechazar
                         </button>
                     ` : ''}
-                    <button class="btn-admin btn-message" onclick="adminApp.showMessageModal('${transactionId}', '${userId}', ${transaction.amount}, 'message')">
-                        <i class="fas fa-comment"></i> Mensaje
-                    </button>
                 </div>
             </div>
         `;

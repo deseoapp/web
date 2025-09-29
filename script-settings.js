@@ -1,368 +1,244 @@
-// ===== SISTEMA DE CONFIGURACIÓN =====
+/**
+ * Settings - Página de configuración
+ * Maneja la configuración del usuario y preferencias de la aplicación
+ */
+
 class SettingsManager {
     constructor() {
-        this.settings = {};
+        this.currentUser = null;
         this.init();
     }
 
     async init() {
-        await this.loadSettings();
-        this.renderSettings();
+        console.log('🔍 SettingsManager: Inicializando...');
+        
+        // Cargar datos del usuario
+        await this.loadCurrentUser();
+        
+        // Configurar event listeners
         this.setupEventListeners();
+        
+        // Cargar configuración
+        this.loadSettings();
+        
+        console.log('✅ SettingsManager: Inicializado correctamente');
     }
 
-    async loadSettings() {
+    async loadCurrentUser() {
         try {
-            const savedSettings = localStorage.getItem('deseo_settings');
-            if (savedSettings) {
-                this.settings = JSON.parse(savedSettings);
+            const userData = localStorage.getItem('deseo_user');
+            if (userData) {
+                this.currentUser = JSON.parse(userData);
+                console.log('✅ Usuario cargado:', this.currentUser.name);
+                
+                // Llenar campos del formulario
+                this.populateUserFields();
             } else {
-                // Configuración por defecto
-                this.settings = {
-                    theme: 'dark',
-                    notifications: true,
-                    location: true,
-                    publicProfile: true,
-                    activityHistory: true
-                };
-                this.saveSettings();
+                console.log('⚠️ No hay usuario logueado');
+                this.showLoginPrompt();
             }
         } catch (error) {
-            console.error('Error loading settings:', error);
-            this.settings = {
-                theme: 'dark',
-                notifications: true,
-                location: true,
-                publicProfile: true,
-                activityHistory: true
-            };
+            console.error('❌ Error cargando usuario:', error);
         }
     }
 
-    saveSettings() {
-        localStorage.setItem('deseo_settings', JSON.stringify(this.settings));
+    populateUserFields() {
+        if (!this.currentUser) return;
+
+        const userNameField = document.getElementById('userName');
+        const userEmailField = document.getElementById('userEmail');
+
+        if (userNameField) userNameField.value = this.currentUser.name || '';
+        if (userEmailField) userEmailField.value = this.currentUser.email || '';
     }
 
-    renderSettings() {
-        // Cargar tema guardado
-        this.loadSavedTheme();
-        
-        // Configurar toggles
-        this.setupToggles();
-        
-        // Cargar información del usuario
-        this.loadUserInfo();
-    }
-
-    loadSavedTheme() {
-        const savedTheme = localStorage.getItem('deseo-theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        
-        const themeToggle = document.getElementById('themeToggleSetting');
-        if (themeToggle) {
-            themeToggle.checked = savedTheme === 'light';
-        }
-        
-        // Actualizar icono del header
-        const themeIcon = document.querySelector('#themeToggle i');
-        if (themeIcon) {
-            themeIcon.className = savedTheme === 'light' ? 'fas fa-sun' : 'fas fa-moon';
-        }
-    }
-
-    setupToggles() {
-        const toggles = [
-            { id: 'themeToggleSetting', setting: 'theme' },
-            { id: 'notificationsToggle', setting: 'notifications' },
-            { id: 'locationToggle', setting: 'location' },
-            { id: 'publicProfileToggle', setting: 'publicProfile' },
-            { id: 'activityHistoryToggle', setting: 'activityHistory' }
-        ];
-
-        toggles.forEach(toggle => {
-            const element = document.getElementById(toggle.id);
-            if (element) {
-                if (toggle.setting === 'theme') {
-                    element.checked = this.settings.theme === 'light';
-                } else {
-                    element.checked = this.settings[toggle.setting];
-                }
-            }
-        });
-    }
-
-    loadUserInfo() {
-        // Cargar información del usuario desde localStorage o Firebase
-        const userData = localStorage.getItem('deseo_user');
-        if (userData) {
-            const user = JSON.parse(userData);
-            const profile = user.profile || {};
-            
-            // Actualizar información del perfil
-            const profileName = document.getElementById('profileName');
-            const profileEmail = document.getElementById('profileEmail');
-            const profileAvatar = document.getElementById('profileAvatar');
-            
-            if (profileName) {
-                profileName.textContent = profile.fullName || user.displayName || 'Usuario';
-            }
-            
-            if (profileEmail) {
-                profileEmail.textContent = user.email || 'usuario@email.com';
-            }
-            
-            if (profileAvatar && profile.photoURL) {
-                profileAvatar.innerHTML = `<img src="${profile.photoURL}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-            }
+    showLoginPrompt() {
+        const settingsContainer = document.querySelector('.settings-container');
+        if (settingsContainer) {
+            settingsContainer.innerHTML = `
+                <div class="login-prompt">
+                    <i class="fas fa-user-lock"></i>
+                    <h2>Inicia sesión para acceder a la configuración</h2>
+                    <p>Necesitas estar logueado para personalizar tu experiencia</p>
+                    <button class="btn-primary" onclick="window.location.href='index.html'">
+                        <i class="fas fa-sign-in-alt"></i> Ir al inicio
+                    </button>
+                </div>
+            `;
         }
     }
 
     setupEventListeners() {
-        // Toggle de tema
-        const themeToggle = document.getElementById('themeToggleSetting');
+        // Event listeners para el sidebar
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => this.toggleSidebarMenu());
+        }
+
+        // Event listeners para campos de configuración
+        const userNameField = document.getElementById('userName');
+        const userEmailField = document.getElementById('userEmail');
+
+        if (userNameField) {
+            userNameField.addEventListener('change', () => this.saveUserSettings());
+        }
+        if (userEmailField) {
+            userEmailField.addEventListener('change', () => this.saveUserSettings());
+        }
+
+        // Event listeners para checkboxes
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => this.saveSettings());
+        });
+
+        // Event listener para tema
+        const themeToggle = document.getElementById('themeToggle');
         if (themeToggle) {
-            themeToggle.addEventListener('change', (e) => {
-                this.handleThemeToggle(e.target.checked);
-            });
-        }
-
-        // Toggle de notificaciones
-        const notificationsToggle = document.getElementById('notificationsToggle');
-        if (notificationsToggle) {
-            notificationsToggle.addEventListener('change', (e) => {
-                this.handleSettingChange('notifications', e.target.checked);
-            });
-        }
-
-        // Toggle de ubicación
-        const locationToggle = document.getElementById('locationToggle');
-        if (locationToggle) {
-            locationToggle.addEventListener('change', (e) => {
-                this.handleSettingChange('location', e.target.checked);
-            });
-        }
-
-        // Toggle de perfil público
-        const publicProfileToggle = document.getElementById('publicProfileToggle');
-        if (publicProfileToggle) {
-            publicProfileToggle.addEventListener('change', (e) => {
-                this.handleSettingChange('publicProfile', e.target.checked);
-            });
-        }
-
-        // Toggle de historial de actividad
-        const activityHistoryToggle = document.getElementById('activityHistoryToggle');
-        if (activityHistoryToggle) {
-            activityHistoryToggle.addEventListener('change', (e) => {
-                this.handleSettingChange('activityHistory', e.target.checked);
-            });
-        }
-
-        // Formulario de editar perfil
-        const editProfileForm = document.getElementById('editProfileForm');
-        if (editProfileForm) {
-            editProfileForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleEditProfile();
-            });
+            themeToggle.addEventListener('click', () => this.toggleTheme());
         }
     }
 
-    handleThemeToggle(isLight) {
-        const newTheme = isLight ? 'light' : 'dark';
-        this.settings.theme = newTheme;
-        this.saveSettings();
+    toggleSidebarMenu() {
+        console.log('🔄 Toggling sidebar menu...');
+        const mainNav = document.querySelector('.main-nav');
+        const sidebarToggle = document.getElementById('sidebarToggle');
         
-        // Aplicar tema
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('deseo-theme', newTheme);
-        
-        // Actualizar icono del header
-        const themeIcon = document.querySelector('#themeToggle i');
-        if (themeIcon) {
-            themeIcon.className = isLight ? 'fas fa-sun' : 'fas fa-moon';
-        }
-        
-        this.showNotification(`Tema cambiado a ${isLight ? 'claro' : 'oscuro'}`, 'success');
-    }
-
-    handleSettingChange(setting, value) {
-        this.settings[setting] = value;
-        this.saveSettings();
-        
-        const settingNames = {
-            notifications: 'Notificaciones',
-            location: 'Ubicación',
-            publicProfile: 'Perfil público',
-            activityHistory: 'Historial de actividad'
-        };
-        
-        this.showNotification(`${settingNames[setting]} ${value ? 'activado' : 'desactivado'}`, 'success');
-    }
-
-    async handleEditProfile() {
-        const formData = new FormData(document.getElementById('editProfileForm'));
-        const userData = {
-            fullName: document.getElementById('editFullName').value,
-            address: document.getElementById('editAddress').value,
-            gender: document.getElementById('editGender').value,
-            photo: document.getElementById('editPhoto').files[0]
-        };
-
-        try {
-            // Actualizar datos locales
-            const userDataStr = localStorage.getItem('deseo_user');
-            if (userDataStr) {
-                const user = JSON.parse(userDataStr);
-                const profile = user.profile || {};
-                
-                // Actualizar perfil
-                profile.fullName = userData.fullName;
-                profile.address = userData.address;
-                profile.gender = userData.gender;
-                
-                // Subir foto si existe
-                if (userData.photo && window.authManager) {
-                    profile.photoURL = await window.authManager.uploadUserPhoto(user.uid, userData.photo);
-                }
-                
-                user.profile = profile;
-                localStorage.setItem('deseo_user', JSON.stringify(user));
-                
-                // Actualizar UI
-                this.loadUserInfo();
-                
-                this.closeModal('editProfileModal');
-                this.showNotification('Perfil actualizado exitosamente', 'success');
+        if (mainNav && sidebarToggle) {
+            const isHidden = mainNav.classList.contains('hidden');
+            const isMobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            
+            if (isHidden) {
+                mainNav.classList.remove('hidden');
+                if (isMobile) document.body.classList.add('mobile-menu-open');
+                console.log('✅ Sidebar menu shown');
+            } else {
+                mainNav.classList.add('hidden');
+                if (isMobile) document.body.classList.remove('mobile-menu-open');
+                console.log('✅ Sidebar menu hidden');
             }
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            this.showNotification('Error al actualizar el perfil', 'error');
         }
     }
 
-    editProfile() {
-        // Cargar datos actuales en el formulario
-        const userData = localStorage.getItem('deseo_user');
-        if (userData) {
-            const user = JSON.parse(userData);
-            const profile = user.profile || {};
-            
-            document.getElementById('editFullName').value = profile.fullName || '';
-            document.getElementById('editAddress').value = profile.address || '';
-            document.getElementById('editGender').value = profile.gender || '';
-        }
-        
-        this.showModal('editProfileModal');
-    }
-
-    changePassword() {
-        this.showNotification('Función de cambio de contraseña próximamente', 'info');
-    }
-
-    exportData() {
+    loadSettings() {
         try {
-            const userData = localStorage.getItem('deseo_user');
-            const settings = localStorage.getItem('deseo_settings');
-            const wishes = localStorage.getItem('deseo_wishes');
-            const transactions = localStorage.getItem('deseo_transactions');
+            const settings = JSON.parse(localStorage.getItem('deseo_settings') || '{}');
             
-            const exportData = {
-                user: userData ? JSON.parse(userData) : null,
-                settings: settings ? JSON.parse(settings) : null,
-                wishes: wishes ? JSON.parse(wishes) : null,
-                transactions: transactions ? JSON.parse(transactions) : null,
-                exportDate: new Date().toISOString()
+            // Cargar configuración de notificaciones
+            const chatNotifications = document.getElementById('chatNotifications');
+            const wishNotifications = document.getElementById('wishNotifications');
+            
+            if (chatNotifications) chatNotifications.checked = settings.chatNotifications !== false;
+            if (wishNotifications) wishNotifications.checked = settings.wishNotifications !== false;
+
+            // Cargar configuración de privacidad
+            const publicProfile = document.getElementById('publicProfile');
+            const showLocation = document.getElementById('showLocation');
+            
+            if (publicProfile) publicProfile.checked = settings.publicProfile !== false;
+            if (showLocation) showLocation.checked = settings.showLocation !== false;
+
+            console.log('✅ Configuración cargada');
+        } catch (error) {
+            console.error('❌ Error cargando configuración:', error);
+        }
+    }
+
+    saveSettings() {
+        try {
+            const settings = {
+                chatNotifications: document.getElementById('chatNotifications')?.checked ?? true,
+                wishNotifications: document.getElementById('wishNotifications')?.checked ?? true,
+                publicProfile: document.getElementById('publicProfile')?.checked ?? true,
+                showLocation: document.getElementById('showLocation')?.checked ?? true
             };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `deseo-data-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            
-            this.showNotification('Datos exportados exitosamente', 'success');
+
+            localStorage.setItem('deseo_settings', JSON.stringify(settings));
+            console.log('✅ Configuración guardada');
+            this.showNotification('Configuración guardada', 'success');
         } catch (error) {
-            console.error('Error exporting data:', error);
-            this.showNotification('Error al exportar datos', 'error');
+            console.error('❌ Error guardando configuración:', error);
+            this.showNotification('Error al guardar configuración', 'error');
         }
     }
 
-    deleteAccount() {
-        if (confirm('¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer.')) {
-            if (confirm('Esta acción eliminará todos tus datos permanentemente. ¿Continuar?')) {
-                try {
-                    // Limpiar todos los datos locales
-                    localStorage.removeItem('deseo_user');
-                    localStorage.removeItem('deseo_settings');
-                    localStorage.removeItem('deseo_wishes');
-                    localStorage.removeItem('deseo_transactions');
-                    localStorage.removeItem('deseo_balance');
-                    localStorage.removeItem('deseo-theme');
-                    
-                    // Cerrar sesión si está autenticado
-                    if (window.authManager) {
-                        window.authManager.logout();
-                    }
-                    
-                    this.showNotification('Cuenta eliminada exitosamente', 'success');
-                    
-                    // Redirigir al inicio
-                    setTimeout(() => {
-                        window.location.href = 'index.html';
-                    }, 2000);
+    saveUserSettings() {
+        if (!this.currentUser) return;
+
+        try {
+            const userNameField = document.getElementById('userName');
+            const userEmailField = document.getElementById('userEmail');
+
+            if (userNameField) this.currentUser.name = userNameField.value;
+            if (userEmailField) this.currentUser.email = userEmailField.value;
+
+            localStorage.setItem('deseo_user', JSON.stringify(this.currentUser));
+            console.log('✅ Datos de usuario actualizados');
+            this.showNotification('Perfil actualizado', 'success');
                 } catch (error) {
-                    console.error('Error deleting account:', error);
-                    this.showNotification('Error al eliminar la cuenta', 'error');
-                }
+            console.error('❌ Error actualizando perfil:', error);
+            this.showNotification('Error al actualizar perfil', 'error');
+        }
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('deseo_theme', newTheme);
+        
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            const icon = themeToggle.querySelector('i');
+            if (icon) {
+                icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             }
         }
+        
+        console.log('✅ Tema cambiado a:', newTheme);
     }
 
-    showModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'flex';
-        }
-    }
-
-    closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    showNotification(message, type = 'success') {
+    showNotification(message, type = 'info') {
+        // Crear notificación temporal
         const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
+        notification.className = `notification notification-${type}`;
         notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+        `;
         
         document.body.appendChild(notification);
         
         setTimeout(() => {
             notification.remove();
-        }, 4000);
+        }, 3000);
     }
 }
 
-// ===== INICIALIZACIÓN =====
-let settingsManager;
+// Funciones globales
+function goBack() {
+    window.history.back();
+}
 
+function clearCache() {
+    if (confirm('¿Estás seguro de que quieres limpiar el caché? Esto eliminará todos los datos temporales.')) {
+        localStorage.clear();
+        sessionStorage.clear();
+        alert('Caché limpiado correctamente');
+        window.location.reload();
+    }
+}
+
+// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    settingsManager = new SettingsManager();
-    
-    // Hacer disponible globalmente
-    window.settingsManager = settingsManager;
+    window.settingsManager = new SettingsManager();
 });
-
-// ===== FUNCIONES GLOBALES =====
-window.app = window.app || {};
-
-window.app.editProfile = () => settingsManager.editProfile();
-window.app.changePassword = () => settingsManager.changePassword();
-window.app.exportData = () => settingsManager.exportData();
-window.app.deleteAccount = () => settingsManager.deleteAccount();
-window.app.closeModal = (modalId) => settingsManager.closeModal(modalId);

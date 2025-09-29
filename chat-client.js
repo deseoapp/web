@@ -661,9 +661,8 @@ class ChatClient {
 
     async sendUrgentMessage() {
         try {
-            const urgentMessage = `🚨 **SOLICITUD URGENTE**\n\n` +
-                `Necesito que este servicio se realice con la mayor urgencia posible. ` +
-                `Por favor, confirma si puedes hacerlo pronto.`;
+            const urgentMessage = `🚨 **RESPUESTA URGENTE REQUERIDA**\n\n` +
+                `Se precisa una respuesta urgente. Por favor, responde lo antes posible.`;
             
             await this.sendSpecialMessage(urgentMessage, 'urgent');
             this.showNotification('Mensaje urgente enviado', 'success');
@@ -686,16 +685,23 @@ class ChatClient {
         }
         
         try {
-            const requestMessage = `🤝 **SOLICITUD DE SERVICIO**\n\n` +
+            // Cobrar 100 pesos por solicitar encuentro
+            const charged = await this.chargeClient(100, 'Solicitud de encuentro');
+            if (!charged) return;
+            
+            // Creditar al proveedor
+            await this.creditProvider(100, 'Solicitud de encuentro recibida');
+            
+            const requestMessage = `🤝 **SOLICITUD DE ENCUENTRO**\n\n` +
                 `Título: ${title}\n` +
                 `Descripción: ${description}\n` +
                 (budget ? `Presupuesto: $${budget}\n` : '') +
                 (when ? `Cuándo: ${when}\n` : '') +
-                `\nPor favor, confirma si puedes realizar este servicio.`;
+                `\nEl cliente quiere organizar un encuentro contigo.`;
             
             await this.sendSpecialMessage(requestMessage, 'service_request');
             this.closeModalSafe('requestServiceModal');
-            this.showNotification('Solicitud de servicio enviada', 'success');
+            this.showNotification('Solicitud de encuentro enviada', 'success');
             
         } catch (error) {
             console.error('❌ Error enviando solicitud:', error);
@@ -1200,13 +1206,55 @@ class ChatClient {
     }
 
     async saveRating(ratingData) {
-        if (!this.database || !this.chatId) return;
+        if (!this.database || !this.otherUserId) return;
 
         try {
-            const ratingRef = this.database.ref(`chats/${this.chatId}/rating`);
-            await ratingRef.set(ratingData);
+            // Guardar calificación en el perfil del usuario calificado
+            const ratingId = Date.now().toString();
+            const ratingRef = this.database.ref(`users/${this.otherUserId}/ratings/${ratingId}`);
+            
+            const fullRatingData = {
+                ...ratingData,
+                raterId: this.currentUser.id,
+                raterName: this.currentUser.name,
+                ratedUserId: this.otherUserId,
+                chatId: this.chatId
+            };
+            
+            await ratingRef.set(fullRatingData);
+            
+            // Actualizar estadísticas de confiabilidad del usuario
+            await this.updateUserReliability();
+            
         } catch (error) {
             console.error('❌ Error guardando calificación:', error);
+        }
+    }
+    
+    async updateUserReliability() {
+        try {
+            // Obtener todas las calificaciones del usuario
+            const ratingsRef = this.database.ref(`users/${this.otherUserId}/ratings`);
+            const snapshot = await ratingsRef.once('value');
+            const ratings = snapshot.val() || {};
+            
+            // Calcular promedio y total de calificaciones
+            const ratingValues = Object.values(ratings);
+            const totalRatings = ratingValues.length;
+            const averageRating = totalRatings > 0 
+                ? ratingValues.reduce((sum, rating) => sum + (rating.rating || 0), 0) / totalRatings 
+                : 0;
+            
+            // Actualizar estadísticas en el perfil
+            const statsRef = this.database.ref(`users/${this.otherUserId}/reliability`);
+            await statsRef.set({
+                averageRating: Math.round(averageRating * 10) / 10,
+                totalRatings: totalRatings,
+                lastUpdated: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('❌ Error actualizando confiabilidad:', error);
         }
     }
 

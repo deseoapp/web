@@ -326,6 +326,8 @@ class ChatClient {
                 this.showError('Saldo insuficiente para enviar mensaje.');
                 return;
             }
+            // Acreditar al proveedor y registrar microtransacción
+            await this.creditProvider(100, 'message');
             const messageData = {
                 id: Date.now().toString(),
                 senderId: this.currentUser.id,
@@ -467,6 +469,7 @@ class ChatClient {
             if (current < amount) return false;
             await balanceRef.set(current - amount);
             const txId = `tx_${Date.now()}`;
+            // Transacción general (si se usa)
             await this.database.ref(`users/${this.currentUser.id}/transactions/${txId}`).set({
                 id: txId,
                 type: 'debit',
@@ -474,10 +477,43 @@ class ChatClient {
                 amount,
                 timestamp: new Date().toISOString()
             });
+            // Microtransacción
+            const microId = `micro_${Date.now()}`;
+            await this.database.ref(`users/${this.currentUser.id}/microtransactions/${microId}`).set({
+                id: microId,
+                direction: 'out',
+                reason,
+                amount,
+                to: this.otherUserId,
+                chatId: this.chatId,
+                timestamp: new Date().toISOString()
+            });
             return true;
         } catch (e) {
             console.error('❌ Error cobrando al cliente:', e);
             return false;
+        }
+    }
+
+    async creditProvider(amount, reason) {
+        try {
+            if (!this.otherUserId) return;
+            const balanceRef = this.database.ref(`users/${this.otherUserId}/balance`);
+            const snap = await balanceRef.once('value');
+            const current = parseInt(snap.val() || '0', 10);
+            await balanceRef.set(current + amount);
+            const microId = `micro_${Date.now()}`;
+            await this.database.ref(`users/${this.otherUserId}/microtransactions/${microId}`).set({
+                id: microId,
+                direction: 'in',
+                reason,
+                amount,
+                from: this.currentUser.id,
+                chatId: this.chatId,
+                timestamp: new Date().toISOString()
+            });
+        } catch (e) {
+            console.error('❌ Error acreditando al proveedor:', e);
         }
     }
 

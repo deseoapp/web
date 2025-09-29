@@ -156,9 +156,14 @@ class ChatProvider {
         try {
             if (!this.database || !this.otherUserId) return;
             const badge = document.getElementById('clientBalanceBadge');
-            const balanceRef = this.database.ref(`wallet/${this.otherUserId}/balance`);
-            const snap = await balanceRef.once('value');
-            const balance = parseInt(snap.val() || '0', 10);
+            // Path real: users/{id}/balance, con fallback a wallet/{id}/balance
+            let snap = await this.database.ref(`users/${this.otherUserId}/balance`).once('value');
+            let balanceValue = snap.val();
+            if (balanceValue === null || balanceValue === undefined) {
+                const alt = await this.database.ref(`wallet/${this.otherUserId}/balance`).once('value');
+                balanceValue = alt.val();
+            }
+            const balance = parseInt(balanceValue || '0', 10);
             if (badge) {
                 badge.textContent = `${balance} pesos`;
                 badge.style.display = 'inline-block';

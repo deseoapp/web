@@ -37,6 +37,9 @@ class ChatProvider {
         
         // Cargar mensajes
         await this.loadMessages();
+        // Cargar perfil del otro usuario y su balance
+        await this.loadOtherUserProfileAndHeader();
+        await this.loadClientBalanceBadge();
         
         // Inicializar notificaciones
         await this.initializeNotifications();
@@ -88,6 +91,53 @@ class ChatProvider {
         } catch (error) {
             console.error('❌ Error cargando usuario:', error);
             this.showError('Error de autenticación');
+        }
+    }
+
+    async loadOtherUserProfileAndHeader() {
+        try {
+            if (!this.database || !this.otherUserId) return;
+            const profileRef = this.database.ref(`users/${this.otherUserId}/profile`);
+            let snap = await profileRef.once('value');
+            let profile = snap.val();
+            if (!profile) {
+                const rootRef = this.database.ref(`users/${this.otherUserId}`);
+                snap = await rootRef.once('value');
+                profile = snap.val();
+            }
+            const alias = profile?.nickname || profile?.alias || profile?.apodo || profile?.userInfo?.name || profile?.name || 'Usuario';
+            const avatarEl = document.getElementById('chatUserAvatar');
+            const nameEl = document.getElementById('chatUserName');
+            if (nameEl) nameEl.firstChild && (nameEl.firstChild.nodeValue = alias + ' ');
+            if (avatarEl && profile?.photos && Array.isArray(profile.photos) && profile.photos.length > 0) {
+                avatarEl.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = profile.photos[0];
+                img.alt = alias;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                img.style.borderRadius = '50%';
+                avatarEl.appendChild(img);
+            }
+        } catch (e) {
+            console.warn('No se pudo cargar perfil del otro usuario:', e);
+        }
+    }
+
+    async loadClientBalanceBadge() {
+        try {
+            if (!this.database || !this.otherUserId) return;
+            const badge = document.getElementById('clientBalanceBadge');
+            const balanceRef = this.database.ref(`wallet/${this.otherUserId}/balance`);
+            const snap = await balanceRef.once('value');
+            const balance = parseInt(snap.val() || '0', 10);
+            if (badge) {
+                badge.textContent = `${balance} pesos`;
+                badge.style.display = 'inline-block';
+            }
+        } catch (e) {
+            console.warn('No se pudo cargar balance del cliente:', e);
         }
     }
 

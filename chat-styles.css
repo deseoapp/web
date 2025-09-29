@@ -117,6 +117,18 @@ body.chat-page {
     color: var(--text-color);
 }
 
+.balance-badge {
+    display: inline-block;
+    margin-left: 8px;
+    background: rgba(96, 196, 142, 0.15);
+    color: var(--primary-color);
+    border: 1px solid rgba(96, 196, 142, 0.35);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    vertical-align: middle;
+}
+
 .user-details p {
     margin: 0;
     font-size: 0.85rem;
@@ -245,7 +257,7 @@ body.chat-page {
 }
 
 .chat-message.system .message-content {
-    background: linear-gradient(135deg, var(--info-color), #1976D2);
+    background: linear-gradient(135deg,  #838383);
     color: white;
     text-align: center;
     font-style: italic;

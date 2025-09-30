@@ -205,6 +205,8 @@ class ChatProvider {
         const quickActions = document.querySelectorAll('.quick-action-btn');
         quickActions.forEach(btn => {
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const action = e.currentTarget.dataset.action;
                 this.handleQuickAction(action);
             });
@@ -324,29 +326,42 @@ class ChatProvider {
     }
 
     async handleQuickAction(action) {
-        switch (action) {
-            case 'respond':
-                // Responder: foco al input
-                const input = document.getElementById('messageInput');
-                if (input) input.focus();
-                break;
-            case 'paid-photo':
-                this.openModal('paidPhotoModal');
-                break;
-            case 'offer-service':
-                this.openModal('offerServiceModal');
-                break;
-            case 'tips':
-                this.openModal('tipsModal');
-                break;
-            case 'rate':
-                this.openModal('rateModal');
-                break;
-            case 'client-balance':
-                await this.viewClientBalance();
-                break;
-            default:
-                break;
+        if (action === 'favorite') {
+            await this.toggleFavorite(true);
+            return;
+        }
+        if (action === 'paid-photo') {
+            this.openModal('paidPhotoModal');
+            return;
+        }
+        if (action === 'offer-service') {
+            this.openModal('offerServiceModal');
+            return;
+        }
+        if (action === 'tips') {
+            // Para proveedor, solo abre un recordatorio/toast de que las propinas llegan del cliente
+            this.showNotification('Pide al cliente una propina con amabilidad 😉', 'info');
+            return;
+        }
+        if (action === 'rate') {
+            this.openModal('rateModal');
+            return;
+        }
+        if (action === 'client-balance') {
+            await this.viewClientBalance();
+            return;
+        }
+    }
+
+    async toggleFavorite(state) {
+        try {
+            if (!this.database || !this.chatId || !this.currentUser) return;
+            // Guardar favorito por usuario actual en el chat
+            await this.database.ref(`chats/${this.chatId}/favorites/${this.currentUser.id}`).set(!!state);
+            this.showNotification(state ? 'Añadido a favoritos' : 'Eliminado de favoritos', 'success');
+        } catch (e) {
+            console.error('❌ Error al cambiar favorito:', e);
+            this.showError('No se pudo actualizar favorito');
         }
     }
 

@@ -43,7 +43,10 @@ class ChatProvider {
         
         // Inicializar notificaciones
         await this.initializeNotifications();
-        
+
+        // Ir al último mensaje al entrar
+        this.scrollToBottom();
+
         console.log('✅ ChatProvider: Inicializado correctamente');
     }
 

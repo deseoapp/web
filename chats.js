@@ -311,6 +311,16 @@ class ChatsManager {
             case 'archived':
                 filteredChats = filteredChats.filter(chat => chat.status === 'archived');
                 break;
+            case 'favorites':
+                filteredChats = filteredChats.filter(chat => {
+                    try {
+                        const favs = chat.favorites || {};
+                        return !!favs[this.currentUser.id];
+                    } catch (_) {
+                        return false;
+                    }
+                });
+                break;
         }
         
         // Aplicar búsqueda

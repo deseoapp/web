@@ -47,6 +47,8 @@ class ChatClient {
         await this.initializeNotifications();
         
         console.log('✅ ChatClient: Inicializado correctamente');
+        // Ir al último mensaje al entrar
+        this.scrollToBottom();
     }
 
     async initializeFirebase() {

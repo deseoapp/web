@@ -210,10 +210,8 @@ class ChatClient {
                 }
                 
                 if (action === 'request') {
-                    const modal = document.getElementById('requestServiceModal');
-                    if (modal) {
-                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
-                    }
+                    // Envío inmediato: cobrar 100 y notificar al proveedor (sin modal)
+                    this.sendEncounterRequestImmediate();
                 }
                 
                 if (action === 'favorite') {
@@ -228,7 +226,7 @@ class ChatClient {
                 }
                 
                 if (action === 'urgent') {
-                    alert('Mensaje urgente enviado');
+                    this.sendUrgentMessage();
                 }
                 
                 if (action === 'rate') {
@@ -661,15 +659,23 @@ class ChatClient {
 
     async sendUrgentMessage() {
         try {
-            const urgentMessage = `🚨 **RESPUESTA URGENTE REQUERIDA**\n\n` +
-                `Se precisa una respuesta urgente. Por favor, responde lo antes posible.`;
-            
+            const urgentMessage = `🚨 **URGENTE**\n\nSe solicita urgencia en el servicio. Por favor, responde lo antes posible.`;
             await this.sendSpecialMessage(urgentMessage, 'urgent');
             this.showNotification('Mensaje urgente enviado', 'success');
-            
         } catch (error) {
             console.error('❌ Error enviando mensaje urgente:', error);
             this.showError('Error enviando mensaje urgente');
+        }
+    }
+
+    async sendEncounterRequestImmediate() {
+        try {
+            const requestMessage = `🤝 **SOLICITUD DE ENCUENTRO**\n\nEl cliente solicita un encuentro contigo.`;
+            await this.sendSpecialMessage(requestMessage, 'service_request');
+            this.showNotification('Solicitud de encuentro enviada', 'success');
+        } catch (error) {
+            console.error('❌ Error enviando solicitud de encuentro:', error);
+            this.showError('Error enviando solicitud');
         }
     }
 

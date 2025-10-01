@@ -13,6 +13,7 @@ class ChatsManager {
         this.users = [];
         this.currentFilter = 'all';
         this.searchQuery = '';
+        this.userFavorites = {}; // Favoritos del usuario actual
       // Cache de perfiles para resolver alias/apodo sin repetir lecturas
       this.userProfilesCache = {};
         
@@ -35,6 +36,7 @@ class ChatsManager {
         this.setupEventListeners();
         
         // Cargar datos
+        await this.loadUserFavorites();
         await this.loadChats();
         await this.loadNotifications();
         
@@ -83,6 +85,22 @@ class ChatsManager {
         } catch (error) {
             console.error('❌ Error cargando usuario:', error);
             this.showError('Error de autenticación');
+        }
+    }
+
+    async loadUserFavorites() {
+        if (!this.database || !this.currentUser) return;
+        
+        try {
+            const favoritesRef = this.database.ref(`users/${this.currentUser.id}/favorites`);
+            const snapshot = await favoritesRef.once('value');
+            const favorites = snapshot.val() || {};
+            
+            this.userFavorites = favorites;
+            console.log('⭐ Favoritos cargados:', Object.keys(favorites).length);
+        } catch (error) {
+            console.error('❌ Error cargando favoritos:', error);
+            this.userFavorites = {};
         }
     }
 
@@ -314,8 +332,8 @@ class ChatsManager {
             case 'favorites':
                 filteredChats = filteredChats.filter(chat => {
                     try {
-                        const favs = chat.favorites || {};
-                        return !!favs[this.currentUser.id];
+                        const otherParticipant = this.getOtherParticipant(chat);
+                        return !!this.userFavorites[otherParticipant.id];
                     } catch (_) {
                         return false;
                     }

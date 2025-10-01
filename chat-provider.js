@@ -471,12 +471,32 @@ class ChatProvider {
 
     async sendTipsRequestDirect() {
         try {
-            const tipsMessage = '💝 El proveedor solicita una propina para continuar con contenido exclusivo.';
+            // Obtener alias del proveedor
+            const providerAlias = await this.getAliasForUser(this.currentUser.id);
+            const tipsMessage = `💝 ${providerAlias} ha solicitado una propina para continuar con contenido exclusivo.`;
             await this.sendSpecialMessage(tipsMessage, 'tips_request');
             this.showNotification('Solicitud de propina enviada', 'success');
         } catch (error) {
             console.error('❌ Error enviando solicitud de propina:', error);
             this.showError('Error enviando solicitud de propina');
+        }
+    }
+
+    async getAliasForUser(userId) {
+        try {
+            if (!this.database || !userId) return 'Usuario';
+            const profileRef = this.database.ref(`users/${userId}/profile`);
+            let snap = await profileRef.once('value');
+            let profile = snap.val();
+            if (!profile) {
+                const rootRef = this.database.ref(`users/${userId}`);
+                snap = await rootRef.once('value');
+                profile = snap.val();
+            }
+            const alias = profile?.nickname || profile?.alias || profile?.apodo || profile?.userInfo?.name || profile?.name || this.currentUser?.name || 'Usuario';
+            return alias;
+        } catch (_) {
+            return this.currentUser?.name || 'Usuario';
         }
     }
 
@@ -750,7 +770,36 @@ class ChatProvider {
         const content = document.createElement('div');
         content.className = 'message-content';
         
-        let messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+        let messageHtml = '';
+        
+        // Manejar diferentes tipos de mensajes
+        if (message.type === 'paid_photo_bundle') {
+            // Fotos pagadas - mostrar según estado de desbloqueo
+            if (message.unlocked) {
+                messageHtml = this.createUnlockedPhotosHTML(message);
+            } else {
+                messageHtml = this.createPaidPhotoBundleHTML(message);
+            }
+        } else if (message.type === 'service_offer') {
+            // Oferta de encuentro
+            messageHtml = this.createEncounterOfferHTML(message);
+        } else if (message.type === 'tips_request') {
+            // Solicitud de propina
+            messageHtml = `<div class="tips-request">
+                <p>💝 <strong>Solicitud de propina</strong></p>
+                <p>${this.escapeHtml(message.message || 'El proveedor solicita una propina para continuar con contenido exclusivo.')}</p>
+            </div>`;
+        } else if (message.type === 'encounter_response') {
+            // Respuesta a oferta de encuentro
+            const status = message.accepted ? '✅ Aceptada' : '❌ Rechazada';
+            messageHtml = `<div class="encounter-response" style="background: ${message.accepted ? '#f0f9ff' : '#fef2f2'}; padding: 10px; border-radius: 8px; border-left: 4px solid ${message.accepted ? '#10b981' : '#ef4444'};">
+                <p><strong>Respuesta a oferta de encuentro: ${status}</strong></p>
+                <p>${this.escapeHtml(message.message)}</p>
+            </div>`;
+        } else {
+            // Mensaje normal
+            messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+        }
         
         // Agregar timestamp
         const timestamp = new Date(message.timestamp);
@@ -766,6 +815,74 @@ class ChatProvider {
         div.appendChild(content);
         
         return div;
+    }
+
+    createPaidPhotoBundleHTML(message) {
+        const count = message.count || 1;
+        const price = message.price || 0;
+        
+        return `
+            <div class="paid-photo-bundle" style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 10px 0; border: 1px solid #e2e8f0;">
+                <div class="photo-preview" style="display: flex; gap: 8px; margin: 10px 0;">
+                    ${Array.from({length: count}, (_, i) => `
+                        <div class="blurred-photo" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; filter: blur(8px); background: #333;">
+                            <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #666, #999);"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="unlock-info">
+                    <p><strong>📸 ${count} foto(s) enviada(s)</strong></p>
+                    <p>Precio: $${price} pesos</p>
+                    <p style="font-size: 12px; color: #666;">Esperando pago del cliente...</p>
+                </div>
+            </div>
+        `;
+    }
+
+    createUnlockedPhotosHTML(message) {
+        const count = message.count || 1;
+        const price = message.price || 0;
+        const images = message.images || [];
+        
+        return `
+            <div class="unlocked-photos" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
+                <div class="photos-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <span style="font-size: 20px;">📸</span>
+                    <div>
+                        <p style="margin: 0; font-weight: bold;">${count} foto(s) desbloqueada(s)</p>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Precio pagado: $${price} pesos</p>
+                    </div>
+                </div>
+                <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+                    ${images.map((imageData, index) => `
+                        <div class="photo-item" style="position: relative; cursor: pointer;" onclick="showPhotoModal('${imageData}', ${index + 1})">
+                            <img src="${imageData}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; border: 2px solid #10b981;" alt="Foto ${index + 1}">
+                            <div style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7); color: white; font-size: 10px; padding: 2px 4px; border-radius: 3px;">${index + 1}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    createEncounterOfferHTML(message) {
+        const price = message.price || 0;
+        const description = message.description || '';
+        const time = message.time || '';
+        
+        return `
+            <div class="encounter-offer" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0; border: 1px solid #e2e8f0;">
+                <div class="offer-header">
+                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">💼 Oferta de encuentro enviada</h4>
+                </div>
+                <div class="offer-details">
+                    <p><strong>Precio:</strong> $${price} pesos</p>
+                    <p><strong>Descripción:</strong> ${this.escapeHtml(description)}</p>
+                    <p><strong>Tiempo:</strong> ${this.escapeHtml(time)}</p>
+                </div>
+                <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">Esperando respuesta del cliente...</p>
+            </div>
+        `;
     }
 
     handleQuickAction(action) {
@@ -1166,6 +1283,40 @@ function setRating(rating) {
         window.chatProvider.setRating(rating);
     }
 }
+
+// Función global para mostrar fotos en modal
+window.showPhotoModal = function(imageData, photoNumber) {
+    const modal = document.createElement('div');
+    modal.id = 'photoModal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; display: flex; align-items: center; justify-content: center;';
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'position: relative; max-width: 90%; max-height: 90%;';
+    
+    const img = document.createElement('img');
+    img.src = imageData;
+    img.style.cssText = 'max-width: 100%; max-height: 100%; border-radius: 8px;';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = 'position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.8); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;';
+    closeBtn.onclick = () => modal.remove();
+    
+    const photoLabel = document.createElement('div');
+    photoLabel.innerHTML = `Foto ${photoNumber}`;
+    photoLabel.style.cssText = 'position: absolute; bottom: -30px; left: 0; color: white; font-size: 14px;';
+    
+    content.appendChild(img);
+    content.appendChild(closeBtn);
+    content.appendChild(photoLabel);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Cerrar al hacer clic fuera de la imagen
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
+};
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {

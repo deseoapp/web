@@ -998,8 +998,12 @@ class ChatClient {
         
         // Manejar diferentes tipos de mensajes
         if (message.type === 'paid_photo_bundle' && !isSent) {
-            // Fotos pagadas del proveedor - mostrar borrosas con botón de desbloqueo
-            messageHtml = this.createPaidPhotoBundleHTML(message);
+            // Fotos pagadas del proveedor - mostrar según estado de desbloqueo
+            if (message.unlocked) {
+                messageHtml = this.createUnlockedPhotosHTML(message);
+            } else {
+                messageHtml = this.createPaidPhotoBundleHTML(message);
+            }
         } else if (message.type === 'service_offer' && !isSent) {
             // Oferta de encuentro del proveedor - mostrar con botones aceptar/rechazar
             messageHtml = this.createEncounterOfferHTML(message);
@@ -1086,6 +1090,32 @@ class ChatClient {
         `;
     }
 
+    createUnlockedPhotosHTML(message) {
+        const count = message.count || 1;
+        const price = message.price || 0;
+        const images = message.images || [];
+        
+        return `
+            <div class="unlocked-photos" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
+                <div class="photos-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <span style="font-size: 20px;">📸</span>
+                    <div>
+                        <p style="margin: 0; font-weight: bold;">${count} foto(s) desbloqueada(s)</p>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Precio pagado: $${price} pesos</p>
+                    </div>
+                </div>
+                <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+                    ${images.map((imageData, index) => `
+                        <div class="photo-item" style="position: relative; cursor: pointer;" onclick="showPhotoModal('${imageData}', ${index + 1})">
+                            <img src="${imageData}" style="width: 100%; height: 80px; object-fit: cover; border-radius: 6px; border: 2px solid #10b981;" alt="Foto ${index + 1}">
+                            <div style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7); color: white; font-size: 10px; padding: 2px 4px; border-radius: 3px;">${index + 1}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
     // Funciones globales para manejar interacciones
     async unlockPaidPhotos(messageId, price) {
         try {
@@ -1107,11 +1137,11 @@ class ChatClient {
             const message = snapshot.val();
             
             if (message && message.images) {
-                // Mostrar las fotos desbloqueadas
-                this.showUnlockedPhotos(message.images, messageId);
-                
                 // Marcar como desbloqueado
                 await messageRef.update({ unlocked: true, unlockedAt: new Date().toISOString() });
+                
+                // Recargar mensajes para mostrar las fotos desbloqueadas
+                await this.loadMessages();
                 
                 this.showNotification('Fotos desbloqueadas correctamente', 'success');
             }
@@ -1590,8 +1620,12 @@ class ChatClient {
                 return;
             }
 
-            const notification = new Notification('Nuevo mensaje de ' + senderName, {
-                body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+            // Validar que message sea string y no esté vacío
+            const messageText = (message && typeof message === 'string') ? message : 'Nuevo mensaje';
+            const sender = (senderName && typeof senderName === 'string') ? senderName : 'Usuario';
+
+            const notification = new Notification('Nuevo mensaje de ' + sender, {
+                body: messageText.length > 50 ? messageText.substring(0, 50) + '...' : messageText,
                 icon: 'https://www.gravatar.com/avatar/?d=mp&f=y',
                 badge: 'https://www.gravatar.com/avatar/?d=mp&f=y',
                 tag: 'deseo-chat',
@@ -1648,6 +1682,39 @@ window.closeUnlockedPhotosModal = function() {
     if (modal) {
         modal.remove();
     }
+};
+
+window.showPhotoModal = function(imageData, photoNumber) {
+    const modal = document.createElement('div');
+    modal.id = 'photoModal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; display: flex; align-items: center; justify-content: center;';
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'position: relative; max-width: 90%; max-height: 90%;';
+    
+    const img = document.createElement('img');
+    img.src = imageData;
+    img.style.cssText = 'max-width: 100%; max-height: 100%; border-radius: 8px;';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.style.cssText = 'position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.8); border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px;';
+    closeBtn.onclick = () => modal.remove();
+    
+    const photoLabel = document.createElement('div');
+    photoLabel.innerHTML = `Foto ${photoNumber}`;
+    photoLabel.style.cssText = 'position: absolute; bottom: -30px; left: 0; color: white; font-size: 14px;';
+    
+    content.appendChild(img);
+    content.appendChild(closeBtn);
+    content.appendChild(photoLabel);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Cerrar al hacer clic fuera de la imagen
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
 };
 
 // Inicializar cuando el DOM esté listo

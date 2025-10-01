@@ -8,6 +8,7 @@ class ChatClient {
         this.firebase = null;
         this.database = null;
         this.currentUser = null;
+        this.currentUserAlias = null;
         this.chatId = null;
         this.otherUser = null;
         this.messages = [];
@@ -92,9 +93,29 @@ class ChatClient {
             
             this.currentUser = JSON.parse(userData);
             console.log('👤 Usuario actual cargado:', this.currentUser.name);
+            // Resolver alias del propio usuario para usar en senderName
+            this.currentUserAlias = await this.getAliasForUser(this.currentUser.id);
         } catch (error) {
             console.error('❌ Error cargando usuario:', error);
             this.showError('Error de autenticación');
+        }
+    }
+
+    async getAliasForUser(userId) {
+        try {
+            if (!this.database || !userId) return null;
+            const profileRef = this.database.ref(`users/${userId}/profile`);
+            let snap = await profileRef.once('value');
+            let profile = snap.val();
+            if (!profile) {
+                const rootRef = this.database.ref(`users/${userId}`);
+                snap = await rootRef.once('value');
+                profile = snap.val();
+            }
+            const alias = profile?.nickname || profile?.alias || profile?.apodo || profile?.userInfo?.name || profile?.name || this.currentUser?.name || 'Usuario';
+            return alias;
+        } catch (_) {
+            return this.currentUser?.name || 'Usuario';
         }
     }
 
@@ -426,7 +447,7 @@ class ChatClient {
             const messageData = {
                 id: Date.now().toString(),
                 senderId: this.currentUser.id,
-                senderName: this.currentUser.name,
+                senderName: this.currentUserAlias || this.currentUser.name,
                 message: message,
                 timestamp: new Date().toISOString(),
                 type: 'text'
@@ -464,7 +485,7 @@ class ChatClient {
             const messageData = {
                 id: `tip_${Date.now()}`,
                 senderId: this.currentUser.id,
-                senderName: this.currentUser.name,
+                senderName: this.currentUserAlias || this.currentUser.name,
                 message: `Propina enviada: ${amount} pesos${note ? ' - ' + note : ''}`,
                 timestamp: new Date().toISOString(),
                 type: 'tip',
@@ -490,7 +511,7 @@ class ChatClient {
             const payload = {
                 id: reqId,
                 senderId: this.currentUser.id,
-                senderName: this.currentUser.name,
+                senderName: this.currentUserAlias || this.currentUser.name,
                 type: 'service_request',
                 title: title.trim(),
                 description: description.trim(),
@@ -973,7 +994,25 @@ class ChatClient {
         const content = document.createElement('div');
         content.className = 'message-content';
         
-        let messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+        let messageHtml = '';
+        
+        // Manejar diferentes tipos de mensajes
+        if (message.type === 'paid_photo_bundle' && !isSent) {
+            // Fotos pagadas del proveedor - mostrar borrosas con botón de desbloqueo
+            messageHtml = this.createPaidPhotoBundleHTML(message);
+        } else if (message.type === 'service_offer' && !isSent) {
+            // Oferta de encuentro del proveedor - mostrar con botones aceptar/rechazar
+            messageHtml = this.createEncounterOfferHTML(message);
+        } else if (message.type === 'tips_request' && !isSent) {
+            // Solicitud de propina del proveedor
+            messageHtml = `<div class="tips-request">
+                <p>💝 <strong>Solicitud de propina</strong></p>
+                <p>${this.escapeHtml(message.message || 'El proveedor solicita una propina para continuar con contenido exclusivo.')}</p>
+            </div>`;
+        } else {
+            // Mensaje normal
+            messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+        }
         
         // Agregar timestamp
         const timestamp = new Date(message.timestamp);
@@ -989,6 +1028,169 @@ class ChatClient {
         div.appendChild(content);
         
         return div;
+    }
+
+    createPaidPhotoBundleHTML(message) {
+        const count = message.count || 1;
+        const price = message.price || 0;
+        const messageId = message.id;
+        
+        return `
+            <div class="paid-photo-bundle" data-message-id="${messageId}" data-price="${price}">
+                <div class="photo-preview" style="display: flex; gap: 8px; margin: 10px 0;">
+                    ${Array.from({length: count}, (_, i) => `
+                        <div class="blurred-photo" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; filter: blur(8px); background: #333;">
+                            <div style="width: 100%; height: 100%; background: linear-gradient(45deg, #666, #999);"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="unlock-info">
+                    <p><strong>📸 ${count} foto(s) bloqueada(s)</strong></p>
+                    <p>Precio: $${price} pesos</p>
+                    <button class="unlock-btn" onclick="unlockPaidPhotos('${messageId}', ${price})" 
+                            style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                        🔓 Desbloquear fotos
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    createEncounterOfferHTML(message) {
+        const price = message.price || 0;
+        const description = message.description || '';
+        const time = message.time || '';
+        const messageId = message.id;
+        
+        return `
+            <div class="encounter-offer" data-message-id="${messageId}">
+                <div class="offer-header">
+                    <h4>💼 Oferta de encuentro</h4>
+                </div>
+                <div class="offer-details">
+                    <p><strong>Precio:</strong> $${price} pesos</p>
+                    <p><strong>Descripción:</strong> ${this.escapeHtml(description)}</p>
+                    <p><strong>Tiempo:</strong> ${this.escapeHtml(time)}</p>
+                </div>
+                <div class="offer-actions" style="margin-top: 10px;">
+                    <button class="accept-btn" onclick="respondToEncounterOffer('${messageId}', true)" 
+                            style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                        ✅ Aceptar
+                    </button>
+                    <button class="reject-btn" onclick="respondToEncounterOffer('${messageId}', false)" 
+                            style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                        ❌ Rechazar
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Funciones globales para manejar interacciones
+    async unlockPaidPhotos(messageId, price) {
+        try {
+            if (!this.database || !this.chatId) return;
+            
+            // Verificar saldo suficiente
+            const canCharge = await this.chargeClient(price, 'paid_photos');
+            if (!canCharge) {
+                this.showError('Saldo insuficiente para desbloquear fotos.');
+                return;
+            }
+            
+            // Acreditar al proveedor
+            await this.creditProvider(price, 'paid_photos');
+            
+            // Obtener el mensaje original para mostrar las fotos
+            const messageRef = this.database.ref(`chats/${this.chatId}/messages/${messageId}`);
+            const snapshot = await messageRef.once('value');
+            const message = snapshot.val();
+            
+            if (message && message.images) {
+                // Mostrar las fotos desbloqueadas
+                this.showUnlockedPhotos(message.images, messageId);
+                
+                // Marcar como desbloqueado
+                await messageRef.update({ unlocked: true, unlockedAt: new Date().toISOString() });
+                
+                this.showNotification('Fotos desbloqueadas correctamente', 'success');
+            }
+        } catch (error) {
+            console.error('❌ Error desbloqueando fotos:', error);
+            this.showError('Error desbloqueando fotos');
+        }
+    }
+
+    showUnlockedPhotos(images, messageId) {
+        // Crear modal para mostrar fotos desbloqueadas
+        const modal = document.createElement('div');
+        modal.id = 'unlockedPhotosModal';
+        modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+        
+        const content = document.createElement('div');
+        content.style.cssText = 'background: white; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 90%; overflow-y: auto;';
+        
+        let photosHtml = '<h3>📸 Fotos desbloqueadas</h3><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">';
+        
+        images.forEach((imageData, index) => {
+            photosHtml += `
+                <div style="text-align: center;">
+                    <img src="${imageData}" style="width: 100%; max-width: 200px; height: 200px; object-fit: cover; border-radius: 8px;" alt="Foto ${index + 1}">
+                    <p>Foto ${index + 1}</p>
+                </div>
+            `;
+        });
+        
+        photosHtml += '</div><button onclick="closeUnlockedPhotosModal()" style="margin-top: 15px; padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>';
+        
+        content.innerHTML = photosHtml;
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+    }
+
+    async respondToEncounterOffer(messageId, accepted) {
+        try {
+            if (!this.database || !this.chatId) return;
+            
+            if (accepted) {
+                // Obtener detalles de la oferta
+                const messageRef = this.database.ref(`chats/${this.chatId}/messages/${messageId}`);
+                const snapshot = await messageRef.once('value');
+                const offer = snapshot.val();
+                
+                if (offer) {
+                    // Cobrar al cliente
+                    const canCharge = await this.chargeClient(offer.price, 'encounter_offer');
+                    if (!canCharge) {
+                        this.showError('Saldo insuficiente para aceptar la oferta.');
+                        return;
+                    }
+                    
+                    // Acreditar al proveedor
+                    await this.creditProvider(offer.price, 'encounter_offer');
+                }
+            }
+            
+            // Enviar respuesta
+            const responseId = `response_${Date.now()}`;
+            const responseData = {
+                id: responseId,
+                senderId: this.currentUser.id,
+                senderName: this.currentUserAlias || this.currentUser.name,
+                type: 'encounter_response',
+                originalMessageId: messageId,
+                accepted: accepted,
+                message: accepted ? '✅ He aceptado tu oferta de encuentro' : '❌ He rechazado tu oferta de encuentro',
+                timestamp: new Date().toISOString()
+            };
+            
+            await this.database.ref(`chats/${this.chatId}/messages/${responseId}`).set(responseData);
+            
+            this.showNotification(accepted ? 'Oferta aceptada' : 'Oferta rechazada', 'success');
+        } catch (error) {
+            console.error('❌ Error respondiendo a oferta:', error);
+            this.showError('Error procesando respuesta');
+        }
     }
 
     handleQuickAction(action) {
@@ -1177,7 +1379,7 @@ class ChatClient {
         const messageData = {
             id: Date.now().toString(),
             senderId: this.currentUser.id,
-            senderName: this.currentUser.name,
+            senderName: this.currentUserAlias || this.currentUser.name,
             message: message,
             timestamp: new Date().toISOString(),
             type: type
@@ -1224,7 +1426,7 @@ class ChatClient {
             const fullRatingData = {
                 ...ratingData,
                 raterId: this.currentUser.id,
-                raterName: this.currentUser.name,
+                raterName: this.currentUserAlias || this.currentUser.name,
                 ratedUserId: this.otherUserId,
                 chatId: this.chatId
             };
@@ -1427,6 +1629,26 @@ function closeModal(modalId) {
         modal.style.display = 'none';
     }
 }
+
+// Funciones globales para los botones
+window.unlockPaidPhotos = function(messageId, price) {
+    if (window.chatClient) {
+        window.chatClient.unlockPaidPhotos(messageId, price);
+    }
+};
+
+window.respondToEncounterOffer = function(messageId, accepted) {
+    if (window.chatClient) {
+        window.chatClient.respondToEncounterOffer(messageId, accepted);
+    }
+};
+
+window.closeUnlockedPhotosModal = function() {
+    const modal = document.getElementById('unlockedPhotosModal');
+    if (modal) {
+        modal.remove();
+    }
+};
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {

@@ -242,11 +242,8 @@ class ChatProvider {
                 }
                 
                 if (action === 'tips') {
-                    console.log('🔍 [PROV] Opening tips modal');
-                    const modal = document.getElementById('tipsModal');
-                    if (modal) {
-                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
-                    }
+                    console.log('🔍 [PROV] Sending direct tips request');
+                    this.sendTipsRequestDirect();
                 }
                 
                 if (action === 'rate') {
@@ -268,6 +265,10 @@ class ChatProvider {
         const sendTipsBtn = document.getElementById('sendTipsBtn');
         if (sendTipsBtn) {
             sendTipsBtn.addEventListener('click', () => this.sendTipsRequest());
+        }
+        const paidPhotoInput = document.getElementById('paidPhotoFile');
+        if (paidPhotoInput) {
+            paidPhotoInput.addEventListener('change', () => this.previewPaidPhotos());
         }
         const sendPaidPhotoBtn = document.getElementById('sendPaidPhotoBtn');
         if (sendPaidPhotoBtn) {
@@ -457,13 +458,8 @@ class ChatProvider {
 
     async sendTipsRequest() {
         try {
-            const message = document.getElementById('tipsMessage').value;
-            if (!message.trim()) {
-                this.showError('Por favor escribe un mensaje');
-                return;
-            }
-
-            const tipsMessage = `💝 **SOLICITUD DE PROPINA**\n\n${message}`;
+            // Cambio: enviar directo sin descripción (mensaje fijo)
+            const tipsMessage = '💝 El proveedor solicita una propina para continuar con contenido exclusivo.';
             await this.sendSpecialMessage(tipsMessage, 'tips_request');
             this.closeModal('tipsModal');
             this.showNotification('Solicitud de propina enviada', 'success');
@@ -473,25 +469,76 @@ class ChatProvider {
         }
     }
 
+    async sendTipsRequestDirect() {
+        try {
+            const tipsMessage = '💝 El proveedor solicita una propina para continuar con contenido exclusivo.';
+            await this.sendSpecialMessage(tipsMessage, 'tips_request');
+            this.showNotification('Solicitud de propina enviada', 'success');
+        } catch (error) {
+            console.error('❌ Error enviando solicitud de propina:', error);
+            this.showError('Error enviando solicitud de propina');
+        }
+    }
+
+    async fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    previewPaidPhotos() {
+        const container = document.getElementById('paidPhotoPreview');
+        const fileInput = document.getElementById('paidPhotoFile');
+        if (!container || !fileInput || !fileInput.files) return;
+        container.innerHTML = '';
+        Array.from(fileInput.files).forEach((f) => {
+            const thumb = document.createElement('div');
+            thumb.style.width = '72px';
+            thumb.style.height = '72px';
+            thumb.style.borderRadius = '10px';
+            thumb.style.overflow = 'hidden';
+            thumb.style.filter = 'blur(6px)';
+            const img = document.createElement('img');
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.src = URL.createObjectURL(f);
+            thumb.appendChild(img);
+            container.appendChild(thumb);
+        });
+    }
+
     async sendPaidPhoto() {
         const priceStr = (document.getElementById('paidPhotoPrice') || {}).value || '0';
         const fileInput = document.getElementById('paidPhotoFile');
         const price = parseInt(priceStr, 10) || 0;
-        if (!fileInput || !fileInput.files || fileInput.files.length === 0) { this.showError('Selecciona una imagen'); return; }
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) { this.showError('Selecciona al menos una imagen'); return; }
         if (!this.database || !this.chatId) return;
         try {
-            // Placeholder: no subimos archivo real, solo metadatos
+            // Convertir múltiples imágenes a base64
+            const base64Images = [];
+            for (const file of Array.from(fileInput.files)) {
+                const b64 = await this.fileToBase64(file); // data:image/*;base64,...
+                base64Images.push(b64);
+            }
+            const count = base64Images.length;
             const msgId = `photo_${Date.now()}`;
             await this.database.ref(`chats/${this.chatId}/messages/${msgId}`).set({
                 id: msgId,
                 senderId: this.currentUser.id,
                 senderName: this.currentUser.name,
-                type: 'paid_photo',
+                type: 'paid_photo_bundle',
                 price,
-                fileName: fileInput.files[0].name,
+                images: base64Images,
+                count,
+                locked: true,
                 timestamp: new Date().toISOString()
             });
             this.closeModalSafe('paidPhotoModal');
+            this.showNotification(`${count} foto(s) enviadas como paquete pagado`, 'success');
         } catch (e) {
             console.error('❌ Error enviando foto pagada:', e);
         }
@@ -583,10 +630,53 @@ class ChatProvider {
         if (!this.database || !this.chatId) return;
 
         try {
+            // Guardar en el chat
             const ratingRef = this.database.ref(`chats/${this.chatId}/providerRating`);
             await ratingRef.set(ratingData);
+            
+            // Guardar en el perfil del usuario (igual que en chat cliente)
+            const userRatingRef = this.database.ref(`users/${this.otherUserId}/providerRatings/${ratingData.ratedBy}`);
+            await userRatingRef.set({
+                rating: ratingData.rating,
+                comment: ratingData.comment,
+                ratedAt: ratingData.ratedAt,
+                raterId: ratingData.ratedBy,
+                raterName: this.currentUser.name
+            });
+            
+            // Actualizar promedio de calificaciones del usuario
+            await this.updateUserRatingAverage(this.otherUserId);
+            
         } catch (error) {
             console.error('❌ Error guardando calificación:', error);
+        }
+    }
+
+    async updateUserRatingAverage(userId) {
+        try {
+            const ratingsRef = this.database.ref(`users/${userId}/providerRatings`);
+            const snapshot = await ratingsRef.once('value');
+            const ratings = snapshot.val() || {};
+            
+            // Calcular promedio y total de calificaciones
+            const ratingValues = Object.values(ratings);
+            const totalRatings = ratingValues.length;
+            const averageRating = totalRatings > 0 
+                ? ratingValues.reduce((sum, rating) => sum + (rating.rating || 0), 0) / totalRatings 
+                : 0;
+            
+            // Guardar en el perfil del usuario
+            const userRef = this.database.ref(`users/${userId}`);
+            await userRef.update({
+                providerReliability: {
+                    average: Math.round(averageRating * 10) / 10,
+                    total: totalRatings,
+                    lastUpdated: new Date().toISOString()
+                }
+            });
+            
+        } catch (error) {
+            console.error('❌ Error actualizando promedio de calificaciones:', error);
         }
     }
 

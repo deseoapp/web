@@ -792,7 +792,7 @@ class ChatProvider {
         } else if (message.type === 'encounter_response') {
             // Respuesta a oferta de encuentro
             const status = message.accepted ? '✅ Aceptada' : '❌ Rechazada';
-            messageHtml = `<div class="encounter-response" style="background: ${message.accepted ? '#f0f9ff' : '#fef2f2'}; padding: 10px; border-radius: 8px; border-left: 4px solid ${message.accepted ? '#10b981' : '#ef4444'};">
+            messageHtml = `<div class="encounter-response ${message.accepted ? 'accepted' : 'rejected'}">
                 <p><strong>Respuesta a oferta de encuentro: ${status}</strong></p>
                 <p>${this.escapeHtml(message.message)}</p>
             </div>`;
@@ -822,7 +822,7 @@ class ChatProvider {
         const price = message.price || 0;
         
         return `
-            <div class="paid-photo-bundle" style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 10px 0; border: 1px solid #e2e8f0;">
+            <div class="paid-photo-bundle">
                 <div class="photo-preview" style="display: flex; gap: 8px; margin: 10px 0;">
                     ${Array.from({length: count}, (_, i) => `
                         <div class="blurred-photo" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; filter: blur(8px); background: #333;">
@@ -833,7 +833,7 @@ class ChatProvider {
                 <div class="unlock-info">
                     <p><strong>📸 ${count} foto(s) enviada(s)</strong></p>
                     <p>Precio: $${price} pesos</p>
-                    <p style="font-size: 12px; color: #666;">Esperando pago del cliente...</p>
+                    <p style="font-size: 12px; color: var(--text-secondary);">Esperando pago del cliente...</p>
                 </div>
             </div>
         `;
@@ -845,12 +845,12 @@ class ChatProvider {
         const images = message.images || [];
         
         return `
-            <div class="unlocked-photos" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
+            <div class="unlocked-photos">
                 <div class="photos-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                     <span style="font-size: 20px;">📸</span>
                     <div>
                         <p style="margin: 0; font-weight: bold;">${count} foto(s) desbloqueada(s)</p>
-                        <p style="margin: 0; font-size: 12px; color: #666;">Precio pagado: $${price} pesos</p>
+                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">Precio pagado: $${price} pesos</p>
                     </div>
                 </div>
                 <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
@@ -871,16 +871,16 @@ class ChatProvider {
         const time = message.time || '';
         
         return `
-            <div class="encounter-offer" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0; border: 1px solid #e2e8f0;">
+            <div class="encounter-offer">
                 <div class="offer-header">
-                    <h4 style="margin: 0 0 10px 0; color: #1e40af;">💼 Oferta de encuentro enviada</h4>
+                    <h4>💼 Oferta de encuentro enviada</h4>
                 </div>
                 <div class="offer-details">
                     <p><strong>Precio:</strong> $${price} pesos</p>
                     <p><strong>Descripción:</strong> ${this.escapeHtml(description)}</p>
                     <p><strong>Tiempo:</strong> ${this.escapeHtml(time)}</p>
                 </div>
-                <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">Esperando respuesta del cliente...</p>
+                <p style="font-size: 12px; color: var(--text-secondary); margin: 10px 0 0 0;">Esperando respuesta del cliente...</p>
             </div>
         `;
     }

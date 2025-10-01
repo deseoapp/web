@@ -1051,8 +1051,7 @@ class ChatClient {
                 <div class="unlock-info">
                     <p><strong>📸 ${count} foto(s) bloqueada(s)</strong></p>
                     <p>Precio: $${price} pesos</p>
-                    <button class="unlock-btn" onclick="unlockPaidPhotos('${messageId}', ${price})" 
-                            style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                    <button class="unlock-btn" onclick="unlockPaidPhotos('${messageId}', ${price})">
                         🔓 Desbloquear fotos
                     </button>
                 </div>
@@ -1077,12 +1076,10 @@ class ChatClient {
                     <p><strong>Tiempo:</strong> ${this.escapeHtml(time)}</p>
                 </div>
                 <div class="offer-actions" style="margin-top: 10px;">
-                    <button class="accept-btn" onclick="respondToEncounterOffer('${messageId}', true)" 
-                            style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 8px;">
+                    <button class="accept-btn" onclick="respondToEncounterOffer('${messageId}', true)">
                         ✅ Aceptar
                     </button>
-                    <button class="reject-btn" onclick="respondToEncounterOffer('${messageId}', false)" 
-                            style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                    <button class="reject-btn" onclick="respondToEncounterOffer('${messageId}', false)">
                         ❌ Rechazar
                     </button>
                 </div>
@@ -1096,12 +1093,12 @@ class ChatClient {
         const images = message.images || [];
         
         return `
-            <div class="unlocked-photos" style="background: #f0f9ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
+            <div class="unlocked-photos">
                 <div class="photos-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                     <span style="font-size: 20px;">📸</span>
                     <div>
                         <p style="margin: 0; font-weight: bold;">${count} foto(s) desbloqueada(s)</p>
-                        <p style="margin: 0; font-size: 12px; color: #666;">Precio pagado: $${price} pesos</p>
+                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">Precio pagado: $${price} pesos</p>
                     </div>
                 </div>
                 <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">

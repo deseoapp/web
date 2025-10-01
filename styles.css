@@ -29,6 +29,14 @@
     --message-ai-bg: var(--background-secondary);
     --typing-indicator: var(--primary-color);
     --hover-bg: #2f3336;
+
+    /* Chat message readability */
+    --message-text-dark: #1a1a1a;
+    --message-text-light: #ffffff;
+    --message-bg-success: #d1fae5;
+    --message-bg-error: #fee2e2;
+    --message-bg-info: #dbeafe;
+    --message-bg-warning: #fef3c7;
 }
 
 /* Light Theme (if applicable, though design is dark) */
@@ -1902,6 +1910,166 @@ body.wallet-page .header {
     .alert-message {
         display: none; /* Ocultar texto en pantallas muy pequeñas */
     }
+}
+
+/* ===== CHAT MESSAGE DARK THEME STYLES ===== */
+.encounter-offer {
+    background: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    margin: 10px 0 !important;
+}
+
+.encounter-offer h4 {
+    color: var(--text-primary) !important;
+    margin: 0 0 10px 0 !important;
+    font-weight: 600 !important;
+}
+
+.encounter-offer p {
+    color: var(--text-primary) !important;
+    margin: 5px 0 !important;
+}
+
+.encounter-offer strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.encounter-response {
+    background: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    margin: 10px 0 !important;
+    border-left: 4px solid !important;
+}
+
+.encounter-response.accepted {
+    border-left-color: var(--success-color) !important;
+}
+
+.encounter-response.rejected {
+    border-left-color: var(--danger-color) !important;
+}
+
+.encounter-response p {
+    color: var(--text-primary) !important;
+    margin: 5px 0 !important;
+}
+
+.encounter-response strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.tips-request {
+    background: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    margin: 10px 0 !important;
+}
+
+.tips-request p {
+    color: var(--text-primary) !important;
+    margin: 5px 0 !important;
+}
+
+.tips-request strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.paid-photo-bundle {
+    background: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    margin: 10px 0 !important;
+}
+
+.paid-photo-bundle p {
+    color: var(--text-primary) !important;
+    margin: 5px 0 !important;
+}
+
+.paid-photo-bundle strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.unlocked-photos {
+    background: var(--background-secondary) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--success-color) !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+    margin: 10px 0 !important;
+}
+
+.unlocked-photos p {
+    color: var(--text-primary) !important;
+    margin: 5px 0 !important;
+}
+
+.unlocked-photos strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Botones de acción con tema oscuro */
+.unlock-btn, .accept-btn, .reject-btn {
+    color: white !important;
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.unlock-btn {
+    background: var(--success-color) !important;
+}
+
+.unlock-btn:hover {
+    background: var(--primary-hover) !important;
+}
+
+.accept-btn {
+    background: var(--success-color) !important;
+    margin-right: 8px !important;
+}
+
+.accept-btn:hover {
+    background: var(--primary-hover) !important;
+}
+
+.reject-btn {
+    background: var(--danger-color) !important;
+}
+
+.reject-btn:hover {
+    background: #dc2626 !important;
+}
+
+/* Asegurar que el texto de los mensajes sea legible */
+.chat-message .message-content p {
+    color: var(--text-primary) !important;
+}
+
+.chat-message .message-content strong {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+.chat-message .message-content small {
+    color: var(--text-secondary) !important;
 }
 
 

@@ -201,21 +201,73 @@ class ChatProvider {
             messageInput.addEventListener('input', () => this.handleTyping());
         }
 
-        // Botones de acción rápida
+        // Botones de acción rápida - ENFOQUE DIRECTO COMO CHAT CLIENTE
         const quickActions = document.querySelectorAll('.quick-action-btn');
-        quickActions.forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        console.log('🔍 [PROV] Found quick action buttons:', quickActions.length);
+        
+        quickActions.forEach((btn, index) => {
+            console.log(`🔍 [PROV] Button ${index}:`, btn, 'action:', btn.dataset.action);
+            
+            // ENFOQUE DIRECTO: onclick sin métodos complejos
+            btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const action = e.currentTarget.dataset.action;
-                this.handleQuickAction(action);
-            });
+                const action = btn.dataset.action;
+                console.log('🔍 [PROV] Button onclick triggered:', action);
+                
+                // SOLUCIÓN DIRECTA SIN MÉTODOS COMPLEJOS
+                if (action === 'favorite') {
+                    console.log('🔍 [PROV] Toggle favorite');
+                    this.toggleFavorite(true);
+                }
+                
+                if (action === 'paid-photo') {
+                    console.log('🔍 [PROV] Opening paid photo modal');
+                    const modal = document.getElementById('paidPhotoModal');
+                    console.log('🔍 [PROV] Modal found:', modal);
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                        console.log('🔍 [PROV] Modal CSS applied');
+                    } else {
+                        console.error('❌ Paid photo modal not found!');
+                    }
+                }
+                
+                if (action === 'offer-service') {
+                    console.log('🔍 [PROV] Opening offer service modal');
+                    const modal = document.getElementById('offerServiceModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+                
+                if (action === 'tips') {
+                    console.log('🔍 [PROV] Opening tips modal');
+                    const modal = document.getElementById('tipsModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+                
+                if (action === 'rate') {
+                    console.log('🔍 [PROV] Opening rate modal');
+                    const modal = document.getElementById('rateModal');
+                    if (modal) {
+                        modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+                    }
+                }
+            };
         });
 
         // Acciones nuevas proveedor
         const sendOfferServiceBtn = document.getElementById('sendOfferServiceBtn');
         if (sendOfferServiceBtn) {
             sendOfferServiceBtn.addEventListener('click', () => this.sendOfferService());
+        }
+
+        const sendTipsBtn = document.getElementById('sendTipsBtn');
+        if (sendTipsBtn) {
+            sendTipsBtn.addEventListener('click', () => this.sendTipsRequest());
         }
         const sendPaidPhotoBtn = document.getElementById('sendPaidPhotoBtn');
         if (sendPaidPhotoBtn) {
@@ -400,6 +452,24 @@ class ChatProvider {
             this.closeModalSafe('offerServiceModal');
         } catch (e) {
             console.error('❌ Error enviando oferta:', e);
+        }
+    }
+
+    async sendTipsRequest() {
+        try {
+            const message = document.getElementById('tipsMessage').value;
+            if (!message.trim()) {
+                this.showError('Por favor escribe un mensaje');
+                return;
+            }
+
+            const tipsMessage = `💝 **SOLICITUD DE PROPINA**\n\n${message}`;
+            await this.sendSpecialMessage(tipsMessage, 'tips_request');
+            this.closeModal('tipsModal');
+            this.showNotification('Solicitud de propina enviada', 'success');
+        } catch (error) {
+            console.error('❌ Error enviando solicitud de propina:', error);
+            this.showError('Error enviando solicitud de propina');
         }
     }
 
@@ -829,6 +899,28 @@ class ChatProvider {
         if (modal) {
             modal.style.display = 'none';
         }
+    }
+
+    showNotification(message, type = 'info') {
+        console.log(`🔔 [${type.toUpperCase()}] ${message}`);
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            if (notification.parentNode) notification.parentNode.removeChild(notification);
+        }, 3000);
     }
 
     showError(message) {

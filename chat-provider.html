@@ -166,6 +166,28 @@
         </div>
     </div>
 
+    <!-- Modal: Propinas -->
+    <div class="modal" id="tipsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gestionar Propinas</h2>
+                <button class="close-btn" onclick="closeModal('tipsModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="tipsMessage">Mensaje para solicitar propina</label>
+                    <textarea id="tipsMessage" placeholder="Pide al cliente una propina con amabilidad 😉" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('tipsModal')">Cancelar</button>
+                <button class="btn-primary" id="sendTipsBtn">Enviar Solicitud</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Calificar cliente -->
     <div class="modal" id="rateModal">
         <div class="modal-content">

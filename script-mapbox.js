@@ -102,6 +102,9 @@ class DeseoApp {
             authContainer.classList.remove('active');
         }
         this.updateAuthUI(); // Actualizar la UI de tu app (e.g., botón de login/logout, mostrar datos de usuario)
+        
+        // Forzar actualización de todos los componentes que dependen de la autenticación
+        this.forceAuthStateUpdate();
     }
 
     handleClerkSignOut() {
@@ -674,6 +677,43 @@ class DeseoApp {
         }
     }
 
+    forceAuthStateUpdate() {
+        console.log('🔄 Forzando actualización del estado de autenticación...');
+        
+        // Disparar evento personalizado para notificar a otros componentes
+        const authEvent = new CustomEvent('authStateChanged', {
+            detail: { user: this.currentUser, isAuthenticated: !!this.currentUser }
+        });
+        window.dispatchEvent(authEvent);
+        
+        // Actualizar elementos que dependen de la autenticación
+        this.updateAuthDependentElements();
+    }
+
+    updateAuthDependentElements() {
+        // Actualizar elementos que cambian según el estado de autenticación
+        const elements = document.querySelectorAll('[data-auth-required]');
+        elements.forEach(el => {
+            if (this.currentUser) {
+                el.style.display = el.dataset.authRequired === 'true' ? 'block' : 'none';
+            } else {
+                el.style.display = el.dataset.authRequired === 'true' ? 'none' : 'block';
+            }
+        });
+        
+        // Actualizar botones de acción que requieren autenticación
+        const actionButtons = document.querySelectorAll('[data-requires-auth]');
+        actionButtons.forEach(btn => {
+            if (this.currentUser) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            } else {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            }
+        });
+    }
+
     async showAuthUI() {
         console.log('🚀 showAuthUI called.');
         
@@ -730,6 +770,9 @@ class DeseoApp {
             this.initializeUnreadChatsAlert();
             this.initializeNewMessagesNotification();
             
+            // Verificar sesión existente al inicializar
+            this.checkExistingSession();
+            
             // Limpiar chats con IDs incorrectos al inicializar
             setTimeout(() => {
                 this.cleanupInvalidChats();
@@ -746,15 +789,42 @@ class DeseoApp {
                 this.gemini = this.initializeGeminiClient();
                 console.log('Gemini client initialized:', !!this.gemini);
             }, 1000);
-            
-            // La UI de autenticación se actualizará cuando Clerk se cargue y detecte el estado.
-            // this.updateAuthUI(); // Eliminamos esta llamada duplicada.
 
             this.showNotification('¡Bienvenido a Deseo! Explora deseos cerca de ti.', 'success');
         } catch (error) {
             console.error('Error inicializando la aplicación:', error);
             this.showNotification('Error al cargar el mapa. Verifica tu token de Mapbox.', 'error');
         }
+    }
+
+    checkExistingSession() {
+        console.log('🔍 Verificando sesión existente...');
+        
+        // Verificar si hay datos de usuario en localStorage
+        const userData = localStorage.getItem('deseo_user');
+        if (userData) {
+            try {
+                this.currentUser = JSON.parse(userData);
+                console.log('✅ Usuario encontrado en localStorage:', this.currentUser.name);
+                this.updateAuthUI();
+                this.forceAuthStateUpdate();
+                return true;
+            } catch (e) {
+                console.error('❌ Error parseando datos de usuario:', e);
+                localStorage.removeItem('deseo_user');
+            }
+        }
+        
+        // Si no hay datos locales, verificar con Clerk
+        if (window.Clerk && window.Clerk.user) {
+            console.log('✅ Usuario encontrado en Clerk');
+            this.handleClerkSignIn(window.Clerk.user);
+            return true;
+        }
+        
+        console.log('⚠️ No hay sesión activa');
+        this.updateAuthUI();
+        return false;
     }
 
     // ===== INICIALIZACIÓN DE MAPBOX =====

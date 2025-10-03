@@ -1249,14 +1249,38 @@ class ChatClient {
     async ensureCompleteEncounterButton() {
         try {
             const existing = document.getElementById('completeEncounterBtn');
-            if (existing) return; // ya existe
+            if (existing) existing.remove();
+
+            // Mostrar botón solo si el proveedor ya confirmó hace < 5 minutos
+            const ordersRef = this.database.ref('encounterOrders');
+            const snap = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const all = snap.val() || {};
+            const activeOrders = Object.values(all).filter(o => o.status === 'escrowed' && o.providerConfirmed);
+            if (activeOrders.length === 0) return;
+
+            // Tomar la última
+            const order = activeOrders.sort((a,b) => (a.providerConfirmedAt||'').localeCompare(b.providerConfirmedAt||''))[activeOrders.length-1];
+            const start = new Date(order.providerConfirmedAt).getTime();
+            const deadline = start + 5 * 60 * 1000;
+            const now = Date.now();
 
             const btn = document.createElement('button');
             btn.id = 'completeEncounterBtn';
-            btn.textContent = 'Finalizar encuentro';
             btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border-radius:8px;border:none;background:#10b981;color:#fff;cursor:pointer;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.25)';
-            btn.onclick = () => this.openCompleteEncounterDialog();
+
+            if (now < deadline) {
+                btn.textContent = 'Confirmar encuentro finalizado';
+                btn.onclick = () => this.clientConfirmOrder(order.id);
+            } else {
+                // Después de 5 minutos, el cliente puede disputar si hay problema real
+                btn.textContent = 'Reportar problema';
+                btn.style.background = '#ef4444';
+                btn.onclick = () => this.reportEncounterProblem(order.id);
+            }
             document.body.appendChild(btn);
+
+            // Banner con contador
+            this.renderCountdownBanner(order);
         } catch (_) {}
     }
 
@@ -1266,7 +1290,7 @@ class ChatClient {
             const ordersRef = this.database.ref('encounterOrders');
             const snap = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
             const all = snap.val() || {};
-            const activeOrders = Object.values(all).filter(o => o.status === 'escrowed');
+            const activeOrders = Object.values(all).filter(o => o.status === 'escrowed' && o.providerConfirmed);
             if (activeOrders.length === 0) {
                 this.showNotification('No hay órdenes activas para finalizar', 'info');
                 return;
@@ -1378,6 +1402,48 @@ class ChatClient {
         this.showNotification('Disputa creada. El administrador revisará el caso.', 'info');
         const btn = document.getElementById('completeEncounterBtn');
         if (btn) btn.remove();
+    }
+
+    renderCountdownBanner(order) {
+        try {
+            const start = new Date(order.providerConfirmedAt).getTime();
+            const deadline = start + 5 * 60 * 1000;
+            let banner = document.getElementById('orderCountdownBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'orderCountdownBanner';
+                banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:72px;background:#0f172a;color:#fff;padding:10px 14px;border-radius:8px;z-index:9998;box-shadow:0 6px 16px rgba(0,0,0,.25);font-size:14px';
+                document.body.appendChild(banner);
+            }
+            const tick = () => {
+                const now = Date.now();
+                const remaining = Math.max(0, deadline - now);
+                const m = Math.floor(remaining / 60000);
+                const s = Math.floor((remaining % 60000) / 1000);
+                if (remaining > 0) {
+                    banner.textContent = `⏳ El proveedor finalizó el encuentro. Confirma que todo está bien. Tiempo restante: ${m}:${String(s).padStart(2,'0')}.`;
+                } else {
+                    banner.textContent = '⌛ Tiempo agotado. Si hay algún problema, puedes reportarlo.';
+                    const btn = document.getElementById('completeEncounterBtn');
+                    if (btn) {
+                        btn.textContent = 'Reportar problema';
+                        btn.style.background = '#ef4444';
+                        btn.onclick = () => this.reportEncounterProblem(order.id);
+                    }
+                    clearInterval(timerId);
+                }
+            };
+            tick();
+            const timerId = setInterval(tick, 1000);
+        } catch (_) {}
+    }
+
+    async reportEncounterProblem(orderId) {
+        // Cliente reporta problema real con el encuentro
+        const reason = prompt('Describe el problema con el encuentro:', 'El encuentro no se realizó correctamente');
+        if (reason) {
+            await this.raiseDispute(orderId, reason);
+        }
     }
 
     handleQuickAction(action) {

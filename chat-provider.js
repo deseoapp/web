@@ -502,9 +502,20 @@ class ChatProvider {
         const snap = await ref.once('value');
         const order = snap.val();
         if (!order) return;
-        await ref.update({ providerConfirmed: true, updatedAt: new Date().toISOString() });
+        const nowIso = new Date().toISOString();
+        await ref.update({ providerConfirmed: true, providerConfirmedAt: nowIso, updatedAt: nowIso });
         await this.checkOrderCompletion(orderId);
-        this.showNotification('Has confirmado la finalización. Esperando confirmación del cliente o liberación.', 'success');
+        this.showNotification('Has confirmado la finalización. El cliente tiene 5 minutos para confirmar.', 'success');
+
+        // Aviso en el chat con contador de 5 minutos
+        const sysId = `system_${Date.now()}`;
+        await this.database.ref(`chats/${order.chatId}/messages/${sysId}`).set({
+            id: sysId,
+            type: 'system',
+            message: '⏳ El proveedor marcó el encuentro como finalizado. El cliente tiene 5 minutos para confirmar antes de que se solicite revisión de pago.',
+            timestamp: new Date().toISOString()
+        });
+        this.renderCountdownBanner(orderId, nowIso);
     }
 
     async checkOrderCompletion(orderId) {
@@ -519,6 +530,89 @@ class ChatProvider {
             this.showNotification('Encuentro finalizado. El cliente verá que debe liberar los fondos (automático cuando ambos confirman).', 'success');
             const btn = document.getElementById('completeEncounterBtn');
             if (btn) btn.remove();
+        }
+    }
+
+    renderCountdownBanner(orderId, providerConfirmedAt) {
+        try {
+            let banner = document.getElementById('orderCountdownBanner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'orderCountdownBanner';
+                banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:72px;background:#0f172a;color:#fff;padding:10px 14px;border-radius:8px;z-index:9998;box-shadow:0 6px 16px rgba(0,0,0,.25);font-size:14px';
+                document.body.appendChild(banner);
+            }
+            const start = new Date(providerConfirmedAt).getTime();
+            const deadline = start + 5 * 60 * 1000;
+            const tick = () => {
+                const now = Date.now();
+                const remaining = Math.max(0, deadline - now);
+                const m = Math.floor(remaining / 60000);
+                const s = Math.floor((remaining % 60000) / 1000);
+                if (remaining > 0) {
+                    banner.textContent = `⏳ Esperando confirmación del cliente. Tiempo restante: ${m}:${String(s).padStart(2,'0')}.`;
+                } else {
+                    clearInterval(timerId);
+                    banner.textContent = '⌛ Tiempo agotado. El cliente no confirmó. Puedes reclamar el pago.';
+                    // Mostrar botón de reclamar pago al proveedor
+                    this.showClaimPaymentButton(orderId);
+                }
+            };
+            tick();
+            const timerId = setInterval(tick, 1000);
+        } catch (_) {}
+    }
+
+    showClaimPaymentButton(orderId) {
+        try {
+            const existing = document.getElementById('claimPaymentBtn');
+            if (existing) return;
+            
+            const btn = document.createElement('button');
+            btn.id = 'claimPaymentBtn';
+            btn.textContent = 'Reclamar pago';
+            btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border-radius:8px;border:none;background:#f59e0b;color:#fff;cursor:pointer;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.25)';
+            btn.onclick = () => this.claimPaymentAsProvider(orderId);
+            document.body.appendChild(btn);
+        } catch (_) {}
+    }
+
+    async claimPaymentAsProvider(orderId) {
+        try {
+            const proceed = window.confirm('¿Reclamar el pago? El cliente no confirmó en 5 minutos. Esto liberará automáticamente los fondos a tu cuenta.');
+            if (!proceed) return;
+
+            const ref = this.database.ref(`encounterOrders/${orderId}`);
+            const snap = await ref.once('value');
+            const order = snap.val();
+            if (!order) return;
+
+            // Liberar automáticamente el escrow al proveedor
+            await this.creditProvider(order.escrowAmount, 'encounter_timeout_release');
+            await ref.update({ 
+                status: 'completed', 
+                completedBy: 'timeout',
+                updatedAt: new Date().toISOString() 
+            });
+
+            // Mensaje al chat
+            await this.database.ref(`chats/${order.chatId}/messages/timeout_${Date.now()}`).set({
+                id: `timeout_${Date.now()}`,
+                type: 'system',
+                message: '⏰ Pago liberado automáticamente. El cliente no confirmó en 5 minutos.',
+                timestamp: new Date().toISOString()
+            });
+
+            this.showNotification('Pago reclamado y liberado automáticamente', 'success');
+            
+            // Limpiar UI
+            const btn = document.getElementById('claimPaymentBtn');
+            const banner = document.getElementById('orderCountdownBanner');
+            if (btn) btn.remove();
+            if (banner) banner.remove();
+        } catch (e) {
+            console.error('❌ Error reclamando pago:', e);
+            this.showError('Error reclamando pago');
         }
     }
 
@@ -623,6 +717,28 @@ class ChatProvider {
             return alias;
         } catch (_) {
             return this.currentUser?.name || 'Usuario';
+        }
+    }
+
+    async creditProvider(amount, reason) {
+        try {
+            if (!this.database || !this.currentUser) return;
+            const balanceRef = this.database.ref(`users/${this.currentUser.id}/balance`);
+            const snap = await balanceRef.once('value');
+            const current = parseInt(snap.val() || '0', 10);
+            await balanceRef.set(current + amount);
+            const microId = `micro_${Date.now()}`;
+            await this.database.ref(`users/${this.currentUser.id}/microtransactions/${microId}`).set({
+                id: microId,
+                direction: 'in',
+                reason,
+                amount,
+                from: this.otherUserId,
+                chatId: this.chatId,
+                timestamp: new Date().toISOString()
+            });
+        } catch (e) {
+            console.error('❌ Error acreditando al proveedor:', e);
         }
     }
 

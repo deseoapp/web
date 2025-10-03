@@ -45,6 +45,46 @@ class AuthManager {
         }
         
         console.log('User logged in:', user.email);
+        
+        // Forzar actualización del estado de autenticación
+        this.forceAuthStateUpdate();
+    }
+
+    forceAuthStateUpdate() {
+        console.log('🔄 Forzando actualización del estado de autenticación...');
+        
+        // Disparar evento personalizado para notificar a otros componentes
+        const authEvent = new CustomEvent('authStateChanged', {
+            detail: { user: this.currentUser, isAuthenticated: this.isAuthenticated }
+        });
+        window.dispatchEvent(authEvent);
+        
+        // Actualizar elementos que dependen de la autenticación
+        this.updateAuthDependentElements();
+    }
+
+    updateAuthDependentElements() {
+        // Actualizar elementos que cambian según el estado de autenticación
+        const elements = document.querySelectorAll('[data-auth-required]');
+        elements.forEach(el => {
+            if (this.isAuthenticated) {
+                el.style.display = el.dataset.authRequired === 'true' ? 'block' : 'none';
+            } else {
+                el.style.display = el.dataset.authRequired === 'true' ? 'none' : 'block';
+            }
+        });
+        
+        // Actualizar botones de acción que requieren autenticación
+        const actionButtons = document.querySelectorAll('[data-requires-auth]');
+        actionButtons.forEach(btn => {
+            if (this.isAuthenticated) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            } else {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+            }
+        });
     }
 
     handleUserLogout() {

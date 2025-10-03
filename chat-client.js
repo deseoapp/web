@@ -50,6 +50,8 @@ class ChatClient {
         console.log('✅ ChatClient: Inicializado correctamente');
         // Ir al último mensaje al entrar
         this.scrollToBottom();
+        // Mostrar control para finalizar encuentro si aplica
+        this.ensureCompleteEncounterButton();
     }
 
     async initializeFirebase() {
@@ -1186,15 +1188,33 @@ class ChatClient {
                 const offer = snapshot.val();
                 
                 if (offer) {
-                    // Cobrar al cliente
-                    const canCharge = await this.chargeClient(offer.price, 'encounter_offer');
+                    // Cobrar al cliente y crear ORDEN EN ESCROW (sin acreditar al proveedor aún)
+                    const canCharge = await this.chargeClient(offer.price, 'encounter_escrow');
                     if (!canCharge) {
                         this.showError('Saldo insuficiente para aceptar la oferta.');
                         return;
                     }
-                    
-                    // Acreditar al proveedor
-                    await this.creditProvider(offer.price, 'encounter_offer');
+
+                    // Crear orden de encuentro en escrow
+                    const orderId = `order_${Date.now()}`;
+                    const orderData = {
+                        id: orderId,
+                        chatId: this.chatId,
+                        messageId,
+                        providerId: this.otherUserId,
+                        clientId: this.currentUser.id,
+                        price: offer.price || 0,
+                        description: offer.description || '',
+                        time: offer.time || '',
+                        escrowAmount: offer.price || 0,
+                        status: 'escrowed', // escrowed | completed | disputed | cancelled
+                        clientConfirmed: false,
+                        providerConfirmed: false,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString()
+                    };
+                    await this.database.ref(`encounterOrders/${orderId}`).set(orderData);
+                    await this.database.ref(`chats/${this.chatId}/orders/${orderId}`).set(true);
                 }
             }
             
@@ -1207,17 +1227,157 @@ class ChatClient {
                 type: 'encounter_response',
                 originalMessageId: messageId,
                 accepted: accepted,
-                message: accepted ? '✅ He aceptado tu oferta de encuentro' : '❌ He rechazado tu oferta de encuentro',
+                message: accepted ? '✅ He aceptado tu oferta de encuentro. El dinero quedó en garantía (escrow) hasta finalizar.' : '❌ He rechazado tu oferta de encuentro',
                 timestamp: new Date().toISOString()
             };
             
             await this.database.ref(`chats/${this.chatId}/messages/${responseId}`).set(responseData);
             
-            this.showNotification(accepted ? 'Oferta aceptada' : 'Oferta rechazada', 'success');
+            if (accepted) {
+                this.ensureCompleteEncounterButton();
+                this.showNotification('Oferta aceptada. Fondos retenidos en garantía.', 'success');
+            } else {
+                this.showNotification('Oferta rechazada', 'success');
+            }
         } catch (error) {
             console.error('❌ Error respondiendo a oferta:', error);
             this.showError('Error procesando respuesta');
         }
+    }
+
+    // Mostrar botón flotante para finalizar encuentro si hay órdenes activas
+    async ensureCompleteEncounterButton() {
+        try {
+            const existing = document.getElementById('completeEncounterBtn');
+            if (existing) return; // ya existe
+
+            const btn = document.createElement('button');
+            btn.id = 'completeEncounterBtn';
+            btn.textContent = 'Finalizar encuentro';
+            btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border-radius:8px;border:none;background:#10b981;color:#fff;cursor:pointer;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.25)';
+            btn.onclick = () => this.openCompleteEncounterDialog();
+            document.body.appendChild(btn);
+        } catch (_) {}
+    }
+
+    async openCompleteEncounterDialog() {
+        try {
+            // Buscar órdenes en escrow para este chat
+            const ordersRef = this.database.ref('encounterOrders');
+            const snap = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const all = snap.val() || {};
+            const activeOrders = Object.values(all).filter(o => o.status === 'escrowed');
+            if (activeOrders.length === 0) {
+                this.showNotification('No hay órdenes activas para finalizar', 'info');
+                return;
+            }
+
+            // Por simplicidad: si hay una sola orden, operamos sobre esa; si hay varias, tomamos la más reciente
+            const order = activeOrders.sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||''))[activeOrders.length-1];
+
+            // Confirmación de finalización o disputa
+            const proceed = window.confirm('¿Confirmas que el encuentro ha finalizado correctamente? (Aceptar para finalizar, Cancelar para abrir disputa)');
+            if (proceed) {
+                await this.clientConfirmOrder(order.id);
+            } else {
+                const reason = prompt('Describe brevemente el problema para disputa (opcional):', 'No se realizó el encuentro / Incumplimiento');
+                await this.raiseDispute(order.id, reason || 'Sin detalle');
+            }
+        } catch (e) {
+            console.error('❌ Error abriendo finalización:', e);
+            this.showError('No se pudo abrir la finalización');
+        }
+    }
+
+    async clientConfirmOrder(orderId) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        await ref.update({ clientConfirmed: true, updatedAt: new Date().toISOString() });
+        await this.checkOrderCompletion(orderId);
+        this.showNotification('Has confirmado la finalización. Esperando confirmación del proveedor o liberación.', 'success');
+    }
+
+    async checkOrderCompletion(orderId) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        if (order.clientConfirmed && order.providerConfirmed && order.status === 'escrowed') {
+            await ref.update({ status: 'completed', updatedAt: new Date().toISOString() });
+            await this.releaseEscrow(order);
+            await this.sendCompletionMessage(order);
+            await this.promptOptionalRatings(order);
+            this.showNotification('Encuentro finalizado. Fondos liberados al proveedor.', 'success');
+            const btn = document.getElementById('completeEncounterBtn');
+            if (btn) btn.remove();
+        }
+    }
+
+    async releaseEscrow(order) {
+        // Acreditar al proveedor el monto en garantía y registrar microtransacciones
+        await this.creditProvider(order.escrowAmount, 'encounter_release');
+    }
+
+    async sendCompletionMessage(order) {
+        const sysId = `system_${Date.now()}`;
+        await this.database.ref(`chats/${order.chatId}/messages/${sysId}`).set({
+            id: sysId,
+            type: 'system',
+            message: '✅ Encuentro finalizado. Los fondos han sido liberados al proveedor.',
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    async promptOptionalRatings(order) {
+        try {
+            const rateStr = prompt('Califica al proveedor del 1 al 5 (opcional, dejar vacío para omitir):', '');
+            if (!rateStr) return;
+            const rating = Math.max(1, Math.min(5, parseInt(rateStr, 10)));
+            const comment = prompt('Comentario (opcional):', '') || '';
+            const ratingId = `rating_${Date.now()}`;
+            await this.database.ref(`users/${order.providerId}/encounterRatings/${ratingId}`).set({
+                id: ratingId,
+                from: order.clientId,
+                chatId: order.chatId,
+                orderId: order.id,
+                rating,
+                comment,
+                createdAt: new Date().toISOString()
+            });
+        } catch (_) {}
+    }
+
+    async raiseDispute(orderId, reason) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        const disputeId = `dispute_${Date.now()}`;
+        const dispute = {
+            id: disputeId,
+            orderId: order.id,
+            chatId: order.chatId,
+            providerId: order.providerId,
+            clientId: order.clientId,
+            amount: order.escrowAmount,
+            reason,
+            createdBy: this.currentUser.id,
+            status: 'open', // open | resolved | rejected
+            createdAt: new Date().toISOString()
+        };
+        await this.database.ref(`disputes/${disputeId}`).set(dispute);
+        await ref.update({ status: 'disputed', updatedAt: new Date().toISOString(), disputeId });
+        await this.database.ref(`chats/${order.chatId}/messages/dispute_${Date.now()}`).set({
+            id: `dispute_${Date.now()}`,
+            type: 'system',
+            message: '⚠️ Se abrió una disputa para esta orden. Un administrador revisará el caso.',
+            timestamp: new Date().toISOString()
+        });
+        this.showNotification('Disputa creada. El administrador revisará el caso.', 'info');
+        const btn = document.getElementById('completeEncounterBtn');
+        if (btn) btn.remove();
     }
 
     handleQuickAction(action) {

@@ -48,6 +48,9 @@ class ChatProvider {
         this.scrollToBottom();
 
         console.log('✅ ChatProvider: Inicializado correctamente');
+
+        // Mostrar control para finalizar encuentro si aplica
+        this.ensureCompleteEncounterButton();
     }
 
     async initializeFirebase() {
@@ -454,6 +457,129 @@ class ChatProvider {
         } catch (e) {
             console.error('❌ Error enviando oferta:', e);
         }
+    }
+
+    // Proveedor: botón flotante para marcar encuentro como finalizado o abrir disputa
+    async ensureCompleteEncounterButton() {
+        try {
+            const existing = document.getElementById('completeEncounterBtn');
+            if (existing) return;
+            const btn = document.createElement('button');
+            btn.id = 'completeEncounterBtn';
+            btn.textContent = 'Finalizar encuentro';
+            btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border-radius:8px;border:none;background:#0ea5e9;color:#fff;cursor:pointer;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.25)';
+            btn.onclick = () => this.openCompleteEncounterDialog();
+            document.body.appendChild(btn);
+        } catch (_) {}
+    }
+
+    async openCompleteEncounterDialog() {
+        try {
+            const ordersRef = this.database.ref('encounterOrders');
+            const snap = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const all = snap.val() || {};
+            const activeOrders = Object.values(all).filter(o => o.status === 'escrowed');
+            if (activeOrders.length === 0) {
+                this.showNotification('No hay órdenes activas para finalizar', 'info');
+                return;
+            }
+            const order = activeOrders.sort((a,b) => (a.createdAt||'').localeCompare(b.createdAt||''))[activeOrders.length-1];
+            const proceed = window.confirm('¿Confirmas que el encuentro ha finalizado correctamente? (Aceptar para finalizar, Cancelar para abrir disputa)');
+            if (proceed) {
+                await this.providerConfirmOrder(order.id);
+            } else {
+                const reason = prompt('Describe el problema para disputa (opcional):', 'El cliente no confirma / Incumplimiento');
+                await this.raiseDispute(order.id, reason || 'Sin detalle');
+            }
+        } catch (e) {
+            console.error('❌ Error abriendo finalización (proveedor):', e);
+            this.showError('No se pudo abrir la finalización');
+        }
+    }
+
+    async providerConfirmOrder(orderId) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        await ref.update({ providerConfirmed: true, updatedAt: new Date().toISOString() });
+        await this.checkOrderCompletion(orderId);
+        this.showNotification('Has confirmado la finalización. Esperando confirmación del cliente o liberación.', 'success');
+    }
+
+    async checkOrderCompletion(orderId) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        if (order.clientConfirmed && order.providerConfirmed && order.status === 'escrowed') {
+            await ref.update({ status: 'completed', updatedAt: new Date().toISOString() });
+            await this.sendCompletionMessage(order);
+            await this.promptOptionalRatings(order);
+            this.showNotification('Encuentro finalizado. El cliente verá que debe liberar los fondos (automático cuando ambos confirman).', 'success');
+            const btn = document.getElementById('completeEncounterBtn');
+            if (btn) btn.remove();
+        }
+    }
+
+    async sendCompletionMessage(order) {
+        const sysId = `system_${Date.now()}`;
+        await this.database.ref(`chats/${order.chatId}/messages/${sysId}`).set({
+            id: sysId,
+            type: 'system',
+            message: '✅ El proveedor marcó el encuentro como finalizado. A la espera de confirmación del cliente.',
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    async promptOptionalRatings(order) {
+        try {
+            const rateStr = prompt('Califica al cliente del 1 al 5 (opcional, dejar vacío para omitir):', '');
+            if (!rateStr) return;
+            const rating = Math.max(1, Math.min(5, parseInt(rateStr, 10)));
+            const comment = prompt('Comentario (opcional):', '') || '';
+            const ratingId = `rating_${Date.now()}`;
+            await this.database.ref(`users/${order.clientId}/encounterRatings/${ratingId}`).set({
+                id: ratingId,
+                from: order.providerId,
+                chatId: order.chatId,
+                orderId: order.id,
+                rating,
+                comment,
+                createdAt: new Date().toISOString()
+            });
+        } catch (_) {}
+    }
+
+    async raiseDispute(orderId, reason) {
+        const ref = this.database.ref(`encounterOrders/${orderId}`);
+        const snap = await ref.once('value');
+        const order = snap.val();
+        if (!order) return;
+        const disputeId = `dispute_${Date.now()}`;
+        const dispute = {
+            id: disputeId,
+            orderId: order.id,
+            chatId: order.chatId,
+            providerId: order.providerId,
+            clientId: order.clientId,
+            amount: order.escrowAmount,
+            reason,
+            createdBy: this.currentUser.id,
+            status: 'open',
+            createdAt: new Date().toISOString()
+        };
+        await this.database.ref(`disputes/${disputeId}`).set(dispute);
+        await ref.update({ status: 'disputed', updatedAt: new Date().toISOString(), disputeId });
+        await this.database.ref(`chats/${order.chatId}/messages/dispute_${Date.now()}`).set({
+            id: `dispute_${Date.now()}`,
+            type: 'system',
+            message: '⚠️ Se abrió una disputa para esta orden. Un administrador revisará el caso.',
+            timestamp: new Date().toISOString()
+        });
+        this.showNotification('Disputa creada. El administrador revisará el caso.', 'info');
+        const btn = document.getElementById('completeEncounterBtn');
+        if (btn) btn.remove();
     }
 
     async sendTipsRequest() {

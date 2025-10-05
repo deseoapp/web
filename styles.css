@@ -39,6 +39,155 @@
     --message-bg-warning: #fef3c7;
 }
 
+/* Rating Modal Styles */
+.rating-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rating-modal .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rating-modal .modal-content {
+    background: var(--background-secondary);
+    border-radius: var(--border-radius);
+    padding: 0;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    z-index: 10001;
+}
+
+.rating-modal .modal-header {
+    padding: 20px 20px 0;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rating-modal .modal-header h3 {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 18px;
+}
+
+.rating-modal .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    transition: var(--transition);
+}
+
+.rating-modal .close-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.rating-modal .modal-body {
+    padding: 20px;
+}
+
+.rating-modal .modal-body p {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.rating-modal .rating-stars {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.rating-modal .star {
+    font-size: 32px;
+    color: #ccc;
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+}
+
+.rating-modal .star:hover {
+    color: #ffd700;
+    transform: scale(1.1);
+}
+
+.rating-modal .rating-comment {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    background: var(--background);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    margin-bottom: 20px;
+}
+
+.rating-modal .rating-comment:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(96, 196, 142, 0.2);
+}
+
+.rating-modal .modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.rating-modal .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 14px;
+}
+
+.rating-modal .btn-secondary {
+    background: var(--background-tertiary);
+    color: var(--text-primary);
+}
+
+.rating-modal .btn-secondary:hover {
+    background: var(--hover-bg);
+}
+
+.rating-modal .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.rating-modal .btn-primary:hover {
+    background: var(--primary-hover);
+}
+
 /* Light Theme (if applicable, though design is dark) */
 [data-theme="light"] {
     --primary-color: #60c48e;

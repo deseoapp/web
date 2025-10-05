@@ -44,6 +44,9 @@ class ChatProvider {
         // Inicializar notificaciones
         await this.initializeNotifications();
 
+        // Configurar listener para órdenes de encuentro en tiempo real
+        this.setupEncounterOrdersListener();
+
         // Ir al último mensaje al entrar
         this.scrollToBottom();
 
@@ -459,11 +462,36 @@ class ChatProvider {
         }
     }
 
+    setupEncounterOrdersListener() {
+        try {
+            const ordersRef = this.database.ref('encounterOrders');
+            ordersRef.orderByChild('chatId').equalTo(this.chatId).on('value', (snapshot) => {
+                console.log('🔄 Actualizando botón de encuentro en tiempo real (proveedor)...');
+                this.ensureCompleteEncounterButton();
+            });
+        } catch (e) {
+            console.error('❌ Error configurando listener de órdenes (proveedor):', e);
+        }
+    }
+
     // Proveedor: botón flotante para marcar encuentro como finalizado o abrir disputa
     async ensureCompleteEncounterButton() {
         try {
             const existing = document.getElementById('completeEncounterBtn');
-            if (existing) return;
+            if (existing) existing.remove();
+
+            // Solo mostrar botón si hay órdenes aceptadas por el cliente
+            const ordersRef = this.database.ref('encounterOrders');
+            const snap = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const all = snap.val() || {};
+            const acceptedOrders = Object.values(all).filter(o => 
+                o.status === 'escrowed' && 
+                o.providerId === this.currentUser.id && 
+                !o.providerConfirmed
+            );
+            
+            if (acceptedOrders.length === 0) return;
+
             const btn = document.createElement('button');
             btn.id = 'completeEncounterBtn';
             btn.textContent = 'Finalizar encuentro';
@@ -498,6 +526,15 @@ class ChatProvider {
     }
 
     async providerConfirmOrder(orderId) {
+        // Deshabilitar botón inmediatamente para evitar múltiples clicks
+        const btn = document.getElementById('completeEncounterBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Finalizando...';
+            btn.style.background = '#6b7280';
+            btn.style.cursor = 'not-allowed';
+        }
+
         const ref = this.database.ref(`encounterOrders/${orderId}`);
         const snap = await ref.once('value');
         const order = snap.val();
@@ -568,6 +605,12 @@ class ChatProvider {
             const existing = document.getElementById('claimPaymentBtn');
             if (existing) return;
             
+            // Ocultar el botón de finalizar encuentro para evitar superposición
+            const finalizarBtn = document.getElementById('completeEncounterBtn');
+            if (finalizarBtn) {
+                finalizarBtn.style.display = 'none';
+            }
+            
             const btn = document.createElement('button');
             btn.id = 'claimPaymentBtn';
             btn.textContent = 'Reclamar pago';
@@ -579,31 +622,13 @@ class ChatProvider {
 
     async claimPaymentAsProvider(orderId) {
         try {
-            const proceed = window.confirm('¿Reclamar el pago? El cliente no confirmó en 5 minutos. Esto liberará automáticamente los fondos a tu cuenta.');
-            if (!proceed) return;
+            const reason = prompt('Describe por qué reclamas el pago (el cliente no confirmó en 5 minutos):', 'El cliente no confirmó la finalización del encuentro en el tiempo establecido');
+            if (!reason) return;
 
-            const ref = this.database.ref(`encounterOrders/${orderId}`);
-            const snap = await ref.once('value');
-            const order = snap.val();
-            if (!order) return;
+            // Crear disputa en lugar de liberar automáticamente
+            await this.raiseDispute(orderId, reason);
 
-            // Liberar automáticamente el escrow al proveedor
-            await this.creditProvider(order.escrowAmount, 'encounter_timeout_release');
-            await ref.update({ 
-                status: 'completed', 
-                completedBy: 'timeout',
-                updatedAt: new Date().toISOString() 
-            });
-
-            // Mensaje al chat
-            await this.database.ref(`chats/${order.chatId}/messages/timeout_${Date.now()}`).set({
-                id: `timeout_${Date.now()}`,
-                type: 'system',
-                message: '⏰ Pago liberado automáticamente. El cliente no confirmó en 5 minutos.',
-                timestamp: new Date().toISOString()
-            });
-
-            this.showNotification('Pago reclamado y liberado automáticamente', 'success');
+            this.showNotification('Disputa creada. El administrador revisará el caso.', 'info');
             
             // Limpiar UI
             const btn = document.getElementById('claimPaymentBtn');
@@ -611,8 +636,8 @@ class ChatProvider {
             if (btn) btn.remove();
             if (banner) banner.remove();
         } catch (e) {
-            console.error('❌ Error reclamando pago:', e);
-            this.showError('Error reclamando pago');
+            console.error('❌ Error creando disputa:', e);
+            this.showError('Error creando disputa');
         }
     }
 
@@ -628,21 +653,74 @@ class ChatProvider {
 
     async promptOptionalRatings(order) {
         try {
-            const rateStr = prompt('Califica al cliente del 1 al 5 (opcional, dejar vacío para omitir):', '');
-            if (!rateStr) return;
-            const rating = Math.max(1, Math.min(5, parseInt(rateStr, 10)));
-            const comment = prompt('Comentario (opcional):', '') || '';
-            const ratingId = `rating_${Date.now()}`;
-            await this.database.ref(`users/${order.clientId}/encounterRatings/${ratingId}`).set({
-                id: ratingId,
-                from: order.providerId,
-                chatId: order.chatId,
-                orderId: order.id,
-                rating,
-                comment,
-                createdAt: new Date().toISOString()
-            });
+            this.showRatingModal(order, 'cliente');
         } catch (_) {}
+    }
+
+    showRatingModal(order, userType) {
+        const modal = document.createElement('div');
+        modal.className = 'rating-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Calificar ${userType}</h3>
+                        <button class="close-btn" onclick="this.closest('.rating-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Califica del 1 al 5 (opcional):</p>
+                        <div class="rating-stars">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <textarea placeholder="Comentario (opcional)" class="rating-comment"></textarea>
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" onclick="this.closest('.rating-modal').remove()">Omitir</button>
+                            <button class="btn btn-primary" onclick="window.submitRating()">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Configurar estrellas
+        const stars = modal.querySelectorAll('.star');
+        let selectedRating = 0;
+        stars.forEach((star, index) => {
+            star.addEventListener('click', () => {
+                selectedRating = index + 1;
+                stars.forEach((s, i) => {
+                    s.style.color = i < selectedRating ? '#ffd700' : '#ccc';
+                });
+            });
+        });
+        
+        // Función global para enviar
+        window.submitRating = async () => {
+            const comment = modal.querySelector('.rating-comment').value;
+            if (selectedRating > 0) {
+                const ratingId = `rating_${Date.now()}`;
+                await this.database.ref(`users/${order.clientId}/encounterRatings/${ratingId}`).set({
+                    id: ratingId,
+                    from: order.providerId,
+                    chatId: order.chatId,
+                    orderId: order.id,
+                    rating: selectedRating,
+                    comment,
+                    createdAt: new Date().toISOString()
+                });
+                this.showNotification('Calificación enviada', 'success');
+            }
+            modal.remove();
+            delete window.submitRating;
+        };
     }
 
     async raiseDispute(orderId, reason) {

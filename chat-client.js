@@ -47,6 +47,9 @@ class ChatClient {
         // Inicializar notificaciones
         await this.initializeNotifications();
         
+        // Configurar listener para órdenes de encuentro en tiempo real
+        this.setupEncounterOrdersListener();
+        
         console.log('✅ ChatClient: Inicializado correctamente');
         // Ir al último mensaje al entrar
         this.scrollToBottom();
@@ -1246,6 +1249,18 @@ class ChatClient {
     }
 
     // Mostrar botón flotante para finalizar encuentro si hay órdenes activas
+    setupEncounterOrdersListener() {
+        try {
+            const ordersRef = this.database.ref('encounterOrders');
+            ordersRef.orderByChild('chatId').equalTo(this.chatId).on('value', (snapshot) => {
+                console.log('🔄 Actualizando botón de encuentro en tiempo real...');
+                this.ensureCompleteEncounterButton();
+            });
+        } catch (e) {
+            console.error('❌ Error configurando listener de órdenes:', e);
+        }
+    }
+
     async ensureCompleteEncounterButton() {
         try {
             const existing = document.getElementById('completeEncounterBtn');
@@ -1356,21 +1371,74 @@ class ChatClient {
 
     async promptOptionalRatings(order) {
         try {
-            const rateStr = prompt('Califica al proveedor del 1 al 5 (opcional, dejar vacío para omitir):', '');
-            if (!rateStr) return;
-            const rating = Math.max(1, Math.min(5, parseInt(rateStr, 10)));
-            const comment = prompt('Comentario (opcional):', '') || '';
-            const ratingId = `rating_${Date.now()}`;
-            await this.database.ref(`users/${order.providerId}/encounterRatings/${ratingId}`).set({
-                id: ratingId,
-                from: order.clientId,
-                chatId: order.chatId,
-                orderId: order.id,
-                rating,
-                comment,
-                createdAt: new Date().toISOString()
-            });
+            this.showRatingModal(order, 'proveedor');
         } catch (_) {}
+    }
+
+    showRatingModal(order, userType) {
+        const modal = document.createElement('div');
+        modal.className = 'rating-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Calificar ${userType}</h3>
+                        <button class="close-btn" onclick="this.closest('.rating-modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Califica del 1 al 5 (opcional):</p>
+                        <div class="rating-stars">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <textarea placeholder="Comentario (opcional)" class="rating-comment"></textarea>
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" onclick="this.closest('.rating-modal').remove()">Omitir</button>
+                            <button class="btn btn-primary" onclick="window.submitRating()">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Configurar estrellas
+        const stars = modal.querySelectorAll('.star');
+        let selectedRating = 0;
+        stars.forEach((star, index) => {
+            star.addEventListener('click', () => {
+                selectedRating = index + 1;
+                stars.forEach((s, i) => {
+                    s.style.color = i < selectedRating ? '#ffd700' : '#ccc';
+                });
+            });
+        });
+        
+        // Función global para enviar
+        window.submitRating = async () => {
+            const comment = modal.querySelector('.rating-comment').value;
+            if (selectedRating > 0) {
+                const ratingId = `rating_${Date.now()}`;
+                await this.database.ref(`users/${order.providerId}/encounterRatings/${ratingId}`).set({
+                    id: ratingId,
+                    from: order.clientId,
+                    chatId: order.chatId,
+                    orderId: order.id,
+                    rating: selectedRating,
+                    comment,
+                    createdAt: new Date().toISOString()
+                });
+                this.showNotification('Calificación enviada', 'success');
+            }
+            modal.remove();
+            delete window.submitRating;
+        };
     }
 
     async raiseDispute(orderId, reason) {

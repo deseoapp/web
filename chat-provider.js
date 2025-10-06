@@ -259,6 +259,10 @@ class ChatProvider {
                         modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
                     }
                 }
+                
+                if (action === 'evidence') {
+                    this.showEvidenceModal();
+                }
             };
         });
 
@@ -310,6 +314,10 @@ class ChatProvider {
                 this.messages = Object.values(messagesData)
                     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
                 this.renderMessages();
+                this.checkForEvidenceRequest();
+                
+                // Force check after a short delay to ensure DOM is ready
+                setTimeout(() => this.checkForEvidenceRequest(), 100);
             }
 
             // Escuchar nuevos mensajes
@@ -319,6 +327,7 @@ class ChatProvider {
                     this.messages.push(message);
                     this.renderMessages();
                     this.scrollToBottom();
+                    this.checkForEvidenceRequest();
                     
                     // Enviar notificación si el mensaje no es del usuario actual
                     if (message.senderId !== this.currentUser.id && 
@@ -1595,6 +1604,156 @@ class ChatProvider {
             
         } catch (error) {
             console.error('❌ Error enviando notificación del navegador:', error);
+        }
+    }
+
+    // Evidence System Methods
+    showEvidenceModal() {
+        const modal = document.getElementById('evidenceModal');
+        if (modal) {
+            modal.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 9999 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; background: rgba(0,0,0,0.5) !important;';
+            
+            // Setup evidence upload listeners
+            this.setupEvidenceListeners();
+        }
+    }
+
+    setupEvidenceListeners() {
+        const selectBtn = document.getElementById('selectEvidenceFiles');
+        const fileInput = document.getElementById('evidenceFiles');
+        const uploadBtn = document.getElementById('uploadEvidenceBtn');
+        
+        if (selectBtn && fileInput) {
+            selectBtn.onclick = () => fileInput.click();
+            
+            fileInput.onchange = (e) => this.handleEvidenceFiles(e.target.files);
+        }
+        
+        if (uploadBtn) {
+            uploadBtn.onclick = () => this.uploadEvidence();
+        }
+    }
+
+    handleEvidenceFiles(files) {
+        const preview = document.getElementById('evidencePreview');
+        const uploadBtn = document.getElementById('uploadEvidenceBtn');
+        
+        preview.innerHTML = '';
+        
+        Array.from(files).forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const item = document.createElement('div');
+                    item.className = 'evidence-preview-item';
+                    item.innerHTML = `
+                        <img src="${e.target.result}" alt="Evidence ${index + 1}">
+                        <button class="remove-btn" onclick="this.parentElement.remove()">×</button>
+                    `;
+                    preview.appendChild(item);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        if (files.length > 0) {
+            uploadBtn.disabled = false;
+        }
+    }
+
+    async uploadEvidence() {
+        const previewItems = document.querySelectorAll('.evidence-preview-item img');
+        const evidenceData = [];
+        
+        previewItems.forEach((img, index) => {
+            evidenceData.push({
+                id: `evidence_${Date.now()}_${index}`,
+                data: img.src,
+                uploadedAt: Date.now(),
+                uploadedBy: this.currentUser.id,
+                uploadedByName: this.currentUserAlias || 'Proveedor'
+            });
+        });
+        
+        if (evidenceData.length === 0) {
+            alert('Selecciona al menos una imagen');
+            return;
+        }
+        
+        try {
+            // Find active dispute for this chat
+            const disputesRef = this.database.ref('disputes');
+            const snapshot = await disputesRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const disputes = snapshot.val() || {};
+            
+            const disputeId = Object.keys(disputes)[0];
+            if (!disputeId) {
+                alert('No hay disputa activa para este chat');
+                return;
+            }
+            
+            // Save evidence to Firebase
+            const evidenceRef = this.database.ref(`disputes/${disputeId}/evidence/provider`);
+            await evidenceRef.set(evidenceData);
+            
+            // Send confirmation message
+            const message = {
+                senderId: this.currentUser.id,
+                message: `He subido ${evidenceData.length} evidencia(s) para la disputa.`,
+                timestamp: Date.now(),
+                type: 'evidence_uploaded'
+            };
+            
+            await this.database.ref(`chats/${this.chatId}/messages`).push(message);
+            
+            // Close modal and reset
+            this.closeEvidenceModal();
+            
+            alert('Evidencias subidas correctamente');
+            
+        } catch (error) {
+            console.error('Error subiendo evidencias:', error);
+            alert('Error subiendo evidencias');
+        }
+    }
+
+    closeEvidenceModal() {
+        const modal = document.getElementById('evidenceModal');
+        if (modal) {
+            modal.style.display = 'none';
+            
+            // Reset form
+            document.getElementById('evidencePreview').innerHTML = '';
+            document.getElementById('uploadEvidenceBtn').disabled = true;
+            document.getElementById('evidenceFiles').value = '';
+        }
+    }
+
+    // Check for evidence request messages
+    checkForEvidenceRequest() {
+        const evidenceBtn = document.getElementById('evidenceBtn');
+        if (!evidenceBtn) {
+            console.log('❌ [DEBUG] Botón de evidencias no encontrado');
+            return;
+        }
+        
+        // Check if there's an admin request for evidence
+        const hasEvidenceRequest = this.messages.some(msg => 
+            msg.senderId === 'admin' && msg.type === 'admin_request_evidence'
+        );
+        
+        console.log('🔍 [DEBUG] Verificando solicitud de evidencias:', {
+            hasEvidenceRequest,
+            messagesCount: this.messages.length,
+            adminMessages: this.messages.filter(msg => msg.senderId === 'admin')
+        });
+        
+        if (hasEvidenceRequest) {
+            evidenceBtn.style.display = 'block';
+            console.log('✅ [DEBUG] Botón de evidencias mostrado');
+        } else {
+            evidenceBtn.style.display = 'none';
+            console.log('❌ [DEBUG] Botón de evidencias oculto');
         }
     }
 }

@@ -99,6 +99,10 @@
                 <i class="fas fa-star"></i>
                 <span>Calificar</span>
             </button>
+            <button class="quick-action-btn" data-action="evidence" id="evidenceBtn" style="display: none;">
+                <i class="fas fa-camera"></i>
+                <span>Subir Evidencias</span>
+            </button>
         </div>
     </footer>
 
@@ -216,6 +220,33 @@
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeModal('rateModal')">Cancelar</button>
                 <button class="btn-primary" id="sendRatingBtn">Enviar Calificación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Subir Evidencias -->
+    <div class="modal" id="evidenceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-camera"></i> Subir Evidencias</h2>
+                <button class="close-btn" onclick="closeModal('evidenceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Sube imágenes que respalden tu caso en la disputa:</p>
+                <div class="evidence-upload-area">
+                    <input type="file" id="evidenceFiles" multiple accept="image/*" style="display: none;">
+                    <button class="upload-btn" id="selectEvidenceFiles">
+                        <i class="fas fa-plus"></i> Seleccionar Imágenes
+                    </button>
+                    <p class="upload-hint">Puedes subir múltiples imágenes</p>
+                </div>
+                <div id="evidencePreview" class="evidence-preview"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('evidenceModal')">Cancelar</button>
+                <button class="btn-primary" id="uploadEvidenceBtn" disabled>Subir Evidencias</button>
             </div>
         </div>
     </div>

@@ -83,27 +83,29 @@
             <!-- Evidence Panel -->
             <aside class="evidence-panel" id="evidencePanel" style="display: none;">
                 <div class="panel-header">
-                    <h3><i class="fas fa-camera"></i> Evidencias</h3>
+                    <h3><i class="fas fa-camera"></i> Evidencias Recibidas</h3>
                 </div>
                 <div class="panel-content">
-                    <div class="evidence-upload">
-                        <h4>Subir Evidencias</h4>
-                        <div class="upload-area">
-                            <input type="file" id="evidenceFiles" multiple accept="image/*" style="display: none;">
-                            <button id="selectEvidenceBtn" class="upload-btn">
-                                <i class="fas fa-plus"></i> Seleccionar Imágenes
-                            </button>
-                            <p class="upload-hint">Puedes subir múltiples imágenes</p>
+                    <div class="evidence-summary">
+                        <h4>Resumen de Evidencias</h4>
+                        <div class="summary-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Cliente:</span>
+                                <span id="clientEvidenceCount" class="stat-value">0 evidencias</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Proveedor:</span>
+                                <span id="providerEvidenceCount" class="stat-value">0 evidencias</span>
+                            </div>
                         </div>
-                        <div id="evidencePreview" class="evidence-preview"></div>
-                        <button id="uploadEvidenceBtn" class="upload-btn" style="margin-top: 1rem;">
-                            <i class="fas fa-upload"></i> Subir Evidencias
-                        </button>
                     </div>
                     
                     <div class="evidence-list" id="evidenceList">
-                        <h4>Evidencias Subidas</h4>
-                        <div id="evidenceItems"></div>
+                        <h4>Evidencias del Cliente</h4>
+                        <div id="clientEvidenceItems" class="evidence-items"></div>
+                        
+                        <h4>Evidencias del Proveedor</h4>
+                        <div id="providerEvidenceItems" class="evidence-items"></div>
                     </div>
                 </div>
             </aside>

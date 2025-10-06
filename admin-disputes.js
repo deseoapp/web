@@ -131,29 +131,7 @@ class AdminDisputes {
             });
         }
 
-        // Evidence upload
-        const selectEvidenceBtn = document.getElementById('selectEvidenceBtn');
-        const evidenceFiles = document.getElementById('evidenceFiles');
-        const uploadEvidenceBtn = document.getElementById('uploadEvidenceBtn');
-        
-        if (selectEvidenceBtn) {
-            selectEvidenceBtn.addEventListener('click', () => {
-                if (evidenceFiles) evidenceFiles.click();
-            });
-        }
-
-        if (evidenceFiles) {
-            evidenceFiles.addEventListener('change', (e) => {
-                this.handleEvidenceUpload(e.target.files);
-            });
-        }
-
-        // Upload evidence button
-        if (uploadEvidenceBtn) {
-            uploadEvidenceBtn.addEventListener('click', () => {
-                this.uploadEvidence();
-            });
-        }
+        // Evidence system - no upload functionality for admin
     }
 
     async loadDisputes() {
@@ -392,15 +370,18 @@ class AdminDisputes {
         // Send message to both parties requesting evidence
         this.sendEvidenceRequest();
         
-        // Show evidence panel
+        // Show evidence panel to review submitted evidence
         document.getElementById('evidencePanel').style.display = 'block';
+        
+        // Load existing evidence
+        this.loadEvidence();
     }
 
     async sendEvidenceRequest() {
         try {
             const message = {
                 senderId: 'admin',
-                message: 'El administrador solicita evidencias para resolver esta disputa. Por favor, sube imágenes que respalden tu caso.',
+                message: 'El administrador solicita evidencias para resolver esta disputa. Por favor, sube imágenes que respalden tu caso usando el botón de evidencias en el chat.',
                 timestamp: Date.now(),
                 type: 'admin_request_evidence'
             };
@@ -408,84 +389,63 @@ class AdminDisputes {
             // Send to chat
             await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(message);
             
-            this.showSuccess('Solicitud de evidencias enviada');
+            this.showSuccess('Solicitud de evidencias enviada a ambas partes');
         } catch (error) {
             console.error('Error enviando solicitud de evidencias:', error);
             this.showError('Error enviando solicitud de evidencias');
         }
     }
 
-    handleEvidenceUpload(files) {
-        const preview = document.getElementById('evidencePreview');
-        preview.innerHTML = '';
-        
-        Array.from(files).forEach((file, index) => {
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const evidenceItem = document.createElement('div');
-                    evidenceItem.className = 'evidence-item';
-                    evidenceItem.innerHTML = `
-                        <img src="${e.target.result}" alt="Evidence ${index + 1}">
-                        <button class="remove-btn" onclick="this.parentElement.remove()">×</button>
-                    `;
-                    preview.appendChild(evidenceItem);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    async uploadEvidence() {
-        const evidenceItems = document.querySelectorAll('.evidence-item img');
-        const evidenceData = [];
-        
-        evidenceItems.forEach((img, index) => {
-            evidenceData.push({
-                id: `evidence_${Date.now()}_${index}`,
-                data: img.src,
-                uploadedAt: Date.now()
-            });
-        });
-        
-        if (evidenceData.length === 0) {
-            this.showError('Selecciona al menos una imagen');
-            return;
-        }
-        
-        try {
-            // Save evidence to Firebase
-            const evidenceRef = this.database.ref(`disputes/${this.currentDispute.id}/evidence`);
-            await evidenceRef.set(evidenceData);
-            
-            this.showSuccess('Evidencias subidas correctamente');
-            this.loadEvidence();
-        } catch (error) {
-            console.error('Error subiendo evidencias:', error);
-            this.showError('Error subiendo evidencias');
-        }
-    }
-
     async loadEvidence() {
         try {
-            const evidenceRef = this.database.ref(`disputes/${this.currentDispute.id}/evidence`);
-            const snapshot = await evidenceRef.once('value');
-            const evidenceData = snapshot.val() || [];
+            const dispute = this.currentDispute;
+            if (!dispute) return;
             
-            const evidenceItems = document.getElementById('evidenceItems');
-            evidenceItems.innerHTML = '';
+            // Load client evidence
+            const clientEvidenceRef = this.database.ref(`disputes/${dispute.id}/evidence/client`);
+            const clientSnapshot = await clientEvidenceRef.once('value');
+            const clientEvidence = clientSnapshot.val() || [];
             
-            evidenceData.forEach(evidence => {
-                const evidenceItem = document.createElement('div');
-                evidenceItem.className = 'evidence-item-display';
-                evidenceItem.innerHTML = `
-                    <img src="${evidence.data}" alt="Evidence" onclick="this.parentElement.querySelector('img').style.transform = 'scale(1.5)'">
-                `;
-                evidenceItems.appendChild(evidenceItem);
-            });
+            // Load provider evidence
+            const providerEvidenceRef = this.database.ref(`disputes/${dispute.id}/evidence/provider`);
+            const providerSnapshot = await providerEvidenceRef.once('value');
+            const providerEvidence = providerSnapshot.val() || [];
+            
+            // Update counts
+            document.getElementById('clientEvidenceCount').textContent = `${clientEvidence.length} evidencias`;
+            document.getElementById('providerEvidenceCount').textContent = `${providerEvidence.length} evidencias`;
+            
+            // Render client evidence
+            this.renderEvidence(clientEvidence, 'clientEvidenceItems');
+            
+            // Render provider evidence
+            this.renderEvidence(providerEvidence, 'providerEvidenceItems');
+            
         } catch (error) {
             console.error('Error cargando evidencias:', error);
         }
+    }
+
+    renderEvidence(evidenceData, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        
+        if (evidenceData.length === 0) {
+            container.innerHTML = '<p class="no-evidence">No hay evidencias subidas aún</p>';
+            return;
+        }
+        
+        evidenceData.forEach(evidence => {
+            const evidenceItem = document.createElement('div');
+            evidenceItem.className = 'evidence-item-display';
+            evidenceItem.innerHTML = `
+                <img src="${evidence.data}" alt="Evidence" onclick="this.style.transform = this.style.transform === 'scale(1.5)' ? 'scale(1)' : 'scale(1.5)'">
+                <div class="evidence-info">
+                    <small>Subido: ${new Date(evidence.uploadedAt).toLocaleString('es-ES')}</small>
+                </div>
+            `;
+            container.appendChild(evidenceItem);
+        });
     }
 
     async executeResolution() {

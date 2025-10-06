@@ -721,74 +721,46 @@ body {
     transform: none;
 }
 
-.upload-area {
-    border: 2px dashed var(--admin-border);
-    border-radius: 8px;
-    padding: 2rem;
-    text-align: center;
-    margin-bottom: 1rem;
-    transition: var(--transition);
-}
-
-.upload-area:hover {
-    border-color: var(--admin-primary);
+.evidence-summary {
     background: var(--admin-bg-tertiary);
-}
-
-.upload-btn {
-    background: var(--admin-primary);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
     border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--admin-border);
 }
 
-.upload-btn:hover {
-    background: #2563eb;
-    transform: translateY(-1px);
+.evidence-summary h4 {
+    color: var(--admin-text);
+    margin-bottom: 1rem;
+    font-size: 1rem;
 }
 
-.upload-hint {
-    color: var(--admin-text-secondary);
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-}
-
-.evidence-preview {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+.summary-stats {
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    margin-top: 1rem;
 }
 
-.evidence-item {
-    position: relative;
-    border-radius: 8px;
-    overflow: hidden;
-    aspect-ratio: 1;
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--admin-border);
 }
 
-.evidence-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.stat-item:last-child {
+    border-bottom: none;
 }
 
-.evidence-item .remove-btn {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    background: var(--admin-danger);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
-    font-size: 0.75rem;
+.stat-label {
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+}
+
+.stat-value {
+    color: var(--admin-text);
+    font-weight: 600;
 }
 
 .evidence-list {
@@ -825,6 +797,27 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.no-evidence {
+    color: var(--admin-text-secondary);
+    font-style: italic;
+    text-align: center;
+    padding: 2rem;
+    background: var(--admin-bg-tertiary);
+    border-radius: 8px;
+    border: 1px dashed var(--admin-border);
+}
+
+.evidence-info {
+    padding: 0.5rem;
+    background: var(--admin-bg-secondary);
+    border-top: 1px solid var(--admin-border);
+}
+
+.evidence-info small {
+    color: var(--admin-text-secondary);
+    font-size: 0.75rem;
 }
 
 /* Resolution Modal Styles */

@@ -350,6 +350,11 @@ class AdminDisputes {
             // Send to chat
             await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(message);
             
+            // Add message to local chat immediately for real-time display
+            this.messages = this.messages || [];
+            this.messages.push(message);
+            this.renderChatMessages(this.messages);
+            
             this.showSuccess('Solicitud de evidencias enviada a ambas partes');
         } catch (error) {
             console.error('Error enviando solicitud de evidencias:', error);

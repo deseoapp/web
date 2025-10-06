@@ -2056,14 +2056,21 @@ class ChatClient {
                 return;
             }
             
-            // Save evidence to Firebase
+            // Get existing evidence and add new evidence (accumulate)
             const evidenceRef = this.database.ref(`disputes/${disputeId}/evidence/client`);
-            await evidenceRef.set(evidenceData);
+            const existingSnapshot = await evidenceRef.once('value');
+            const existingEvidence = existingSnapshot.val() || [];
+            
+            // Combine existing and new evidence
+            const allEvidence = [...existingEvidence, ...evidenceData];
+            
+            // Save combined evidence to Firebase
+            await evidenceRef.set(allEvidence);
             
             // Send confirmation message
             const message = {
                 senderId: this.currentUser.id,
-                message: `He subido ${evidenceData.length} evidencia(s) para la disputa.`,
+                message: `He subido ${evidenceData.length} evidencia(s) adicional(es) para la disputa. Total: ${allEvidence.length} evidencias.`,
                 timestamp: Date.now(),
                 type: 'evidence_uploaded'
             };

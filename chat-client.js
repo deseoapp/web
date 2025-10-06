@@ -2068,10 +2068,21 @@ class ChatClient {
                 type: 'evidence_uploaded'
             };
             
+            // Add message to local array immediately for real-time display
+            this.messages.push(message);
+            this.renderMessages();
+            this.scrollToBottom();
+            
+            // Send to Firebase
             await this.database.ref(`chats/${this.chatId}/messages`).push(message);
             
             // Close modal and reset
             this.closeEvidenceModal();
+            
+            // Force check evidence button immediately after upload
+            setTimeout(() => {
+                this.checkForEvidenceRequest();
+            }, 100);
             
             alert('Evidencias subidas correctamente');
             

@@ -53,6 +53,9 @@
                         <p id="disputeDetails">Para ver los detalles y resolver el conflicto</p>
                     </div>
                     <div class="chat-actions">
+                        <button id="requestEvidenceBtn" class="evidence-btn" disabled>
+                            <i class="fas fa-camera"></i> Pedir Evidencias
+                        </button>
                         <button id="resolveDisputeBtn" class="resolve-btn" disabled>
                             <i class="fas fa-check"></i> Resolver
                         </button>
@@ -77,71 +80,30 @@
                 </div>
             </main>
 
-            <!-- Resolution Panel -->
-            <aside class="resolution-panel" id="resolutionPanel" style="display: none;">
+            <!-- Evidence Panel -->
+            <aside class="evidence-panel" id="evidencePanel" style="display: none;">
                 <div class="panel-header">
-                    <h3><i class="fas fa-balance-scale"></i> Resolución</h3>
+                    <h3><i class="fas fa-camera"></i> Evidencias</h3>
                 </div>
                 <div class="panel-content">
-                    <div class="dispute-summary">
-                        <h4>Resumen de la Disputa</h4>
-                        <div class="summary-item">
-                            <span class="label">Cliente:</span>
-                            <span id="clientName">-</span>
+                    <div class="evidence-upload">
+                        <h4>Subir Evidencias</h4>
+                        <div class="upload-area">
+                            <input type="file" id="evidenceFiles" multiple accept="image/*" style="display: none;">
+                            <button id="selectEvidenceBtn" class="upload-btn">
+                                <i class="fas fa-plus"></i> Seleccionar Imágenes
+                            </button>
+                            <p class="upload-hint">Puedes subir múltiples imágenes</p>
                         </div>
-                        <div class="summary-item">
-                            <span class="label">Proveedor:</span>
-                            <span id="providerName">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Monto:</span>
-                            <span id="disputeAmount">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="label">Razón:</span>
-                            <span id="disputeReason">-</span>
-                        </div>
-                    </div>
-
-                    <div class="resolution-options">
-                        <h4>Decisión</h4>
-                        <div class="option-group">
-                            <label class="radio-option">
-                                <input type="radio" name="resolution" value="client" id="favorClient">
-                                <span class="radio-custom"></span>
-                                <div class="option-content">
-                                    <strong>Favor del Cliente</strong>
-                                    <p>El dinero regresa al cliente</p>
-                                </div>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="resolution" value="provider" id="favorProvider">
-                                <span class="radio-custom"></span>
-                                <div class="option-content">
-                                    <strong>Favor del Proveedor</strong>
-                                    <p>El dinero va al proveedor</p>
-                                </div>
-                            </label>
-                            <label class="radio-option">
-                                <input type="radio" name="resolution" value="split" id="splitAmount">
-                                <span class="radio-custom"></span>
-                                <div class="option-content">
-                                    <strong>División 50/50</strong>
-                                    <p>Se divide el dinero entre ambos</p>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="admin-comment">
-                        <label for="adminComment">Comentario del administrador:</label>
-                        <textarea id="adminComment" placeholder="Explica la decisión tomada..." rows="3"></textarea>
-                    </div>
-
-                    <div class="resolution-actions">
-                        <button id="executeResolutionBtn" class="execute-btn">
-                            <i class="fas fa-gavel"></i> Ejecutar Decisión
+                        <div id="evidencePreview" class="evidence-preview"></div>
+                        <button id="uploadEvidenceBtn" class="upload-btn" style="margin-top: 1rem;">
+                            <i class="fas fa-upload"></i> Subir Evidencias
                         </button>
+                    </div>
+                    
+                    <div class="evidence-list" id="evidenceList">
+                        <h4>Evidencias Subidas</h4>
+                        <div id="evidenceItems"></div>
                     </div>
                 </div>
             </aside>
@@ -150,18 +112,74 @@
 
     <!-- Modales -->
     <div id="resolutionModal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content resolution-modal-content">
             <div class="modal-header">
-                <h3>Confirmar Resolución</h3>
+                <h3><i class="fas fa-balance-scale"></i> Resolver Disputa</h3>
                 <button class="close-btn" onclick="closeModal('resolutionModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <p id="resolutionSummary">¿Estás seguro de ejecutar esta decisión?</p>
+                <div class="dispute-summary">
+                    <h4>Resumen de la Disputa</h4>
+                    <div class="summary-item">
+                        <span class="label">Cliente:</span>
+                        <span id="clientName">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Proveedor:</span>
+                        <span id="providerName">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Monto:</span>
+                        <span id="disputeAmount">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="label">Razón:</span>
+                        <span id="disputeReason">-</span>
+                    </div>
+                </div>
+
+                <div class="resolution-options">
+                    <h4>Decisión</h4>
+                    <div class="option-group">
+                        <label class="radio-option">
+                            <input type="radio" name="resolution" value="client" id="favorClient">
+                            <span class="radio-custom"></span>
+                            <div class="option-content">
+                                <strong>Favor del Cliente</strong>
+                                <p>El dinero regresa al cliente</p>
+                            </div>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="resolution" value="provider" id="favorProvider">
+                            <span class="radio-custom"></span>
+                            <div class="option-content">
+                                <strong>Favor del Proveedor</strong>
+                                <p>El dinero va al proveedor</p>
+                            </div>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="resolution" value="split" id="splitAmount">
+                            <span class="radio-custom"></span>
+                            <div class="option-content">
+                                <strong>División 50/50</strong>
+                                <p>Se divide el dinero entre ambos</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="admin-comment">
+                    <label for="adminComment">Comentario del administrador:</label>
+                    <textarea id="adminComment" placeholder="Explica la decisión tomada..." rows="3"></textarea>
+                </div>
+
                 <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="closeModal('resolutionModal')">Cancelar</button>
-                    <button id="confirmResolutionBtn" class="btn btn-primary">Confirmar</button>
+                    <button id="executeResolutionBtn" class="btn btn-primary">
+                        <i class="fas fa-gavel"></i> Ejecutar Decisión
+                    </button>
                 </div>
             </div>
         </div>

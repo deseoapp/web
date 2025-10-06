@@ -80,33 +80,80 @@ class AdminDisputes {
             });
         });
 
+        // Request evidence button
+        const requestEvidenceBtn = document.getElementById('requestEvidenceBtn');
+        if (requestEvidenceBtn) {
+            requestEvidenceBtn.addEventListener('click', () => {
+                this.requestEvidence();
+            });
+        }
+
         // Resolve dispute button
-        document.getElementById('resolveDisputeBtn').addEventListener('click', () => {
-            this.showResolutionPanel();
-        });
+        const resolveDisputeBtn = document.getElementById('resolveDisputeBtn');
+        if (resolveDisputeBtn) {
+            resolveDisputeBtn.addEventListener('click', () => {
+                this.showResolutionModal();
+            });
+        }
 
         // Execute resolution
-        document.getElementById('executeResolutionBtn').addEventListener('click', () => {
-            this.executeResolution();
-        });
+        const executeResolutionBtn = document.getElementById('executeResolutionBtn');
+        if (executeResolutionBtn) {
+            executeResolutionBtn.addEventListener('click', () => {
+                this.executeResolution();
+            });
+        }
 
         // Send message
-        document.getElementById('sendMessageBtn').addEventListener('click', () => {
-            this.sendAdminMessage();
-        });
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+        if (sendMessageBtn) {
+            sendMessageBtn.addEventListener('click', () => {
+                this.sendAdminMessage();
+            });
+        }
 
         // Enter key in message input
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendAdminMessage();
-            }
-        });
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendAdminMessage();
+                }
+            });
+        }
 
         // Confirm resolution
-        document.getElementById('confirmResolutionBtn').addEventListener('click', () => {
-            this.confirmResolution();
-        });
+        const confirmResolutionBtn = document.getElementById('confirmResolutionBtn');
+        if (confirmResolutionBtn) {
+            confirmResolutionBtn.addEventListener('click', () => {
+                this.confirmResolution();
+            });
+        }
+
+        // Evidence upload
+        const selectEvidenceBtn = document.getElementById('selectEvidenceBtn');
+        const evidenceFiles = document.getElementById('evidenceFiles');
+        const uploadEvidenceBtn = document.getElementById('uploadEvidenceBtn');
+        
+        if (selectEvidenceBtn) {
+            selectEvidenceBtn.addEventListener('click', () => {
+                if (evidenceFiles) evidenceFiles.click();
+            });
+        }
+
+        if (evidenceFiles) {
+            evidenceFiles.addEventListener('change', (e) => {
+                this.handleEvidenceUpload(e.target.files);
+            });
+        }
+
+        // Upload evidence button
+        if (uploadEvidenceBtn) {
+            uploadEvidenceBtn.addEventListener('click', () => {
+                this.uploadEvidence();
+            });
+        }
     }
 
     async loadDisputes() {
@@ -204,11 +251,15 @@ class AdminDisputes {
             document.getElementById('disputeTitle').textContent = `Disputa #${dispute.id.slice(-8)}`;
             document.getElementById('disputeDetails').textContent = `Razón: ${dispute.reason}`;
             
-            // Enable resolve button
+            // Enable buttons
             document.getElementById('resolveDisputeBtn').disabled = false;
+            document.getElementById('requestEvidenceBtn').disabled = false;
             
             // Show chat input
             document.getElementById('chatInputArea').style.display = 'block';
+            
+            // Load evidence if available
+            await this.loadEvidence();
             
             // Load chat messages
             await this.loadChatMessages(dispute.chatId);
@@ -313,8 +364,128 @@ class AdminDisputes {
         }
     }
 
-    showResolutionPanel() {
-        document.getElementById('resolutionPanel').style.display = 'block';
+    showResolutionModal() {
+        if (!this.currentDispute) {
+            this.showError('Selecciona una disputa primero');
+            return;
+        }
+        
+        // Populate modal with dispute data
+        this.populateResolutionModal();
+        document.getElementById('resolutionModal').style.display = 'flex';
+    }
+
+    populateResolutionModal() {
+        const dispute = this.currentDispute;
+        document.getElementById('clientName').textContent = dispute.clientName || 'Cliente';
+        document.getElementById('providerName').textContent = dispute.providerName || 'Proveedor';
+        document.getElementById('disputeAmount').textContent = `$${dispute.amount || 0}`;
+        document.getElementById('disputeReason').textContent = dispute.reason || 'No especificada';
+    }
+
+    requestEvidence() {
+        if (!this.currentDispute) {
+            this.showError('Selecciona una disputa primero');
+            return;
+        }
+        
+        // Send message to both parties requesting evidence
+        this.sendEvidenceRequest();
+        
+        // Show evidence panel
+        document.getElementById('evidencePanel').style.display = 'block';
+    }
+
+    async sendEvidenceRequest() {
+        try {
+            const message = {
+                senderId: 'admin',
+                message: 'El administrador solicita evidencias para resolver esta disputa. Por favor, sube imágenes que respalden tu caso.',
+                timestamp: Date.now(),
+                type: 'admin_request_evidence'
+            };
+            
+            // Send to chat
+            await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(message);
+            
+            this.showSuccess('Solicitud de evidencias enviada');
+        } catch (error) {
+            console.error('Error enviando solicitud de evidencias:', error);
+            this.showError('Error enviando solicitud de evidencias');
+        }
+    }
+
+    handleEvidenceUpload(files) {
+        const preview = document.getElementById('evidencePreview');
+        preview.innerHTML = '';
+        
+        Array.from(files).forEach((file, index) => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const evidenceItem = document.createElement('div');
+                    evidenceItem.className = 'evidence-item';
+                    evidenceItem.innerHTML = `
+                        <img src="${e.target.result}" alt="Evidence ${index + 1}">
+                        <button class="remove-btn" onclick="this.parentElement.remove()">×</button>
+                    `;
+                    preview.appendChild(evidenceItem);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    async uploadEvidence() {
+        const evidenceItems = document.querySelectorAll('.evidence-item img');
+        const evidenceData = [];
+        
+        evidenceItems.forEach((img, index) => {
+            evidenceData.push({
+                id: `evidence_${Date.now()}_${index}`,
+                data: img.src,
+                uploadedAt: Date.now()
+            });
+        });
+        
+        if (evidenceData.length === 0) {
+            this.showError('Selecciona al menos una imagen');
+            return;
+        }
+        
+        try {
+            // Save evidence to Firebase
+            const evidenceRef = this.database.ref(`disputes/${this.currentDispute.id}/evidence`);
+            await evidenceRef.set(evidenceData);
+            
+            this.showSuccess('Evidencias subidas correctamente');
+            this.loadEvidence();
+        } catch (error) {
+            console.error('Error subiendo evidencias:', error);
+            this.showError('Error subiendo evidencias');
+        }
+    }
+
+    async loadEvidence() {
+        try {
+            const evidenceRef = this.database.ref(`disputes/${this.currentDispute.id}/evidence`);
+            const snapshot = await evidenceRef.once('value');
+            const evidenceData = snapshot.val() || [];
+            
+            const evidenceItems = document.getElementById('evidenceItems');
+            evidenceItems.innerHTML = '';
+            
+            evidenceData.forEach(evidence => {
+                const evidenceItem = document.createElement('div');
+                evidenceItem.className = 'evidence-item-display';
+                evidenceItem.innerHTML = `
+                    <img src="${evidence.data}" alt="Evidence" onclick="this.parentElement.querySelector('img').style.transform = 'scale(1.5)'">
+                `;
+                evidenceItems.appendChild(evidenceItem);
+            });
+        } catch (error) {
+            console.error('Error cargando evidencias:', error);
+        }
     }
 
     async executeResolution() {

@@ -982,18 +982,19 @@ class ChatClient {
     createMessageElement(message) {
         const div = document.createElement('div');
         const isSent = message.senderId === this.currentUser.id;
+        const isAdmin = message.senderId === 'admin';
         
-        div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+        // Mensajes del admin se muestran en el centro
+        if (isAdmin) {
+            div.className = 'chat-message admin-message';
+        } else {
+            div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+        }
         
         // Agregar clase especial para mensajes del sistema
         if (message.type === 'system' || message.type === 'quote' || message.type === 'schedule') {
             div.classList.add(message.type);
         }
-        
-        // Avatar
-        const avatar = document.createElement('div');
-        avatar.className = 'message-avatar';
-        avatar.innerHTML = `<i class="fas fa-user"></i>`;
         
         // Contenido del mensaje
         const content = document.createElement('div');
@@ -1002,25 +1003,33 @@ class ChatClient {
         let messageHtml = '';
         
         // Manejar diferentes tipos de mensajes
-        if (message.type === 'paid_photo_bundle' && !isSent) {
-            // Fotos pagadas del proveedor - mostrar según estado de desbloqueo
-            if (message.unlocked) {
-                messageHtml = this.createUnlockedPhotosHTML(message);
-            } else {
-                messageHtml = this.createPaidPhotoBundleHTML(message);
-            }
-        } else if (message.type === 'service_offer' && !isSent) {
-            // Oferta de encuentro del proveedor - mostrar con botones aceptar/rechazar
-            messageHtml = this.createEncounterOfferHTML(message);
-        } else if (message.type === 'tips_request' && !isSent) {
-            // Solicitud de propina del proveedor
-            messageHtml = `<div class="tips-request">
-                <p>💝 <strong>Solicitud de propina</strong></p>
-                <p>${this.escapeHtml(message.message || 'El proveedor solicita una propina para continuar con contenido exclusivo.')}</p>
+        if (isAdmin) {
+            // Mensaje del administrador - no agregar avatar
+            messageHtml = `<div class="admin-message-content">
+                <div class="admin-badge">👨‍💼 Mensaje del administrador</div>
+                <p>${this.escapeHtml(message.message)}</p>
             </div>`;
         } else {
-            // Mensaje normal
-            messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+            if (message.type === 'paid_photo_bundle' && !isSent) {
+                // Fotos pagadas del proveedor - mostrar según estado de desbloqueo
+                if (message.unlocked) {
+                    messageHtml = this.createUnlockedPhotosHTML(message);
+                } else {
+                    messageHtml = this.createPaidPhotoBundleHTML(message);
+                }
+            } else if (message.type === 'service_offer' && !isSent) {
+                // Oferta de encuentro del proveedor - mostrar con botones aceptar/rechazar
+                messageHtml = this.createEncounterOfferHTML(message);
+            } else if (message.type === 'tips_request' && !isSent) {
+                // Solicitud de propina del proveedor
+                messageHtml = `<div class="tips-request">
+                    <p>💝 <strong>Solicitud de propina</strong></p>
+                    <p>${this.escapeHtml(message.message || 'El proveedor solicita una propina para continuar con contenido exclusivo.')}</p>
+                </div>`;
+            } else {
+                // Mensaje normal
+                messageHtml = `<p>${this.escapeHtml(message.message)}</p>`;
+            }
         }
         
         // Agregar timestamp
@@ -1033,7 +1042,13 @@ class ChatClient {
         content.innerHTML = messageHtml;
         
         // Agregar elementos al mensaje
-        div.appendChild(avatar);
+        if (!isAdmin) {
+            // Solo agregar avatar si no es admin
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = `<i class="fas fa-user"></i>`;
+            div.appendChild(avatar);
+        }
         div.appendChild(content);
         
         return div;

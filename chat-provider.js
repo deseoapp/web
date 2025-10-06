@@ -1078,13 +1078,14 @@ class ChatProvider {
     createMessageElement(message) {
         const div = document.createElement('div');
         const isSent = message.senderId === this.currentUser.id;
+        const isAdmin = message.senderId === 'admin';
         
-        div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
-        
-        // Avatar
-        const avatar = document.createElement('div');
-        avatar.className = 'message-avatar';
-        avatar.innerHTML = `<i class="fas fa-user"></i>`;
+        // Mensajes del admin se muestran en el centro
+        if (isAdmin) {
+            div.className = 'chat-message admin-message';
+        } else {
+            div.className = `chat-message ${isSent ? 'sent' : 'received'}`;
+        }
         
         // Contenido del mensaje
         const content = document.createElement('div');
@@ -1093,7 +1094,13 @@ class ChatProvider {
         let messageHtml = '';
         
         // Manejar diferentes tipos de mensajes
-        if (message.type === 'paid_photo_bundle') {
+        if (isAdmin) {
+            // Mensaje del administrador - no agregar avatar
+            messageHtml = `<div class="admin-message-content">
+                <div class="admin-badge">👨‍💼 Mensaje del administrador</div>
+                <p>${this.escapeHtml(message.message)}</p>
+            </div>`;
+        } else if (message.type === 'paid_photo_bundle') {
             // Fotos pagadas - mostrar según estado de desbloqueo
             if (message.unlocked) {
                 messageHtml = this.createUnlockedPhotosHTML(message);
@@ -1131,7 +1138,13 @@ class ChatProvider {
         content.innerHTML = messageHtml;
         
         // Agregar elementos al mensaje
-        div.appendChild(avatar);
+        if (!isAdmin) {
+            // Solo agregar avatar si no es admin
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = `<i class="fas fa-user"></i>`;
+            div.appendChild(avatar);
+        }
         div.appendChild(content);
         
         return div;

@@ -2101,13 +2101,20 @@ class ChatClient {
             msg.senderId === 'admin' && msg.type === 'admin_request_evidence'
         );
         
+        // Check if user has already uploaded evidence
+        const hasUploadedEvidence = this.messages.some(msg => 
+            msg.senderId === this.currentUser.id && msg.type === 'evidence_uploaded'
+        );
+        
         console.log('🔍 [DEBUG] Verificando solicitud de evidencias:', {
             hasEvidenceRequest,
+            hasUploadedEvidence,
             messagesCount: this.messages.length,
             adminMessages: this.messages.filter(msg => msg.senderId === 'admin')
         });
         
-        if (hasEvidenceRequest) {
+        // Show button only if admin requested evidence AND user hasn't uploaded yet
+        if (hasEvidenceRequest && !hasUploadedEvidence) {
             evidenceBtn.style.display = 'block';
             console.log('✅ [DEBUG] Botón de evidencias mostrado');
         } else {

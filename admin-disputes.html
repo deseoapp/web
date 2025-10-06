@@ -7,190 +7,268 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="admin-disputes.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="admin-container">
-        <!-- Header -->
-        <header class="admin-header">
-            <div class="header-content">
-                <div class="header-left">
+<body class="admin-disputes-page" data-theme="dark">
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="header-content">
+            <div class="header-left">
+                <button class="back-btn" onclick="window.history.back()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="header-title">
                     <h1><i class="fas fa-gavel"></i> Resolución de Disputas</h1>
                     <p class="header-subtitle">Panel de administración para resolver conflictos</p>
                 </div>
-                <div class="header-right">
-                    <button id="themeToggle" class="theme-toggle">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <button id="logoutBtn" class="logout-btn">
-                        <i class="fas fa-sign-out-alt"></i> Salir
-                    </button>
+            </div>
+            <div class="header-right">
+                <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="logoutBtn" class="logout-btn" title="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="admin-main-container">
+        <!-- Left Panel - Disputes List -->
+        <div class="disputes-panel">
+            <div class="panel-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Disputas Activas</h3>
+                <div class="dispute-stats">
+                    <span class="stat-item">
+                        <i class="fas fa-clock text-warning"></i>
+                        <span id="pendingCount">0</span> Pendientes
+                    </span>
+                    <span class="stat-item">
+                        <i class="fas fa-check text-success"></i>
+                        <span id="resolvedCount">0</span> Resueltas
+                    </span>
                 </div>
             </div>
-        </header>
-
-        <!-- Main Content -->
-        <div class="admin-main">
-            <!-- Sidebar - Lista de disputas -->
-            <aside class="disputes-sidebar">
-                <div class="sidebar-header">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Disputas Activas</h3>
-                    <div class="dispute-filters">
-                        <button class="filter-btn active" data-filter="all">Todas</button>
-                        <button class="filter-btn" data-filter="pending">Pendientes</button>
-                        <button class="filter-btn" data-filter="resolved">Resueltas</button>
-                    </div>
+            
+            <div class="disputes-list" id="disputesList">
+                <div class="empty-state" id="emptyState">
+                    <i class="fas fa-inbox"></i>
+                    <h4>No hay disputas activas</h4>
+                    <p>Las disputas aparecerán aquí cuando se generen</p>
                 </div>
-                <div class="disputes-list" id="disputesList">
-                    <!-- Las disputas se cargarán aquí dinámicamente -->
-                </div>
-            </aside>
+            </div>
+        </div>
 
-            <!-- Chat Area -->
-            <main class="dispute-chat-area">
-                <div class="chat-header" id="chatHeader">
-                    <div class="chat-info">
-                        <h3 id="disputeTitle">Selecciona una disputa</h3>
-                        <p id="disputeDetails">Para ver los detalles y resolver el conflicto</p>
+        <!-- Right Panel - Dispute Details -->
+        <div class="dispute-details-panel" id="disputeDetailsPanel">
+            <div class="no-dispute-selected" id="noDisputeSelected">
+                <i class="fas fa-hand-pointer"></i>
+                <h3>Selecciona una disputa</h3>
+                <p>Elige una disputa de la lista para comenzar la resolución</p>
+            </div>
+
+            <!-- Dispute Content (hidden by default) -->
+            <div class="dispute-content" id="disputeContent" style="display: none;">
+                <!-- Dispute Header -->
+                <div class="dispute-header">
+                    <div class="dispute-info">
+                        <h2 id="disputeTitle">Disputa #<span id="disputeId"></span></h2>
+                        <div class="dispute-meta">
+                            <span class="dispute-status" id="disputeStatus">Pendiente</span>
+                            <span class="dispute-amount" id="disputeAmount">$0</span>
+                            <span class="dispute-date" id="disputeDate">-</span>
+                        </div>
                     </div>
-                    <div class="chat-actions">
-                        <button id="requestEvidenceBtn" class="evidence-btn" disabled>
+                    <div class="dispute-actions">
+                        <button id="requestEvidenceBtn" class="btn-secondary">
                             <i class="fas fa-camera"></i> Pedir Evidencias
                         </button>
-                        <button id="resolveDisputeBtn" class="resolve-btn" disabled>
-                            <i class="fas fa-check"></i> Resolver
+                        <button id="resolveDisputeBtn" class="btn-primary">
+                            <i class="fas fa-gavel"></i> Resolver Disputa
                         </button>
                     </div>
                 </div>
 
-                <div class="chat-messages" id="chatMessages">
-                    <div class="no-dispute-selected">
-                        <i class="fas fa-comments"></i>
-                        <h3>Selecciona una disputa</h3>
-                        <p>Elige una disputa de la lista para comenzar la resolución</p>
-                    </div>
+                <!-- Tabs Navigation -->
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="chat">
+                        <i class="fas fa-comments"></i> Chat
+                    </button>
+                    <button class="tab-btn" data-tab="evidence">
+                        <i class="fas fa-images"></i> Evidencias
+                    </button>
+                    <button class="tab-btn" data-tab="details">
+                        <i class="fas fa-info-circle"></i> Detalles
+                    </button>
                 </div>
 
-                <div class="chat-input-area" id="chatInputArea" style="display: none;">
-                    <div class="input-container">
-                        <textarea id="messageInput" placeholder="Escribe tu mensaje como administrador..." rows="2"></textarea>
-                        <button id="sendMessageBtn" class="send-btn">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            </main>
-
-            <!-- Evidence Panel -->
-            <aside class="evidence-panel" id="evidencePanel" style="display: none;">
-                <div class="panel-header">
-                    <h3><i class="fas fa-camera"></i> Evidencias Recibidas</h3>
-                </div>
-                <div class="panel-content">
-                    <div class="evidence-summary">
-                        <h4>Resumen de Evidencias</h4>
-                        <div class="summary-stats">
-                            <div class="stat-item">
-                                <span class="stat-label">Cliente:</span>
-                                <span id="clientEvidenceCount" class="stat-value">0 evidencias</span>
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Chat Tab -->
+                    <div class="tab-pane active" id="chatTab">
+                        <div class="chat-container">
+                            <div class="chat-header">
+                                <div class="chat-participants">
+                                    <div class="participant">
+                                        <i class="fas fa-user"></i>
+                                        <span id="clientName">Cliente</span>
+                                    </div>
+                                    <div class="participant">
+                                        <i class="fas fa-user-tie"></i>
+                                        <span id="providerName">Proveedor</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="stat-item">
-                                <span class="stat-label">Proveedor:</span>
-                                <span id="providerEvidenceCount" class="stat-value">0 evidencias</span>
+                            <div class="chat-messages" id="chatMessages">
+                                <!-- Messages will be loaded here -->
+                            </div>
+                            <div class="chat-input">
+                                <div class="input-group">
+                                    <input type="text" id="adminMessageInput" placeholder="Escribe tu mensaje como administrador...">
+                                    <button id="sendAdminMessageBtn" class="btn-primary">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="evidence-list" id="evidenceList">
-                        <h4>Evidencias del Cliente</h4>
-                        <div id="clientEvidenceItems" class="evidence-items"></div>
-                        
-                        <h4>Evidencias del Proveedor</h4>
-                        <div id="providerEvidenceItems" class="evidence-items"></div>
+
+                    <!-- Evidence Tab -->
+                    <div class="tab-pane" id="evidenceTab">
+                        <div class="evidence-container">
+                            <div class="evidence-section">
+                                <h4><i class="fas fa-user"></i> Evidencias del Cliente</h4>
+                                <div class="evidence-grid" id="clientEvidence">
+                                    <div class="no-evidence">
+                                        <i class="fas fa-image"></i>
+                                        <p>No hay evidencias del cliente</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="evidence-section">
+                                <h4><i class="fas fa-user-tie"></i> Evidencias del Proveedor</h4>
+                                <div class="evidence-grid" id="providerEvidence">
+                                    <div class="no-evidence">
+                                        <i class="fas fa-image"></i>
+                                        <p>No hay evidencias del proveedor</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Tab -->
+                    <div class="tab-pane" id="detailsTab">
+                        <div class="details-container">
+                            <div class="detail-section">
+                                <h4><i class="fas fa-info-circle"></i> Información de la Disputa</h4>
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <label>ID de Disputa:</label>
+                                        <span id="detailDisputeId">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Chat ID:</label>
+                                        <span id="detailChatId">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Cliente:</label>
+                                        <span id="detailClient">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Proveedor:</label>
+                                        <span id="detailProvider">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Monto:</label>
+                                        <span id="detailAmount">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Fecha de Creación:</label>
+                                        <span id="detailCreatedAt">-</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Última Actualización:</label>
+                                        <span id="detailUpdatedAt">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-section">
+                                <h4><i class="fas fa-history"></i> Historial de la Disputa</h4>
+                                <div class="history-timeline" id="disputeHistory">
+                                    <!-- History items will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </aside>
+            </div>
         </div>
     </div>
 
-    <!-- Modales -->
-    <div id="resolutionModal" class="modal" style="display: none;">
-        <div class="modal-content resolution-modal-content">
+    <!-- Resolution Modal -->
+    <div class="modal" id="resolutionModal">
+        <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-balance-scale"></i> Resolver Disputa</h3>
+                <h2><i class="fas fa-gavel"></i> Resolver Disputa</h2>
                 <button class="close-btn" onclick="closeModal('resolutionModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <div class="dispute-summary">
-                    <h4>Resumen de la Disputa</h4>
-                    <div class="summary-item">
-                        <span class="label">Cliente:</span>
-                        <span id="clientName">-</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="label">Proveedor:</span>
-                        <span id="providerName">-</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="label">Monto:</span>
-                        <span id="disputeAmount">-</span>
-                    </div>
-                    <div class="summary-item">
-                        <span class="label">Razón:</span>
-                        <span id="disputeReason">-</span>
-                    </div>
-                </div>
-
                 <div class="resolution-options">
-                    <h4>Decisión</h4>
-                    <div class="option-group">
-                        <label class="radio-option">
-                            <input type="radio" name="resolution" value="client" id="favorClient">
-                            <span class="radio-custom"></span>
-                            <div class="option-content">
-                                <strong>Favor del Cliente</strong>
+                    <div class="resolution-option">
+                        <input type="radio" id="favorClient" name="resolution" value="client">
+                        <label for="favorClient">
+                            <i class="fas fa-user text-success"></i>
+                            <div>
+                                <strong>A favor del Cliente</strong>
                                 <p>El dinero regresa al cliente</p>
                             </div>
                         </label>
-                        <label class="radio-option">
-                            <input type="radio" name="resolution" value="provider" id="favorProvider">
-                            <span class="radio-custom"></span>
-                            <div class="option-content">
-                                <strong>Favor del Proveedor</strong>
+                    </div>
+                    <div class="resolution-option">
+                        <input type="radio" id="favorProvider" name="resolution" value="provider">
+                        <label for="favorProvider">
+                            <i class="fas fa-user-tie text-primary"></i>
+                            <div>
+                                <strong>A favor del Proveedor</strong>
                                 <p>El dinero va al proveedor</p>
                             </div>
                         </label>
-                        <label class="radio-option">
-                            <input type="radio" name="resolution" value="split" id="splitAmount">
-                            <span class="radio-custom"></span>
-                            <div class="option-content">
-                                <strong>División 50/50</strong>
-                                <p>Se divide el dinero entre ambos</p>
+                    </div>
+                    <div class="resolution-option">
+                        <input type="radio" id="splitPayment" name="resolution" value="split">
+                        <label for="splitPayment">
+                            <i class="fas fa-balance-scale text-warning"></i>
+                            <div>
+                                <strong>División del Pago</strong>
+                                <p>Dividir el dinero entre ambas partes</p>
                             </div>
                         </label>
                     </div>
                 </div>
-
-                <div class="admin-comment">
-                    <label for="adminComment">Comentario del administrador:</label>
-                    <textarea id="adminComment" placeholder="Explica la decisión tomada..." rows="3"></textarea>
+                
+                <div class="resolution-comment">
+                    <label for="resolutionComment">Comentario de resolución:</label>
+                    <textarea id="resolutionComment" placeholder="Explica la decisión tomada..."></textarea>
                 </div>
-
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" onclick="closeModal('resolutionModal')">Cancelar</button>
-                    <button id="executeResolutionBtn" class="btn btn-primary">
-                        <i class="fas fa-gavel"></i> Ejecutar Decisión
-                    </button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeModal('resolutionModal')">Cancelar</button>
+                <button id="confirmResolutionBtn" class="btn-primary">Confirmar Resolución</button>
             </div>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="config.js"></script>
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="config.js"></script>
     <script src="admin-disputes.js"></script>
 </body>
 </html>

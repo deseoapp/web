@@ -329,6 +329,11 @@ class ChatProvider {
                     this.scrollToBottom();
                     this.checkForEvidenceRequest();
                     
+                    // Force check for evidence request if admin message
+                    if (message.senderId === 'admin') {
+                        setTimeout(() => this.checkForEvidenceRequest(), 100);
+                    }
+                    
                     // Enviar notificación si el mensaje no es del usuario actual
                     if (message.senderId !== this.currentUser.id && 
                         message.senderId !== 'system' && 
@@ -1737,21 +1742,41 @@ class ChatProvider {
             return;
         }
         
-        // Check if there's an admin request for evidence
+        // Check if there's an admin request for evidence (check both type and message content)
         const hasEvidenceRequest = this.messages.some(msg => 
-            msg.senderId === 'admin' && msg.type === 'admin_request_evidence'
+            msg.senderId === 'admin' && (
+                msg.type === 'admin_request_evidence' || 
+                (msg.message && msg.message.includes('solicita evidencias'))
+            )
         );
         
-        // Check if user has already uploaded evidence
-        const hasUploadedEvidence = this.messages.some(msg => 
-            msg.senderId === this.currentUser.id && msg.type === 'evidence_uploaded'
+        // Check if user has already uploaded evidence (only for the most recent admin request)
+        const adminRequests = this.messages.filter(msg => 
+            msg.senderId === 'admin' && (
+                msg.type === 'admin_request_evidence' || 
+                (msg.message && msg.message.includes('solicita evidencias'))
+            )
         );
+        
+        const mostRecentAdminRequest = adminRequests.length > 0 ? 
+            adminRequests[adminRequests.length - 1] : null;
+        
+        const hasUploadedEvidence = mostRecentAdminRequest ? 
+            this.messages.some(msg => 
+                msg.senderId === this.currentUser.id && 
+                msg.type === 'evidence_uploaded' &&
+                msg.timestamp > mostRecentAdminRequest.timestamp
+            ) : false;
         
         console.log('🔍 [DEBUG] Verificando solicitud de evidencias:', {
             hasEvidenceRequest,
             hasUploadedEvidence,
             messagesCount: this.messages.length,
-            adminMessages: this.messages.filter(msg => msg.senderId === 'admin')
+            adminMessages: this.messages.filter(msg => msg.senderId === 'admin'),
+            mostRecentAdminRequest: mostRecentAdminRequest ? {
+                timestamp: mostRecentAdminRequest.timestamp,
+                message: mostRecentAdminRequest.message
+            } : null
         });
         
         // Show button only if admin requested evidence AND user hasn't uploaded yet

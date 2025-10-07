@@ -323,6 +323,8 @@ class ChatProvider {
             // Escuchar nuevos mensajes
             messagesRef.on('child_added', (snapshot) => {
                 const message = snapshot.val();
+                console.log('🔄 [DEBUG] Nuevo mensaje recibido en chat-provider:', message);
+                
                 if (!this.messages.find(m => m.id === message.id)) {
                     this.messages.push(message);
                     this.renderMessages();

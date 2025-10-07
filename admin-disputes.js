@@ -229,6 +229,13 @@ class AdminDisputes {
     }
 
     selectDispute(disputeId) {
+        // Limpiar listener anterior
+        if (this.chatListener && this.currentDispute) {
+            const messagesRef = this.database.ref(`chats/${this.currentDispute.chatId}/messages`);
+            messagesRef.off('child_added', this.chatListener);
+            this.chatListener = null;
+        }
+        
         // Update UI
         document.querySelectorAll('.dispute-item').forEach(item => {
             item.classList.remove('active');
@@ -277,6 +284,8 @@ class AdminDisputes {
 
         try {
             const messagesRef = this.database.ref(`chats/${this.currentDispute.chatId}/messages`);
+            
+            // Cargar mensajes existentes
             const snapshot = await messagesRef.once('value');
             const messagesData = snapshot.val() || {};
             
@@ -284,9 +293,50 @@ class AdminDisputes {
                 .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
             this.renderChatMessages(this.messages);
+            
+            // Configurar listener en tiempo real para nuevos mensajes
+            this.setupRealtimeChatListener(messagesRef);
+            
         } catch (error) {
             console.error('❌ Error cargando mensajes:', error);
         }
+    }
+    
+    setupRealtimeChatListener(messagesRef) {
+        // Remover listener anterior si existe
+        if (this.chatListener) {
+            messagesRef.off('child_added', this.chatListener);
+        }
+        
+        // Crear nuevo listener
+        this.chatListener = (snapshot) => {
+            const newMessage = snapshot.val();
+            
+            // Verificar si el mensaje ya existe
+            const messageExists = this.messages.some(msg => 
+                msg.timestamp === newMessage.timestamp && 
+                msg.senderId === newMessage.senderId &&
+                msg.message === newMessage.message
+            );
+            
+            if (!messageExists) {
+                this.messages.push(newMessage);
+                this.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                this.renderChatMessages(this.messages);
+                
+                // Scroll to bottom
+                const chatMessages = document.getElementById('chatMessages');
+                if (chatMessages) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+                
+                console.log('🔄 [DEBUG] Nuevo mensaje recibido en tiempo real:', newMessage);
+            }
+        };
+        
+        // Activar listener
+        messagesRef.on('child_added', this.chatListener);
+        console.log('✅ [DEBUG] Listener en tiempo real activado para admin chat');
     }
 
     renderChatMessages(messages) {

@@ -378,19 +378,11 @@ class AdminDisputes {
             // Enviar a Firebase
             await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(messageData);
             
-            // Agregar al chat local inmediatamente para mostrar en tiempo real
-            this.messages = this.messages || [];
-            this.messages.push(messageData);
-            this.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            this.renderChatMessages(this.messages);
+            console.log('✅ Mensaje de admin enviado a Firebase');
             
-            // Scroll to bottom
-            const chatMessages = document.getElementById('chatMessages');
-            if (chatMessages) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
+            // NO agregar localmente - dejar que el listener en tiempo real lo maneje
+            // Esto evita duplicados
             
-            console.log('✅ Mensaje de admin enviado y mostrado en tiempo real');
         } catch (error) {
             console.error('❌ Error enviando mensaje de admin:', error);
             this.showError('Error enviando mensaje');
@@ -414,16 +406,8 @@ class AdminDisputes {
             // Send to chat
             await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(message);
             
-            // Add message to local chat immediately for real-time display
-            this.messages = this.messages || [];
-            this.messages.push(message);
-            this.renderChatMessages(this.messages);
-            
-            // Scroll to bottom to show the new message
-            const chatMessages = document.getElementById('chatMessages');
-            if (chatMessages) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
+            // NO agregar localmente - dejar que el listener en tiempo real lo maneje
+            // Esto evita duplicados
             
             this.showSuccess('Solicitud de evidencias enviada a ambas partes');
         } catch (error) {

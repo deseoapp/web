@@ -527,6 +527,12 @@ class AdminDisputes {
             return;
         }
 
+        // Verificar si la disputa ya está resuelta
+        if (this.currentDispute.status === 'resolved') {
+            this.showError('Esta disputa ya ha sido resuelta y no puede ser resuelta nuevamente');
+            return;
+        }
+
         document.getElementById('resolutionModal').style.display = 'flex';
     }
 
@@ -544,6 +550,12 @@ class AdminDisputes {
             return;
         }
 
+        // Verificar si la disputa ya está resuelta
+        if (this.currentDispute.status === 'resolved') {
+            this.showError('Esta disputa ya ha sido resuelta');
+            return;
+        }
+
         try {
             const resolution = selectedResolution.value;
             const resolutionData = {
@@ -557,10 +569,16 @@ class AdminDisputes {
             // Update dispute
             await this.database.ref(`disputes/${this.currentDispute.id}`).update(resolutionData);
 
+            // Actualizar disputa local para tiempo real
+            this.currentDispute = { ...this.currentDispute, ...resolutionData };
+            this.disputes = this.disputes.map(d => 
+                d.id === this.currentDispute.id ? this.currentDispute : d
+            );
+
             // Send resolution message to chat
             const resolutionMessage = {
                 senderId: 'admin',
-                message: `Disputa resuelta a favor del ${resolution === 'client' ? 'cliente' : 'proveedor'}. Comentario: ${comment}`,
+                message: this.getResolutionMessage(resolution, comment),
                 timestamp: Date.now(),
                 type: 'dispute_resolved'
             };
@@ -573,12 +591,26 @@ class AdminDisputes {
             this.showSuccess('Disputa resuelta correctamente');
             this.closeModal('resolutionModal');
             
-            // Reload disputes
-            await this.loadDisputes();
+            // Actualizar UI en tiempo real sin recargar
+            this.updateDisputeList();
+            this.updateDisputeDetails();
             
         } catch (error) {
             console.error('❌ Error resolviendo disputa:', error);
             this.showError('Error resolviendo disputa');
+        }
+    }
+
+    getResolutionMessage(resolution, comment) {
+        switch (resolution) {
+            case 'client':
+                return `✅ Disputa resuelta a favor del CLIENTE. El dinero ha sido devuelto al cliente. Comentario: ${comment}`;
+            case 'provider':
+                return `✅ Disputa resuelta a favor del PROVEEDOR. El dinero ha sido transferido al proveedor. Comentario: ${comment}`;
+            case 'split':
+                return `✅ Disputa resuelta con DIVISIÓN 50/50. El dinero se ha dividido entre cliente y proveedor. Comentario: ${comment}`;
+            default:
+                return `✅ Disputa resuelta. Comentario: ${comment}`;
         }
     }
 
@@ -587,32 +619,148 @@ class AdminDisputes {
 
         try {
             const amount = this.currentDispute.amount || 0;
+            const disputeId = this.currentDispute.id;
+            const timestamp = Date.now();
+            
+            console.log(`💰 Procesando pago de disputa ${disputeId}: ${resolution} - $${amount}`);
             
             if (resolution === 'client') {
                 // Return money to client
                 await this.database.ref(`users/${this.currentDispute.clientId}/wallet`).transaction(current => {
                     return (current || 0) + amount;
                 });
+                
+                // Registrar transacción
+                await this.recordTransaction(
+                    this.currentDispute.clientId, 
+                    amount, 
+                    'dispute_resolution_client', 
+                    `Disputa ${disputeId} resuelta a favor del cliente`
+                );
+                
+                console.log(`✅ $${amount} devuelto al cliente ${this.currentDispute.clientId}`);
+                
             } else if (resolution === 'provider') {
                 // Give money to provider
                 await this.database.ref(`users/${this.currentDispute.providerId}/wallet`).transaction(current => {
                     return (current || 0) + amount;
                 });
+                
+                // Registrar transacción
+                await this.recordTransaction(
+                    this.currentDispute.providerId, 
+                    amount, 
+                    'dispute_resolution_provider', 
+                    `Disputa ${disputeId} resuelta a favor del proveedor`
+                );
+                
+                console.log(`✅ $${amount} transferido al proveedor ${this.currentDispute.providerId}`);
+                
             } else if (resolution === 'split') {
                 // Split money 50/50
                 const halfAmount = amount / 2;
+                
+                // Cliente recibe la mitad
                 await this.database.ref(`users/${this.currentDispute.clientId}/wallet`).transaction(current => {
                     return (current || 0) + halfAmount;
                 });
+                
+                // Proveedor recibe la mitad
                 await this.database.ref(`users/${this.currentDispute.providerId}/wallet`).transaction(current => {
                     return (current || 0) + halfAmount;
                 });
+                
+                // Registrar transacciones
+                await this.recordTransaction(
+                    this.currentDispute.clientId, 
+                    halfAmount, 
+                    'dispute_resolution_split_client', 
+                    `Disputa ${disputeId} resuelta con división 50/50 - parte cliente`
+                );
+                
+                await this.recordTransaction(
+                    this.currentDispute.providerId, 
+                    halfAmount, 
+                    'dispute_resolution_split_provider', 
+                    `Disputa ${disputeId} resuelta con división 50/50 - parte proveedor`
+                );
+                
+                console.log(`✅ $${halfAmount} transferido a cliente y $${halfAmount} a proveedor`);
             }
 
-            console.log('✅ Pago procesado según resolución');
+            console.log('✅ Pago procesado correctamente');
         } catch (error) {
             console.error('❌ Error procesando pago:', error);
+            throw error;
         }
+    }
+
+    async recordTransaction(userId, amount, type, description) {
+        try {
+            const transaction = {
+                amount: amount,
+                type: type,
+                description: description,
+                timestamp: Date.now(),
+                disputeId: this.currentDispute.id
+            };
+            
+            await this.database.ref(`users/${userId}/transactions`).push(transaction);
+            console.log(`📝 Transacción registrada para usuario ${userId}: ${type} - $${amount}`);
+        } catch (error) {
+            console.error('❌ Error registrando transacción:', error);
+        }
+    }
+
+    updateDisputeList() {
+        // Actualizar la lista de disputas en tiempo real
+        const disputeList = document.getElementById('disputeList');
+        if (!disputeList) return;
+
+        disputeList.innerHTML = this.disputes.map(dispute => `
+            <div class="dispute-item ${dispute.id === this.currentDispute?.id ? 'active' : ''}" 
+                 data-dispute-id="${dispute.id}">
+                <div class="dispute-header">
+                    <span class="dispute-id">#${dispute.id}</span>
+                    <span class="dispute-status ${dispute.status}">${this.getStatusText(dispute.status)}</span>
+                </div>
+                <div class="dispute-amount">$${dispute.amount || 0}</div>
+                <div class="dispute-parties">
+                    ${dispute.clientName || 'Cliente'} vs ${dispute.providerName || 'Proveedor'}
+                </div>
+            </div>
+        `).join('');
+
+        // Re-agregar event listeners
+        document.querySelectorAll('.dispute-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const disputeId = item.dataset.disputeId;
+                this.selectDispute(disputeId);
+            });
+        });
+
+        // Actualizar estadísticas
+        this.updateStats();
+    }
+
+    updateDisputeDetails() {
+        if (!this.currentDispute) return;
+
+        // Actualizar header
+        const header = document.querySelector('.dispute-header h2');
+        if (header) {
+            header.textContent = `Disputa #${this.currentDispute.id}`;
+        }
+
+        // Actualizar estado
+        const statusElement = document.querySelector('.dispute-status');
+        if (statusElement) {
+            statusElement.textContent = this.getStatusText(this.currentDispute.status);
+            statusElement.className = `dispute-status ${this.currentDispute.status}`;
+        }
+
+        // Actualizar historial
+        this.loadDisputeDetails();
     }
 
     closeModal(modalId) {

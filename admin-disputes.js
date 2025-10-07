@@ -280,10 +280,10 @@ class AdminDisputes {
             const snapshot = await messagesRef.once('value');
             const messagesData = snapshot.val() || {};
             
-            const messages = Object.values(messagesData)
+            this.messages = Object.values(messagesData)
                 .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-            this.renderChatMessages(messages);
+            this.renderChatMessages(this.messages);
         } catch (error) {
             console.error('❌ Error cargando mensajes:', error);
         }
@@ -354,6 +354,12 @@ class AdminDisputes {
             this.messages = this.messages || [];
             this.messages.push(message);
             this.renderChatMessages(this.messages);
+            
+            // Scroll to bottom to show the new message
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
             
             this.showSuccess('Solicitud de evidencias enviada a ambas partes');
         } catch (error) {

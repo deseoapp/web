@@ -389,7 +389,9 @@ class ChatClient {
                     
                     // Force check for evidence request if admin message
                     if (message.senderId === 'admin') {
+                        console.log('🔍 [DEBUG] Mensaje de admin detectado, verificando botón de evidencias...');
                         setTimeout(() => this.checkForEvidenceRequest(), 100);
+                        setTimeout(() => this.checkForEvidenceRequest(), 500);
                     }
                     
                     // Enviar notificación si el mensaje no es del usuario actual

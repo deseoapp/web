@@ -383,7 +383,14 @@ class ChatClient {
                 const message = snapshot.val();
                 console.log('🔄 [DEBUG] Nuevo mensaje recibido en chat-client:', message);
                 
-                if (!this.messages.find(m => m.id === message.id)) {
+                // Verificar si el mensaje ya existe (mejorar detección de duplicados)
+                const messageExists = this.messages.some(m => 
+                    m.timestamp === message.timestamp && 
+                    m.senderId === message.senderId &&
+                    m.message === message.message
+                );
+                
+                if (!messageExists) {
                     this.messages.push(message);
                     this.renderMessages();
                     this.scrollToBottom();

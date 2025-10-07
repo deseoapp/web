@@ -375,8 +375,22 @@ class AdminDisputes {
                 type: 'admin_message'
             };
 
+            // Enviar a Firebase
             await this.database.ref(`chats/${this.currentDispute.chatId}/messages`).push(messageData);
-            console.log('✅ Mensaje de admin enviado');
+            
+            // Agregar al chat local inmediatamente para mostrar en tiempo real
+            this.messages = this.messages || [];
+            this.messages.push(messageData);
+            this.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            this.renderChatMessages(this.messages);
+            
+            // Scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            console.log('✅ Mensaje de admin enviado y mostrado en tiempo real');
         } catch (error) {
             console.error('❌ Error enviando mensaje de admin:', error);
             this.showError('Error enviando mensaje');

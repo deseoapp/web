@@ -19,6 +19,7 @@ class AdminDashboard {
         };
         this.pendingMessage = null;
         this.pendingAction = null;
+        this.firebaseListeners = []; // Array para rastrear listeners activos
         this.init();
     }
 
@@ -285,6 +286,9 @@ class AdminDashboard {
     }
 
     navigateToSection(section) {
+        // Limpiar listeners anteriores para evitar bucles infinitos
+        this.cleanupFirebaseListeners();
+        
         // Actualizar navegación activa
         const navLinks = document.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
@@ -316,6 +320,9 @@ class AdminDashboard {
             this.loadAnalytics();
         } else if (section === 'settings') {
             this.loadSettings();
+        } else if (section === 'dashboard') {
+            // Recargar datos del dashboard sin listeners persistentes
+            this.loadDashboardData();
         }
     }
 
@@ -348,7 +355,8 @@ class AdminDashboard {
 
     async loadTransactions() {
         return new Promise((resolve, reject) => {
-            this.database.ref('transactions').on('value', (snapshot) => {
+            // Usar once() en lugar de on() para evitar bucles infinitos
+            this.database.ref('transactions').once('value', (snapshot) => {
                 try {
                     const data = snapshot.val() || {};
                     this.allTransactions = [];
@@ -387,7 +395,8 @@ class AdminDashboard {
 
     async loadUserStats() {
         return new Promise((resolve, reject) => {
-            this.database.ref('users').on('value', (snapshot) => {
+            // Usar once() en lugar de on() para evitar bucles infinitos
+            this.database.ref('users').once('value', (snapshot) => {
                 try {
                     const users = snapshot.val() || {};
                     this.stats.totalUsers = Object.keys(users).length;
@@ -1507,6 +1516,24 @@ class AdminDashboard {
                 chart.resize();
             }
         });
+    }
+
+    // Función para limpiar listeners de Firebase y evitar bucles infinitos
+    cleanupFirebaseListeners() {
+        this.firebaseListeners.forEach(listener => {
+            if (listener && typeof listener.off === 'function') {
+                listener.off();
+            }
+        });
+        this.firebaseListeners = [];
+        console.log('🧹 Listeners de Firebase limpiados');
+    }
+
+    // Función para agregar listener con rastreo
+    addFirebaseListener(ref, eventType, callback) {
+        const listener = ref.on(eventType, callback);
+        this.firebaseListeners.push(listener);
+        return listener;
     }
 }
 

@@ -625,32 +625,36 @@ class AdminDisputes {
             console.log(`💰 Procesando pago de disputa ${disputeId}: ${resolution} - $${amount}`);
             
             if (resolution === 'client') {
-                // Return money to client
-                await this.database.ref(`users/${this.currentDispute.clientId}/wallet`).transaction(current => {
-                    return (current || 0) + amount;
-                });
+                // Return money to client - usar 'balance' en lugar de 'wallet'
+                const balanceRef = this.database.ref(`users/${this.currentDispute.clientId}/balance`);
+                const snap = await balanceRef.once('value');
+                const current = parseInt(snap.val() || '0', 10);
+                await balanceRef.set(current + amount);
                 
-                // Registrar transacción
-                await this.recordTransaction(
+                // Registrar micro transacción
+                await this.recordMicroTransaction(
                     this.currentDispute.clientId, 
                     amount, 
-                    'dispute_resolution_client', 
+                    'in',
+                    'dispute_resolution_client',
                     `Disputa ${disputeId} resuelta a favor del cliente`
                 );
                 
                 console.log(`✅ $${amount} devuelto al cliente ${this.currentDispute.clientId}`);
                 
             } else if (resolution === 'provider') {
-                // Give money to provider
-                await this.database.ref(`users/${this.currentDispute.providerId}/wallet`).transaction(current => {
-                    return (current || 0) + amount;
-                });
+                // Give money to provider - usar 'balance' en lugar de 'wallet'
+                const balanceRef = this.database.ref(`users/${this.currentDispute.providerId}/balance`);
+                const snap = await balanceRef.once('value');
+                const current = parseInt(snap.val() || '0', 10);
+                await balanceRef.set(current + amount);
                 
-                // Registrar transacción
-                await this.recordTransaction(
+                // Registrar micro transacción
+                await this.recordMicroTransaction(
                     this.currentDispute.providerId, 
                     amount, 
-                    'dispute_resolution_provider', 
+                    'in',
+                    'dispute_resolution_provider',
                     `Disputa ${disputeId} resuelta a favor del proveedor`
                 );
                 
@@ -661,27 +665,31 @@ class AdminDisputes {
                 const halfAmount = amount / 2;
                 
                 // Cliente recibe la mitad
-                await this.database.ref(`users/${this.currentDispute.clientId}/wallet`).transaction(current => {
-                    return (current || 0) + halfAmount;
-                });
+                const clientBalanceRef = this.database.ref(`users/${this.currentDispute.clientId}/balance`);
+                const clientSnap = await clientBalanceRef.once('value');
+                const clientCurrent = parseInt(clientSnap.val() || '0', 10);
+                await clientBalanceRef.set(clientCurrent + halfAmount);
                 
                 // Proveedor recibe la mitad
-                await this.database.ref(`users/${this.currentDispute.providerId}/wallet`).transaction(current => {
-                    return (current || 0) + halfAmount;
-                });
+                const providerBalanceRef = this.database.ref(`users/${this.currentDispute.providerId}/balance`);
+                const providerSnap = await providerBalanceRef.once('value');
+                const providerCurrent = parseInt(providerSnap.val() || '0', 10);
+                await providerBalanceRef.set(providerCurrent + halfAmount);
                 
-                // Registrar transacciones
-                await this.recordTransaction(
+                // Registrar micro transacciones
+                await this.recordMicroTransaction(
                     this.currentDispute.clientId, 
                     halfAmount, 
-                    'dispute_resolution_split_client', 
+                    'in',
+                    'dispute_resolution_split_client',
                     `Disputa ${disputeId} resuelta con división 50/50 - parte cliente`
                 );
                 
-                await this.recordTransaction(
+                await this.recordMicroTransaction(
                     this.currentDispute.providerId, 
                     halfAmount, 
-                    'dispute_resolution_split_provider', 
+                    'in',
+                    'dispute_resolution_split_provider',
                     `Disputa ${disputeId} resuelta con división 50/50 - parte proveedor`
                 );
                 
@@ -695,20 +703,23 @@ class AdminDisputes {
         }
     }
 
-    async recordTransaction(userId, amount, type, description) {
+    async recordMicroTransaction(userId, amount, direction, reason, description) {
         try {
-            const transaction = {
+            const microId = `micro_${Date.now()}`;
+            const microTransaction = {
+                id: microId,
+                direction: direction, // 'in' o 'out'
+                reason: reason,
                 amount: amount,
-                type: type,
                 description: description,
-                timestamp: Date.now(),
+                timestamp: new Date().toISOString(),
                 disputeId: this.currentDispute.id
             };
             
-            await this.database.ref(`users/${userId}/transactions`).push(transaction);
-            console.log(`📝 Transacción registrada para usuario ${userId}: ${type} - $${amount}`);
+            await this.database.ref(`users/${userId}/microtransactions/${microId}`).set(microTransaction);
+            console.log(`📝 Micro transacción registrada para usuario ${userId}: ${reason} - $${amount} (${direction})`);
         } catch (error) {
-            console.error('❌ Error registrando transacción:', error);
+            console.error('❌ Error registrando micro transacción:', error);
         }
     }
 

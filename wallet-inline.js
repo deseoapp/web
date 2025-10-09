@@ -422,6 +422,19 @@ class InlineWalletManager {
             `;
         }
 
+        // Información adicional para retiros bancarios
+        let bankInfoHtml = '';
+        if (transaction.type === 'outcome' && transaction.accountNumber && transaction.accountHolder) {
+            const bankName = this.getBankDisplayName(transaction.method);
+            bankInfoHtml = `
+                <div class="bank-info">
+                    <p><strong>Banco:</strong> ${bankName}</p>
+                    <p><strong>Cuenta:</strong> ${transaction.accountNumber}</p>
+                    <p><strong>Titular:</strong> ${transaction.accountHolder}</p>
+                </div>
+            `;
+        }
+
         div.innerHTML = `
             <div class="transaction-info">
                 <div class="transaction-icon ${transaction.type}">
@@ -431,6 +444,7 @@ class InlineWalletManager {
                     <h4>${transaction.description || 'Transacción'}${statusBadge}</h4>
                     <p>${transaction.method || 'Método'} • ${this.formatDate(transaction.timestamp || transaction.date || new Date().toISOString())}</p>
                     ${transaction.nequiNumber ? `<p style=\"font-size: 12px; color: #666;\">Nequi: ${transaction.nequiNumber}</p>` : ''}
+                    ${bankInfoHtml}
                     ${adminMessageHtml}
                 </div>
             </div>
@@ -1038,43 +1052,88 @@ class InlineWalletManager {
     
     async handleWithdraw() {
         const amount = parseFloat(document.getElementById('withdrawAmount').value);
-        const method = document.getElementById('withdrawMethod').value;
-        if (!amount || amount <= 0) {
-            this.showNotification('Por favor ingresa una cantidad válida', 'error');
+        const bank = document.getElementById('withdrawBank').value;
+        const accountNumber = document.getElementById('accountNumber').value;
+        const accountHolder = document.getElementById('accountHolder').value;
+        
+        // Validaciones
+        if (!amount || amount < 1000) {
+            this.showNotification('El monto mínimo es $1,000 COP', 'error');
             return;
         }
         if (amount > this.balance) {
             this.showNotification('Fondos insuficientes', 'error');
             return;
         }
-        if (!method) {
-            this.showNotification('Por favor selecciona un método de retiro', 'error');
+        if (!bank) {
+            this.showNotification('Por favor selecciona un banco', 'error');
             return;
         }
+        if (!accountNumber || accountNumber.trim() === '') {
+            this.showNotification('Por favor ingresa el número de cuenta', 'error');
+            return;
+        }
+        if (!accountHolder || accountHolder.trim() === '') {
+            this.showNotification('Por favor ingresa el nombre del titular', 'error');
+            return;
+        }
+        
         try {
-            this.showNotification('Procesando retiro...', 'info');
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            this.balance -= amount;
+            this.showNotification('Solicitando retiro...', 'info');
+            
+            // Crear transacción de retiro pendiente de aprobación
             const transaction = {
                 id: Date.now(),
-                type: 'expense',
+                type: 'outcome',
                 amount: amount,
-                description: `Retiro via ${method}`,
-                method: method,
+                description: `Retiro a ${this.getBankDisplayName(bank)}`,
+                method: bank,
+                accountNumber: accountNumber,
+                accountHolder: accountHolder,
                 timestamp: new Date().toISOString(),
-                status: 'completed'
+                status: 'pending_verification',
+                adminMessage: null
             };
-            this.transactions.unshift(transaction);
-            await this.saveToFirebase(this.balance, transaction);
-            this.renderBalance();
-            this.renderTransactions();
+            
+            // Guardar en Firebase para que el admin pueda aprobarlo
+            await this.saveWithdrawalRequest(transaction);
+            
             this.closeModal('withdrawModal');
             document.getElementById('withdrawForm').reset();
-            this.showNotification(`$${amount.toFixed(2)} retirados exitosamente`, 'success');
+            this.showNotification('Solicitud de retiro enviada. Será procesada en 24-48 horas.', 'success');
+            
         } catch (error) {
-            console.error('Error withdrawing money:', error);
-            this.showNotification(error.message || 'Error al procesar el retiro', 'error');
+            console.error('Error processing withdrawal:', error);
+            this.showNotification(error.message || 'Error al procesar la solicitud de retiro', 'error');
         }
+    }
+    
+    getBankDisplayName(bankCode) {
+        const banks = {
+            'nequi': 'Nequi',
+            'daviplata': 'Daviplata',
+            'bancolombia': 'Bancolombia',
+            'davivienda': 'Davivienda',
+            'dale': 'Dale'
+        };
+        return banks[bankCode] || bankCode;
+    }
+    
+    async saveWithdrawalRequest(transaction) {
+        if (!this.database) {
+            throw new Error('Firebase no disponible');
+        }
+        
+        const userId = this.getCurrentUserId();
+        if (!userId) {
+            throw new Error('Usuario no autenticado');
+        }
+        
+        // Guardar la transacción en Firebase para que el admin la vea
+        const transactionRef = this.database.ref(`transactions/${userId}/${transaction.id}`);
+        await transactionRef.set(transaction);
+        
+        console.log('✅ Solicitud de retiro guardada en Firebase');
     }
 
     showAddMoneyModal() {

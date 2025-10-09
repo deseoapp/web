@@ -20,6 +20,8 @@ class AdminDashboard {
         this.pendingMessage = null;
         this.pendingAction = null;
         this.firebaseListeners = []; // Array para rastrear listeners activos
+        this.transactionsLoaded = false; // Flag para controlar carga inicial
+        this.transactionsListener = null; // Listener de transacciones
         this.init();
     }
 
@@ -333,8 +335,10 @@ class AdminDashboard {
         }
 
         try {
-            // Cargar todas las transacciones
-            await this.loadTransactions();
+            // Cargar todas las transacciones (solo si no están cargadas)
+            if (!this.transactionsLoaded) {
+                await this.loadTransactions();
+            }
             
             // Cargar estadísticas de usuarios
             await this.loadUserStats();
@@ -355,8 +359,11 @@ class AdminDashboard {
 
     async loadTransactions() {
         return new Promise((resolve, reject) => {
-            // Usar once() en lugar de on() para evitar bucles infinitos
-            this.database.ref('transactions').once('value', (snapshot) => {
+            // Usar listener en tiempo real para transacciones
+            const transactionsRef = this.database.ref('transactions');
+            
+            // Configurar listener en tiempo real
+            this.transactionsListener = transactionsRef.on('value', (snapshot) => {
                 try {
                     const data = snapshot.val() || {};
                     this.allTransactions = [];
@@ -379,16 +386,30 @@ class AdminDashboard {
                         new Date(b.transaction.timestamp) - new Date(a.transaction.timestamp)
                     );
                     
-                    console.log(`✅ ${this.allTransactions.length} transacciones cargadas`);
-                    resolve();
+                    console.log(`✅ ${this.allTransactions.length} transacciones cargadas (tiempo real)`);
+                    
+                    // Actualizar UI en tiempo real
+                    this.updateStats();
+                    this.updateChart();
+                    this.renderTransactions();
+                    
+                    // Resolver la promesa solo la primera vez
+                    if (!this.transactionsLoaded) {
+                        this.transactionsLoaded = true;
+                        resolve();
+                    }
                     
                 } catch (error) {
                     console.error('❌ Error procesando transacciones:', error);
-                    reject(error);
+                    if (!this.transactionsLoaded) {
+                        reject(error);
+                    }
                 }
             }, (error) => {
                 console.error('❌ Error cargando transacciones:', error);
-                reject(error);
+                if (!this.transactionsLoaded) {
+                    reject(error);
+                }
             });
         });
     }
@@ -677,7 +698,16 @@ class AdminDashboard {
             const userSnapshot = await userRef.once('value');
             const userData = userSnapshot.val();
             const currentBalance = userData.balance || 0;
-            const newBalance = currentBalance + amount;
+            
+            // Obtener el tipo de transacción para determinar si sumar o restar
+            const transactionSnapshot = await transactionRef.once('value');
+            const transactionData = transactionSnapshot.val();
+            const transactionType = transactionData?.type || 'income';
+            
+            // Para retiros (outcome) restar, para depósitos (income) sumar
+            const newBalance = transactionType === 'outcome' 
+                ? currentBalance - amount 
+                : currentBalance + amount;
             
             await userRef.update({
                 balance: newBalance,
@@ -685,7 +715,10 @@ class AdminDashboard {
             });
             
             console.log('✅ Transacción aprobada con mensaje exitosamente');
-            alert('✅ Transacción aprobada. El dinero se ha acreditado a la billetera del usuario.');
+            const actionMessage = transactionType === 'outcome' 
+                ? 'Retiro aprobado. El dinero será transferido a la cuenta bancaria del usuario.'
+                : 'Depósito aprobado. El dinero se ha acreditado a la billetera del usuario.';
+            alert(`✅ Transacción aprobada. ${actionMessage}`);
             
         } catch (error) {
             console.error('❌ Error aprobando transacción:', error);
@@ -1520,12 +1553,20 @@ class AdminDashboard {
 
     // Función para limpiar listeners de Firebase y evitar bucles infinitos
     cleanupFirebaseListeners() {
+        // Limpiar listeners del array
         this.firebaseListeners.forEach(listener => {
             if (listener && typeof listener.off === 'function') {
                 listener.off();
             }
         });
         this.firebaseListeners = [];
+        
+        // Limpiar listener de transacciones específico
+        if (this.transactionsListener && this.database) {
+            this.database.ref('transactions').off('value', this.transactionsListener);
+            this.transactionsListener = null;
+        }
+        
         console.log('🧹 Listeners de Firebase limpiados');
     }
 

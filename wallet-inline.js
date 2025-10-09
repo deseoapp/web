@@ -123,14 +123,27 @@ class InlineWalletManager {
     }
 
     initializeTheme() {
-        this.syncWithMainTheme();
-        this.observeThemeChanges();
+        // Esperar a que ThemeManager esté disponible
+        if (window.themeManager) {
+            this.setupThemeIntegration();
+        } else {
+            // Si ThemeManager no está listo, esperar un poco
+            setTimeout(() => this.initializeTheme(), 100);
+        }
     }
     
-    syncWithMainTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 
-                           localStorage.getItem('deseo-theme') || 'dark';
+    setupThemeIntegration() {
+        console.log('🎨 Configurando integración con ThemeManager en wallet...');
+        
+        // Aplicar tema actual
+        const currentTheme = window.themeManager.getCurrentTheme();
         this.applyWalletTheme(currentTheme === 'dark');
+        
+        // Escuchar cambios de tema desde ThemeManager
+        window.addEventListener('themeChanged', (event) => {
+            const theme = event.detail.theme;
+            this.applyWalletTheme(theme === 'dark');
+        });
     }
     
     observeThemeChanges() {

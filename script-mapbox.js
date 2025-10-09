@@ -3790,39 +3790,27 @@ class DeseoApp {
     }
 
     applyFilters() {
-        this.filters.maxPrice = parseInt(document.getElementById('priceFilter').value);
+        // Solo aplicar filtro de categoría
         this.filters.category = document.getElementById('categoryFilter').value;
-        this.filters.distance = parseInt(document.getElementById('distanceFilter').value);
 
         this.renderWishesOnMap(); // Renderizar deseos con los nuevos filtros
         this.closeModal('filterModal');
-        this.showNotification('Filtros aplicados correctamente.', 'success');
+        this.showNotification('Filtro de categoría aplicado correctamente.', 'success');
         this.renderAvailableProfilesInSidebar(); // Actualizar la lista de deseos en el sidebar
     }
 
     applySidebarFilters() {
-        this.filters.maxPrice = parseInt(document.getElementById('priceFilterSidebar').value);
+        // Solo aplicar filtro de categoría
         this.filters.category = document.getElementById('categoryFilterSidebar').value;
-        // La distancia no se aplica directamente desde el sidebar para deseos aún, podría ser un filtro futuro
-        // this.filters.distance = parseInt(document.getElementById('distanceFilter').value);
 
         this.renderWishesOnMap();
         this.renderAvailableProfilesInSidebar();
-        this.showNotification('Filtros de sidebar aplicados correctamente.', 'success');
+        this.showNotification('Filtro de categoría aplicado correctamente.', 'success');
     }
 
-    passesWishFilters(wish) { // Renombrado de passesStoreFilters a passesWishFilters
-        if (wish.price > this.filters.maxPrice) return false;
+    passesWishFilters(wish) { // Solo filtra por categorías
+        // Solo aplicar filtro de categoría
         if (this.filters.category && wish.category !== this.filters.category) return false;
-        
-        // Filtro de distancia (si el usuario tiene ubicación)
-        if (this.userLocation && this.filters.distance) {
-            const distance = this.calculateDistance(
-                this.userLocation.lat, this.userLocation.lng,
-                wish.location.lat, wish.location.lng
-            );
-            if (distance > this.filters.distance) return false;
-        }
         
         return true;
     }

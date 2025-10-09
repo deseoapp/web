@@ -128,39 +128,52 @@ class AdminDashboard {
     }
 
     initializeTheme() {
-        // Cargar tema guardado o usar tema por defecto
-        const savedTheme = localStorage.getItem('admin-theme') || 'light';
-        this.setTheme(savedTheme);
-        
-        // Configurar botón de tema
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                this.setTheme(newTheme);
-            });
+        // Esperar a que ThemeManager esté disponible
+        if (window.themeManager) {
+            this.setupThemeIntegration();
+        } else {
+            // Si ThemeManager no está listo, esperar un poco
+            setTimeout(() => this.initializeTheme(), 100);
         }
     }
 
-    setTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('admin-theme', theme);
+    setupThemeIntegration() {
+        console.log('🎨 Configurando integración con ThemeManager...');
         
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            const icon = themeToggle.querySelector('i');
-            if (icon) {
-                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
-            }
-        }
+        // Escuchar cambios de tema desde ThemeManager
+        window.addEventListener('themeChanged', (event) => {
+            const theme = event.detail.theme;
+            this.updateChartsForTheme(theme);
+        });
         
-        // Actualizar gráfico si existe
+        // Aplicar tema actual a los gráficos
+        const currentTheme = window.themeManager.getCurrentTheme();
+        this.updateChartsForTheme(currentTheme);
+    }
+
+    updateChartsForTheme(theme) {
+        // Actualizar gráfico principal si existe
         if (this.transactionsChart) {
             this.transactionsChart.options.plugins.legend.labels.color = 
                 theme === 'dark' ? '#e0e0e0' : '#333';
             this.transactionsChart.update();
         }
+        
+        // Actualizar otros gráficos si existen
+        const charts = [
+            this.revenueChart,
+            this.transactionDistributionChart,
+            this.userActivityChart,
+            this.approvalTrendsChart
+        ];
+        
+        charts.forEach(chart => {
+            if (chart) {
+                chart.options.plugins.legend.labels.color = 
+                    theme === 'dark' ? '#e0e0e0' : '#333';
+                chart.update();
+            }
+        });
     }
 
     initializeChart() {

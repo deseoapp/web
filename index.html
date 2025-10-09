@@ -12,7 +12,7 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
 </head>
-<body>
+<body data-theme="dark" class="dark-mode">
     <!-- Contenedor principal del layout -->
     <div class="app-container">
         <!-- Sidebar izquierdo -->
@@ -46,7 +46,7 @@
                 <div class="filter-group">
                     <span>Categoría:</span>
                     <select id="categoryFilterSidebar">
-                        <option value="">Todas</option>
+                        <option value="">Todas las categorías</option>
                         <option value="comida">Comida</option>
                         <option value="servicios">Servicios</option>
                         <option value="compras">Compras</option>
@@ -54,12 +54,7 @@
                         <option value="entretenimiento">Entretenimiento</option>
                     </select>
                 </div>
-                <div class="filter-group">
-                    <span>Precio máximo:</span>
-                    <input type="range" id="priceFilterSidebar" min="0" max="1000000" value="1000000">
-                    <span id="priceValueSidebar">$1.000.000</span>
-                </div>
-                <button class="btn-filter" id="applySidebarFiltersBtn"><i class="fas fa-filter"></i> Aplicar Filtros</button>
+                <button class="btn-filter" id="applySidebarFiltersBtn"><i class="fas fa-filter"></i> Aplicar Filtro</button>
             </div>
 
             <!-- Lista normal para desktop -->
@@ -354,11 +349,6 @@
             <div class="modal-body">
                 <div class="filter-container">
                     <div class="filter-group">
-                        <label>Precio máximo:</label>
-                        <input type="range" id="priceFilter" min="0" max="1000" value="1000">
-                        <span id="priceValue">$1000</span>
-                    </div>
-                    <div class="filter-group">
                         <label>Categoría:</label>
                         <select id="categoryFilter">
                             <option value="">Todas las categorías</option>
@@ -369,16 +359,7 @@
                             <option value="compras">Compras</option>
                         </select>
                     </div>
-                    <div class="filter-group">
-                        <label>Distancia:</label>
-                        <select id="distanceFilter">
-                            <option value="5">5 km</option>
-                            <option value="10">10 km</option>
-                            <option value="25">25 km</option>
-                            <option value="50">50 km</option>
-                        </select>
-                    </div>
-                    <button class="btn-primary" id="applyFilters">Aplicar Filtros</button>
+                    <button class="btn-primary" id="applyFilters">Aplicar Filtro</button>
                 </div>
             </div>
         </div>
@@ -386,6 +367,7 @@
 
     <!-- Scripts -->
     <script src="config.js?v=3.0&t=2024-01-15"></script>
+    <script src="theme-manager.js"></script>
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>

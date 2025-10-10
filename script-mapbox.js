@@ -3419,8 +3419,13 @@ class DeseoApp {
 
         console.log(`🔍 [DEBUG] Perfiles únicos para renderizar: ${uniqueProfiles.length} de ${this.availableProfiles.length}`);
 
+        // Aplicar filtros a los perfiles
+        const filteredProfiles = uniqueProfiles.filter(profile => this.passesProfileFilters(profile));
+        console.log(`🔍 [DEBUG] Perfiles después del filtro: ${filteredProfiles.length} de ${uniqueProfiles.length}`);
+        console.log(`🔍 [DEBUG] Filtro activo: categoría = "${this.filters.category}"`);
+
         // Renderizar cada perfil disponible
-        for (const profile of uniqueProfiles) {
+        for (const profile of filteredProfiles) {
             // Obtener datos completos del perfil desde Firebase (con cache)
             let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
             if (!userProfile && this.database) {
@@ -3819,6 +3824,13 @@ class DeseoApp {
     passesWishFilters(wish) { // Solo filtra por categorías
         // Solo aplicar filtro de categoría
         if (this.filters.category && wish.category !== this.filters.category) return false;
+        
+        return true;
+    }
+
+    passesProfileFilters(profile) { // Filtra perfiles disponibles por categoría
+        // Solo aplicar filtro de categoría
+        if (this.filters.category && profile.category !== this.filters.category) return false;
         
         return true;
     }

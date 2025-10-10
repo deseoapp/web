@@ -899,6 +899,14 @@ class DeseoApp {
             console.warn('⚠️ floatingAvailabilityBtn not found');
         }
 
+        // Botón "Publicarme" en el sidebar
+        const publishBtn = document.getElementById('publishBtn');
+        if (publishBtn) {
+            publishBtn.addEventListener('click', () => this.openAvailabilityModal());
+        } else {
+            console.warn('⚠️ publishBtn not found');
+        }
+
         const filterBtn = document.getElementById('filterBtn');
         if (filterBtn) {
             filterBtn.addEventListener('click', () => this.openFilterModal());

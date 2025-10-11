@@ -907,6 +907,22 @@ class DeseoApp {
             console.warn('⚠️ publishBtn not found');
         }
 
+        // Botón de filtro móvil
+        const mobileFilterBtn = document.getElementById('mobileFilterBtn');
+        if (mobileFilterBtn) {
+            mobileFilterBtn.addEventListener('click', () => this.openFilterModal());
+        } else {
+            console.warn('⚠️ mobileFilterBtn not found');
+        }
+
+        // Botón de filtro flotante (esquina superior izquierda)
+        const filterFloatingBtn = document.getElementById('filterFloatingBtn');
+        if (filterFloatingBtn) {
+            filterFloatingBtn.addEventListener('click', () => this.openFilterModal());
+        } else {
+            console.warn('⚠️ filterFloatingBtn not found');
+        }
+
         const filterBtn = document.getElementById('filterBtn');
         if (filterBtn) {
             filterBtn.addEventListener('click', () => this.openFilterModal());
@@ -930,6 +946,18 @@ class DeseoApp {
             });
         } else {
             console.warn('⚠️ sidebarToggle not found');
+        }
+
+        // Botón "Publicarme" móvil
+        const mobilePublishBtn = document.getElementById('mobilePublishBtn');
+        if (mobilePublishBtn) {
+            mobilePublishBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.openAvailabilityModal();
+                this.closeMobileMenu();
+            });
+        } else {
+            console.warn('⚠️ mobilePublishBtn not found');
         }
 
         // Event listeners para cerrar menú móvil al hacer clic en enlaces
@@ -1115,11 +1143,21 @@ class DeseoApp {
             console.warn('⚠️ starRating not found');
         }
 
-        // Filtros (del modal, si se sigue usando el modal de filtros avanzados)
-        document.getElementById('priceFilter').addEventListener('input', (e) => {
-            document.getElementById('priceValue').textContent = `$${e.target.value}`;
-        });
-        document.getElementById('applyFilters').addEventListener('click', () => this.applyFilters());
+        // Filtros (solo categoría)
+        const applyFiltersBtn = document.getElementById('applyFilters');
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', () => this.applyFilters());
+        } else {
+            console.warn('⚠️ applyFilters button not found');
+        }
+
+        // Botón limpiar filtros
+        const clearFiltersBtn = document.getElementById('clearFilters');
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', () => this.clearFilters());
+        } else {
+            console.warn('⚠️ clearFilters button not found');
+        }
 
         // Cerrar modales al hacer click fuera
         document.querySelectorAll('.modal').forEach(modal => {
@@ -3794,22 +3832,55 @@ class DeseoApp {
 
     // ===== FILTROS (ADAPTADO PARA DESEOS) =====
     openFilterModal() {
-        // Adaptar para filtros de deseos si se usa un modal de filtros avanzados
-        document.getElementById('priceFilter').value = this.filters.maxPrice;
-        document.getElementById('priceValue').textContent = `$${this.filters.maxPrice}`;
-        document.getElementById('categoryFilter').value = this.filters.category;
-        document.getElementById('distanceFilter').value = this.filters.distance;
+        // Configurar las opciones de categoría seleccionadas
+        this.setupFilterModal();
         this.openModal('filterModal');
     }
 
-    applyFilters() {
-        // Solo aplicar filtro de categoría
-        this.filters.category = document.getElementById('categoryFilter').value;
+    setupFilterModal() {
+        // Configurar el select con la categoría actual
+        const categorySelect = document.getElementById('categoryFilterModal');
+        if (categorySelect) {
+            categorySelect.value = this.filters.category || '';
+        }
+    }
 
-        this.renderWishesOnMap(); // Renderizar deseos con los nuevos filtros
+    applyFilters() {
+        console.log('🔍 [DEBUG] applyFilters llamado');
+        
+        // Obtener la categoría seleccionada del select
+        const categorySelect = document.getElementById('categoryFilterModal');
+        if (categorySelect) {
+            this.filters.category = categorySelect.value;
+            console.log('🔍 [DEBUG] Categoría seleccionada:', this.filters.category);
+        } else {
+            console.error('❌ categoryFilterModal no encontrado');
+            return;
+        }
+
+        this.renderWishesOnMap();
+        this.renderAvailableProfilesInSidebar();
+        this.renderMobileCarousel(this.availableProfiles.filter(profile => this.passesProfileFilters(profile))); // Filtrar carousel-slide
         this.closeModal('filterModal');
         this.showNotification('Filtro de categoría aplicado correctamente.', 'success');
-        this.renderAvailableProfilesInSidebar(); // Actualizar la lista de deseos en el sidebar
+    }
+
+    clearFilters() {
+        console.log('🔍 [DEBUG] clearFilters llamado');
+        
+        this.filters.category = '';
+        
+        // Limpiar selección del select
+        const categorySelect = document.getElementById('categoryFilterModal');
+        if (categorySelect) {
+            categorySelect.value = '';
+        }
+        
+        this.renderWishesOnMap();
+        this.renderAvailableProfilesInSidebar();
+        this.renderMobileCarousel(this.availableProfiles); // Limpiar filtro de carousel-slide
+        this.closeModal('filterModal');
+        this.showNotification('Filtros limpiados correctamente.', 'success');
     }
 
     applySidebarFilters() {
@@ -4047,28 +4118,20 @@ class DeseoApp {
                     console.log('🔍 [DEBUG] Click en enlace móvil:', href || link.textContent);
                     console.log('🔍 [DEBUG] Link href:', href);
                     console.log('🔍 [DEBUG] Link ID:', linkId);
-                    console.log('🔍 [DEBUG] Link text:', link.textContent.trim());
                     
                     // Manejar diferentes tipos de enlaces
-                    if (linkId === 'authButton') {
-                        console.log('🔍 [DEBUG] Botón de autenticación - no cerrar menú');
-                        e.stopPropagation(); // Solo para auth
-                        // No cerrar el menú para el botón de auth
-                    } else if (linkId === 'themeToggle') {
-                        console.log('🔍 [DEBUG] Botón de tema - no cerrar menú');
-                        e.stopPropagation(); // Solo para tema
-                        // No cerrar el menú para el botón de tema
+                    if (linkId === 'authButton' || linkId === 'themeToggle' || linkId === 'mobilePublishBtn') {
+                        console.log('🔍 [DEBUG] Botón especial - no cerrar menú');
+                        // No cerrar el menú para botones especiales
+                        return;
                     } else if (href && href !== '#' && !href.includes('javascript:')) {
                         console.log('🔍 [DEBUG] Enlace de navegación detectado - cerrando menú y navegando');
-                        
-                        // Prevenir que el event listener global interfiera
-                        e.stopPropagation();
                         
                         // Cerrar el menú inmediatamente
                         this.closeMobileMenu();
                         
                         // Permitir que el enlace funcione normalmente
-                        // NO usar preventDefault()
+                        // NO usar preventDefault() ni stopPropagation()
                         
                     } else {
                         console.log('🔍 [DEBUG] Enlace interno o especial, no cerrando menú');

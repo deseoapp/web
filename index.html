@@ -22,15 +22,21 @@
                     <i class="fas fa-compass"></i>
                     <h1>Deseos</h1>
                 </div>
-                <button class="sidebar-toggle" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
+                <div class="header-actions">
+                    <button class="mobile-filter-btn" id="mobileFilterBtn" title="Filtrar">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
             </div>
-            <nav class="main-nav hidden">
+            <nav class="main-nav">
                 <ul>
                     <li><a href="#" id="authButton"><i class="fas fa-user"></i> Iniciar Sesión</a></li> <!-- Botón de Auth -->
                     <li><a href="index.html"><i class="fas fa-home"></i> Inicio</a></li>
-                    <li><a href="chats.html"><i class="fas fa-comments"></i> Chats</a></li>
+                    <li><a href="#" id="mobilePublishBtn"><i class="fas fa-plus"></i> Publicarme</a></li> <!-- Botón de Publicarme para móvil -->
+                    <li><a href="chat-client.html"><i class="fas fa-comments"></i> Chats</a></li>
                     <li><a href="wallet.html"><i class="fas fa-wallet"></i> Billetera</a></li>
                     <li><a href="settings.html"><i class="fas fa-cog"></i> Configuración</a></li>
                     <li><a href="#" id="themeToggle"><i class="fas fa-moon"></i> Tema</a></li> <!-- Botón de alternar tema -->
@@ -148,6 +154,11 @@
             <!-- Botón flotante para marcar disponibilidad -->
             <button class="floating-btn" id="floatingAvailabilityBtn">
                 <i class="fas fa-power-off"></i>
+            </button>
+
+            <!-- Botón flotante de filtro (esquina superior izquierda) -->
+            <button class="floating-btn filter-floating" id="filterFloatingBtn">
+                <i class="fas fa-filter"></i>
             </button>
 
             <!-- Tarjeta de detalles del perfil (oculta por defecto) -->
@@ -340,11 +351,11 @@
         </div>
     </div>
 
-    <!-- Modal de filtros (mantener tal cual, ya adaptado a deseos en script-mapbox.js) -->
+    <!-- Modal de filtros con select rediseñado -->
     <div class="modal" id="filterModal">
-        <div class="modal-content">
+        <div class="modal-content filter-modal-content">
             <div class="modal-header">
-                <h2>Filtrar Deseos</h2>
+                <h2><i class="fas fa-filter"></i> Filtrar por Categoría</h2>
                 <button class="close-btn" id="closeFilterModal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -352,18 +363,35 @@
             <div class="modal-body">
                 <div class="filter-container">
                     <div class="filter-group">
-                        <label>Categoría:</label>
-                        <select id="categoryFilter">
-                            <option value="">Todas las categorías</option>
-                            <option value="escort">Escort</option>
-                            <option value="gigolo">Gigolo</option>
-                            <option value="masajes">Masajes</option>
-                            <option value="trans">Trans</option>
-                            <option value="chat">Chat</option>
-                            <option value="live">Live</option>
-                        </select>
+                        <label for="categoryFilterModal">
+                            <i class="fas fa-tags"></i>
+                            Selecciona una categoría:
+                        </label>
+                        <div class="custom-select-wrapper">
+                            <select id="categoryFilterModal" class="custom-select">
+                                <option value="">🌐 Todas las categorías</option>
+                                <option value="escort">👩 Escort</option>
+                                <option value="gigolo">👨 Gigolo</option>
+                                <option value="masajes">🧘 Masajes</option>
+                                <option value="trans">🏳️‍⚧️ Trans</option>
+                                <option value="chat">💬 Chat</option>
+                                <option value="live">📹 Live</option>
+                            </select>
+                            <div class="select-arrow">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn-primary" id="applyFilters">Aplicar Filtro</button>
+                    <div class="filter-actions">
+                        <button class="btn-secondary" id="clearFilters">
+                            <i class="fas fa-eraser"></i>
+                            Limpiar
+                        </button>
+                        <button class="btn-primary" id="applyFilters">
+                            <i class="fas fa-check"></i>
+                            Aplicar Filtro
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

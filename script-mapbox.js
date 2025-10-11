@@ -4077,6 +4077,7 @@ class DeseoApp {
                 mainNav.classList.remove('hidden');
                 if (isMobile) {
                     document.body.classList.add('mobile-menu-open');
+                    this.disableMapInteractions(); // Desactivar interacciones del mapa
                     console.log('✅ Sidebar menu shown - móvil');
                 } else {
                     console.log('✅ Sidebar menu shown - desktop');
@@ -4086,6 +4087,7 @@ class DeseoApp {
                 mainNav.classList.add('hidden');
                 if (isMobile) {
                     document.body.classList.remove('mobile-menu-open');
+                    this.enableMapInteractions(); // Reactivar interacciones del mapa
                     console.log('✅ Sidebar menu hidden - móvil');
                 } else {
                     console.log('✅ Sidebar menu hidden - desktop');
@@ -4167,8 +4169,52 @@ class DeseoApp {
         if (mainNav && sidebarToggle) {
             mainNav.classList.add('hidden');
             document.body.classList.remove('mobile-menu-open');
+            this.enableMapInteractions(); // Reactivar interacciones del mapa
             sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
             console.log('✅ Menú móvil cerrado');
+        }
+    }
+
+    // ===== CONTROL DE INTERACCIONES DEL MAPA =====
+    disableMapInteractions() {
+        if (this.map) {
+            // Desactivar todas las interacciones del mapa
+            this.map.boxZoom.disable();
+            this.map.scrollZoom.disable();
+            this.map.dragPan.disable();
+            this.map.dragRotate.disable();
+            this.map.keyboard.disable();
+            this.map.doubleClickZoom.disable();
+            this.map.touchZoomRotate.disable();
+            
+            // Desactivar pointer-events en el canvas
+            const canvas = this.map.getCanvasContainer();
+            if (canvas) {
+                canvas.style.pointerEvents = 'none';
+            }
+            
+            console.log('🔒 Interacciones del mapa desactivadas');
+        }
+    }
+
+    enableMapInteractions() {
+        if (this.map) {
+            // Reactivar todas las interacciones del mapa
+            this.map.boxZoom.enable();
+            this.map.scrollZoom.enable();
+            this.map.dragPan.enable();
+            this.map.dragRotate.enable();
+            this.map.keyboard.enable();
+            this.map.doubleClickZoom.enable();
+            this.map.touchZoomRotate.enable();
+            
+            // Reactivar pointer-events en el canvas
+            const canvas = this.map.getCanvasContainer();
+            if (canvas) {
+                canvas.style.pointerEvents = 'auto';
+            }
+            
+            console.log('🔓 Interacciones del mapa reactivadas');
         }
     }
 

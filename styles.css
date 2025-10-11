@@ -1415,8 +1415,9 @@ body {
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border-bottom: 1px solid rgba(255,255,255,0.08);
-        z-index: 10002;
+        z-index: 10006; /* Por encima del botón de filtro */
         padding: 0.75rem 1rem;
+        pointer-events: auto; /* Permitir clicks en el menú */
     }
 
     body.mobile-menu-open .sidebar .main-nav ul li a {

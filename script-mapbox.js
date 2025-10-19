@@ -1978,7 +1978,8 @@ class DeseoApp {
 
         // Evento click para mostrar detalles
         markerElement.addEventListener('click', () => {
-            this.showProfileDetails(profile);
+            const profileIndex = this.availableProfiles.findIndex(p => p.id === profile.id);
+            this.showProfileDetails(profile, profileIndex);
         });
 
         this.profileMarkers.push(marker);
@@ -2535,17 +2536,13 @@ class DeseoApp {
     }
 
     // ===== MODAL TIPO TINDER PARA PERFILES =====
-    async showProfileDetails(profile) {
+    async showProfileDetails(profile, currentIndex = 0) {
         if (!profile) return;
+        
+        // Store current profile index for navigation
+        this.currentProfileIndex = currentIndex;
 
         console.log('🎯 showProfileDetails llamado con:', profile);
-
-        // Verificar si el usuario está autenticado
-        if (!this.currentUser) {
-            console.log('Usuario no autenticado - mostrando modal de autenticación');
-            this.showAuthModal();
-            return;
-        }
 
         // Obtener datos completos del usuario desde Firebase (con cache)
         let userProfile = this.userProfilesCache && this.userProfilesCache[profile.userId] ? this.userProfilesCache[profile.userId] : null;
@@ -2706,7 +2703,7 @@ class DeseoApp {
                         </div>
                     </div>
                     <div class="tinder-actions">
-                        <button class="action-btn pass-btn" onclick="this.closest('.tinder-profile-modal').remove()">
+                        <button class="action-btn pass-btn" onclick="window.deseoApp.passToNextProfile()">
                             <i class="fas fa-times"></i>
                         </button>
                         <button class="action-btn contact-btn" onclick="window.deseoApp.contactProfile('${profile.userId}')">
@@ -3038,7 +3035,7 @@ class DeseoApp {
         try {
             // Verificar que el usuario esté autenticado
             if (!this.currentUser || !this.currentUser.id) {
-                this.showNotification('Debes iniciar sesión para contactar usuarios', 'error');
+                this.showAuthModal();
                 return;
             }
 
@@ -3063,6 +3060,37 @@ class DeseoApp {
             console.error('❌ Error contactando usuario:', error);
             this.showNotification('Error al contactar usuario', 'error');
         }
+    }
+
+    // ===== NAVEGACIÓN ENTRE PERFILES =====
+    passToNextProfile() {
+        console.log('Pasando al siguiente perfil...');
+        
+        // Get current modal
+        const currentModal = document.querySelector('.tinder-profile-modal');
+        if (!currentModal) {
+            console.warn('No se encontró modal actual');
+            return;
+        }
+        
+        // Get available profiles
+        if (!this.availableProfiles || this.availableProfiles.length === 0) {
+            console.warn('No hay perfiles disponibles');
+            currentModal.remove();
+            return;
+        }
+        
+        // Calculate next index (circular navigation)
+        const nextIndex = (this.currentProfileIndex + 1) % this.availableProfiles.length;
+        const nextProfile = this.availableProfiles[nextIndex];
+        
+        console.log(`Navegando del perfil ${this.currentProfileIndex} al ${nextIndex} (${nextProfile.userName})`);
+        
+        // Close current modal
+        currentModal.remove();
+        
+        // Show next profile
+        this.showProfileDetails(nextProfile, nextIndex);
     }
 
     async createOrGetChat(userId) {
@@ -3696,7 +3724,8 @@ class DeseoApp {
             
             // Agregar evento de clic para mostrar detalles
             slide.addEventListener('click', () => {
-                this.showProfileDetails(profile);
+                const profileIndex = this.availableProfiles.findIndex(p => p.id === profile.id);
+                this.showProfileDetails(profile, profileIndex);
             });
             
             carouselTrack.appendChild(slide);

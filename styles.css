@@ -1368,6 +1368,11 @@ body {
         transform: scale(1.1);
     }
 
+    /* Ocultar botón de filtro cuando el menú móvil esté abierto */
+    body.mobile-menu-open .filter-floating {
+        display: none !important;
+    }
+
     /* Mantener solo el header del sidebar visible sobre el mapa */
     .sidebar {
         position: fixed;
@@ -1405,28 +1410,30 @@ body {
     /* Mostrar menú cuando esté abierto */
     body.mobile-menu-open .sidebar .main-nav {
         display: block !important;
-        position: fixed;
+        position: fixed !important;
         top: 56px; /* altura del header */
         left: 0;
         width: 100%;
         max-height: calc(100vh - 56px);
         overflow-y: auto;
-        background: rgba(24,25,26,0.95);
+        background: rgba(24,25,26,0.95) !important;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border-bottom: 1px solid rgba(255,255,255,0.08);
-        z-index: 10006; /* Por encima del botón de filtro */
+        z-index: 10010 !important; /* Por encima del botón de filtro */
         padding: 0.75rem 1rem;
-        pointer-events: auto; /* Permitir clicks en el menú */
+        pointer-events: auto !important; /* Permitir clicks en el menú */
     }
 
     body.mobile-menu-open .sidebar .main-nav ul li a {
-        display: block;
+        display: block !important;
         padding: 0.75rem 0.5rem;
         color: var(--text-primary);
         text-decoration: none;
         border-radius: var(--border-radius-sm);
         transition: var(--transition);
+        position: relative;
+        z-index: 10011 !important; /* Por encima de todo */
     }
 
     body.mobile-menu-open .sidebar .main-nav ul li a:hover {

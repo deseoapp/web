@@ -137,9 +137,9 @@ class DeseoApp {
                         </button>
                     </div>
                     <div class="modal-body">
-                        <p>Para contactar con este servicio, necesitas iniciar sesión o registrarte.</p>
+                        <p>Para acceder a esta función, necesitas iniciar sesión o registrarte.</p>
                         <div class="auth-options">
-                            <button class="btn btn-primary" onclick="this.closest('.auth-modal').remove(); window.location.href='#auth'">
+                            <button class="btn btn-primary" id="authModalBtn">
                                 <i class="fas fa-sign-in-alt"></i>
                                 Iniciar Sesión / Registrarse
                             </button>
@@ -308,6 +308,18 @@ class DeseoApp {
 
         document.head.appendChild(style);
         document.body.appendChild(modal);
+
+        // Agregar event listener para el botón de autenticación
+        const authBtn = modal.querySelector('#authModalBtn');
+        if (authBtn) {
+            authBtn.addEventListener('click', async () => {
+                // Cerrar el modal personalizado
+                modal.remove();
+                
+                // Abrir Clerk authentication
+                await this.showAuthUI();
+            });
+        }
     }
 
     // ===== VERIFICACIÓN DE PERFIL COMPLETO =====
@@ -902,7 +914,13 @@ class DeseoApp {
         // Botón "Publicarme" en el sidebar
         const publishBtn = document.getElementById('publishBtn');
         if (publishBtn) {
-            publishBtn.addEventListener('click', () => this.openAvailabilityModal());
+            publishBtn.addEventListener('click', () => {
+                if (!this.currentUser) {
+                    this.showAuthModal();
+                    return;
+                }
+                this.openAvailabilityModal();
+            });
         } else {
             console.warn('⚠️ publishBtn not found');
         }
@@ -953,6 +971,11 @@ class DeseoApp {
         if (mobilePublishBtn) {
             mobilePublishBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                if (!this.currentUser) {
+                    this.showAuthModal();
+                    this.closeMobileMenu();
+                    return;
+                }
                 this.openAvailabilityModal();
                 this.closeMobileMenu();
             });
@@ -962,6 +985,9 @@ class DeseoApp {
 
         // Event listeners para cerrar menú móvil al hacer clic en enlaces
         this.setupMobileMenuLinks();
+        
+        // Configurar enlaces de navegación con verificación de autenticación
+        this.setupNavigationLinks();
 
         const authButton = document.getElementById('authButton');
         if (authButton) {
@@ -4098,6 +4124,32 @@ class DeseoApp {
         }
     }
 
+    // ===== CONFIGURACIÓN DE ENLACES DE NAVEGACIÓN =====
+    setupNavigationLinks() {
+        // Enlaces de navegación que requieren autenticación
+        const navigationLinks = [
+            { selector: 'a[href="chats.html"]', name: 'Chats' },
+            { selector: 'a[href="wallet.html"]', name: 'Billetera' },
+            { selector: 'a[href="settings.html"]', name: 'Configuración' }
+        ];
+
+        navigationLinks.forEach(({ selector, name }) => {
+            const links = document.querySelectorAll(selector);
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    if (!this.currentUser) {
+                        e.preventDefault();
+                        this.showAuthModal();
+                        return;
+                    }
+                    // Si está autenticado, permitir la navegación normal
+                });
+            });
+        });
+
+        console.log('✅ Enlaces de navegación configurados con verificación de autenticación');
+    }
+
     // ===== CONFIGURACIÓN DE ENLACES DEL MENÚ MÓVIL =====
     setupMobileMenuLinks() {
         const mainNav = document.querySelector('.main-nav');
@@ -4122,11 +4174,29 @@ class DeseoApp {
                     console.log('🔍 [DEBUG] Link ID:', linkId);
                     
                     // Manejar diferentes tipos de enlaces
-                    if (linkId === 'authButton' || linkId === 'themeToggle' || linkId === 'mobilePublishBtn') {
+                    if (linkId === 'authButton' || linkId === 'themeToggle') {
                         console.log('🔍 [DEBUG] Botón especial - no cerrar menú');
                         // No cerrar el menú para botones especiales
                         return;
+                    } else if (linkId === 'mobilePublishBtn') {
+                        // Verificar autenticación para Publicarme
+                        if (!this.currentUser) {
+                            e.preventDefault();
+                            this.showAuthModal();
+                            this.closeMobileMenu();
+                            return;
+                        }
+                        // Si está autenticado, permitir la acción
+                        return;
                     } else if (href && href !== '#' && !href.includes('javascript:')) {
+                        // Verificar autenticación para navegación
+                        if (!this.currentUser) {
+                            e.preventDefault();
+                            this.showAuthModal();
+                            this.closeMobileMenu();
+                            return;
+                        }
+                        
                         console.log('🔍 [DEBUG] Enlace de navegación detectado - cerrando menú y navegando');
                         
                         // Cerrar el menú inmediatamente

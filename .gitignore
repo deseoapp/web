@@ -1,0 +1,23 @@
+# Admin-related files and directories (local-only, exclude from production)
+admin.html
+admin-*
+*admin*.js
+*admin*.html
+admin/
+**/admin/**
+
+# Test files and folders
+test-*
+test/
+tests/
+**/*.test.js
+**/*.test.ts
+**/*.test.jsx
+**/*.test.tsx
+**/*.spec.js
+**/*.spec.ts
+**/*.spec.jsx
+**/*.spec.tsx
+coverage/
+.nyc_output/
+

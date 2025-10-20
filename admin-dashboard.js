@@ -717,10 +717,19 @@ class AdminDashboard {
             const transactionData = transactionSnapshot.val();
             const transactionType = transactionData?.type || 'income';
             
-            // Para retiros (outcome) restar, para depósitos (income) sumar
+            console.log('🔍 Debug transacción:', {
+                transactionType,
+                currentBalance,
+                amount,
+                isOutcome: transactionType === 'outcome'
+            });
+            
+            // Para retiros (outcome) restar del balance, para depósitos (income) sumar al balance
             const newBalance = transactionType === 'outcome' 
                 ? currentBalance - amount 
                 : currentBalance + amount;
+            
+            console.log('🔍 Nuevo balance calculado:', newBalance);
             
             await userRef.update({
                 balance: newBalance,

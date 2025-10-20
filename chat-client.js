@@ -467,7 +467,7 @@ class ChatClient {
 
         try {
             // Cobro por mensaje de cliente: 100
-            const canCharge = await this.chargeClient(100, 'message');
+            const canCharge = await this.chargeClient(390, 'message');
             if (!canCharge) {
                 this.showError('Saldo insuficiente para enviar mensaje.');
                 return;
@@ -1728,7 +1728,7 @@ class ChatClient {
         // Solo cobrar para mensajes que requieren pago (urgent, service_request)
         const paidMessageTypes = ['urgent', 'service_request'];
         if (paidMessageTypes.includes(type)) {
-            const canCharge = await this.chargeClient(100, type || 'message');
+            const canCharge = await this.chargeClient(390, type || 'message');
             if (!canCharge) {
                 this.showError('Saldo insuficiente para enviar mensaje.');
                 return;

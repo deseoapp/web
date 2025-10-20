@@ -47,6 +47,9 @@ class ChatProvider {
         // Configurar listener para órdenes de encuentro en tiempo real
         this.setupEncounterOrdersListener();
 
+        // Configurar área de carga de fotos
+        this.setupPhotoUploadArea();
+
         // Ir al último mensaje al entrar
         this.scrollToBottom();
 
@@ -845,12 +848,42 @@ class ChatProvider {
         }
     }
 
-    async fileToBase64(file) {
+    async     fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
             reader.readAsDataURL(file);
+        });
+    }
+
+    async compressAndConvertToBase64(file, maxWidth = 800, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                // Calcular nuevas dimensiones manteniendo proporción
+                let { width, height } = img;
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Dibujar imagen redimensionada
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convertir a base64 con compresión
+                const base64 = canvas.toDataURL('image/jpeg', quality);
+                resolve(base64);
+            };
+            
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
         });
     }
 
@@ -876,6 +909,51 @@ class ChatProvider {
         });
     }
 
+    setupPhotoUploadArea() {
+        const uploadArea = document.getElementById('photoUploadArea');
+        const fileInput = document.getElementById('paidPhotoFile');
+        
+        if (!uploadArea || !fileInput) return;
+
+        // Click en el área para abrir selector de archivos
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Cambio en el input de archivos
+        fileInput.addEventListener('change', () => {
+            this.previewPaidPhotos();
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = Array.from(e.dataTransfer.files).filter(file => 
+                file.type.startsWith('image/')
+            );
+            
+            if (files.length > 0) {
+                // Crear un nuevo FileList
+                const dt = new DataTransfer();
+                files.forEach(file => dt.items.add(file));
+                fileInput.files = dt.files;
+                
+                this.previewPaidPhotos();
+            }
+        });
+    }
+
     async sendPaidPhoto() {
         const priceStr = (document.getElementById('paidPhotoPrice') || {}).value || '0';
         const fileInput = document.getElementById('paidPhotoFile');
@@ -883,11 +961,11 @@ class ChatProvider {
         if (!fileInput || !fileInput.files || fileInput.files.length === 0) { this.showError('Selecciona al menos una imagen'); return; }
         if (!this.database || !this.chatId) return;
         try {
-            // Convertir múltiples imágenes a base64
+            // Convertir múltiples imágenes a base64 comprimidas
             const base64Images = [];
             for (const file of Array.from(fileInput.files)) {
-                const b64 = await this.fileToBase64(file); // data:image/*;base64,...
-                base64Images.push(b64);
+                const compressedB64 = await this.compressAndConvertToBase64(file);
+                base64Images.push(compressedB64);
             }
             const count = base64Images.length;
             const msgId = `photo_${Date.now()}`;

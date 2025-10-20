@@ -1,23 +1,14 @@
-# Admin-related files and directories (local-only, exclude from production)
+# Admin-related files (local-only, exclude from production)
 admin.html
-admin-*
-*admin*.js
-*admin*.html
-admin/
-**/admin/**
+admin-dashboard.js
+admin-disputes.html
+admin-disputes.js
+admin-disputes.css
 
-# Test files and folders
-test-*
-test/
-tests/
-**/*.test.js
-**/*.test.ts
-**/*.test.jsx
-**/*.test.tsx
-**/*.spec.js
-**/*.spec.ts
-**/*.spec.jsx
-**/*.spec.tsx
-coverage/
-.nyc_output/
+# Test files
+test-auth.html
+test-buttons.html
+
+# Documentation files (optional - uncomment if needed)
+# *.md
 

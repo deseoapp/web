@@ -469,7 +469,7 @@ class ChatClient {
             // Cobro por mensaje de cliente: 100
             const canCharge = await this.chargeClient(390, 'message');
             if (!canCharge) {
-                this.showError('Saldo insuficiente para enviar mensaje.');
+                showInsufficientBalanceModal();
                 return;
             }
             // Acreditar al proveedor y registrar microtransacción
@@ -511,7 +511,7 @@ class ChatClient {
         if (!this.database || !this.chatId) return;
         try {
             const ok = await this.chargeClient(amount, 'tip');
-            if (!ok) { this.showError('Saldo insuficiente para propina.'); return; }
+            if (!ok) { showInsufficientBalanceModal(); return; }
             const messageData = {
                 id: `tip_${Date.now()}`,
                 senderId: this.currentUser.id,
@@ -890,7 +890,7 @@ class ChatClient {
             // Cobrar al cliente
             const charged = await this.chargeClient(amount, 'Propina');
             if (!charged) {
-                this.showError('Saldo insuficiente para enviar propina');
+                showInsufficientBalanceModal();
                 return;
             }
             
@@ -1166,7 +1166,7 @@ class ChatClient {
             // Verificar saldo suficiente
             const canCharge = await this.chargeClient(price, 'paid_photos');
             if (!canCharge) {
-                this.showError('Saldo insuficiente para desbloquear fotos.');
+                showInsufficientBalanceModal();
                 return;
             }
             
@@ -1232,11 +1232,11 @@ class ChatClient {
                 
                 if (offer) {
                     // Cobrar al cliente y crear ORDEN EN ESCROW (sin acreditar al proveedor aún)
-                    const canCharge = await this.chargeClient(offer.price, 'encounter_escrow');
-                    if (!canCharge) {
-                        this.showError('Saldo insuficiente para aceptar la oferta.');
-                        return;
-                    }
+            const canCharge = await this.chargeClient(offer.price, 'encounter_escrow');
+            if (!canCharge) {
+                showInsufficientBalanceModal();
+                return;
+            }
 
                     // Crear orden de encuentro en escrow
                     const orderId = `order_${Date.now()}`;
@@ -1730,7 +1730,7 @@ class ChatClient {
         if (paidMessageTypes.includes(type)) {
             const canCharge = await this.chargeClient(390, type || 'message');
             if (!canCharge) {
-                this.showError('Saldo insuficiente para enviar mensaje.');
+                showInsufficientBalanceModal();
                 return;
             }
             // Acreditar al proveedor
@@ -2242,6 +2242,32 @@ window.showPhotoModal = function(imageData, photoNumber) {
         if (e.target === modal) modal.remove();
     };
 };
+
+// Función para mostrar modal de saldo insuficiente
+function showInsufficientBalanceModal() {
+    const modal = document.getElementById('insufficientBalanceModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        
+        // Configurar el botón de redirección a wallet
+        const goToWalletBtn = document.getElementById('goToWalletBtn');
+        if (goToWalletBtn) {
+            goToWalletBtn.onclick = () => {
+                window.location.href = 'wallet.html';
+            };
+        }
+    }
+}
+
+// Función para cerrar modal
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+}
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {

@@ -271,6 +271,35 @@
         </div>
     </div>
 
+    <!-- Modal: Saldo Insuficiente -->
+    <div class="modal" id="insufficientBalanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Saldo Insuficiente</h2>
+                <button class="close-btn" onclick="closeModal('insufficientBalanceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="insufficient-balance-content">
+                    <div class="balance-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <h3>No tienes saldo suficiente</h3>
+                    <p>Para continuar con esta acción necesitas recargar tu wallet.</p>
+                    <div class="balance-actions">
+                        <button class="btn-primary" id="goToWalletBtn">
+                            <i class="fas fa-credit-card"></i> Recargar Wallet
+                        </button>
+                        <button class="btn-secondary" onclick="closeModal('insufficientBalanceModal')">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="config.js"></script>
     <script src="theme-manager.js"></script>

@@ -46,6 +46,9 @@ class ChatProvider {
 
         // Configurar listener para órdenes de encuentro en tiempo real
         this.setupEncounterOrdersListener();
+        
+        // Verificar si debe mostrarse el botón de reclamar pago
+        await this.checkPendingClaimPayments();
 
         // Configurar área de carga de fotos
         this.setupPhotoUploadArea();
@@ -580,7 +583,7 @@ class ChatProvider {
             message: '⏳ El proveedor marcó el encuentro como finalizado. El cliente tiene 5 minutos para confirmar antes de que se solicite revisión de pago.',
             timestamp: new Date().toISOString()
         });
-        this.renderCountdownBanner(orderId, nowIso);
+        await this.renderCountdownBanner(orderId, nowIso);
     }
 
     async checkOrderCompletion(orderId) {
@@ -598,7 +601,7 @@ class ChatProvider {
         }
     }
 
-    renderCountdownBanner(orderId, providerConfirmedAt) {
+    async renderCountdownBanner(orderId, providerConfirmedAt) {
         try {
             let banner = document.getElementById('orderCountdownBanner');
             if (!banner) {
@@ -609,7 +612,7 @@ class ChatProvider {
             }
             const start = new Date(providerConfirmedAt).getTime();
             const deadline = start + 5 * 60 * 1000;
-            const tick = () => {
+            const tick = async () => {
                 const now = Date.now();
                 const remaining = Math.max(0, deadline - now);
                 const m = Math.floor(remaining / 60000);
@@ -620,7 +623,7 @@ class ChatProvider {
                     clearInterval(timerId);
                     banner.textContent = '⌛ Tiempo agotado. El cliente no confirmó. Puedes reclamar el pago.';
                     // Mostrar botón de reclamar pago al proveedor
-                    this.showClaimPaymentButton(orderId);
+                    await this.showClaimPaymentButton(orderId);
                 }
             };
             tick();
@@ -628,10 +631,17 @@ class ChatProvider {
         } catch (_) {}
     }
 
-    showClaimPaymentButton(orderId) {
+    async showClaimPaymentButton(orderId) {
         try {
             const existing = document.getElementById('claimPaymentBtn');
             if (existing) return;
+            
+            // Verificar si ya existe una disputa abierta para esta orden
+            const hasOpenDispute = await this.checkExistingDispute(orderId);
+            if (hasOpenDispute) {
+                console.log('Ya existe una disputa abierta para esta orden');
+                return;
+            }
             
             // Ocultar el botón de finalizar encuentro para evitar superposición
             const finalizarBtn = document.getElementById('completeEncounterBtn');
@@ -645,11 +655,82 @@ class ChatProvider {
             btn.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:9999;padding:10px 14px;border-radius:8px;border:none;background:#f59e0b;color:#fff;cursor:pointer;font-weight:600;box-shadow:0 6px 16px rgba(0,0,0,.25)';
             btn.onclick = () => this.claimPaymentAsProvider(orderId);
             document.body.appendChild(btn);
-        } catch (_) {}
+        } catch (e) {
+            console.error('Error showing claim payment button:', e);
+        }
+    }
+
+    async checkExistingDispute(orderId) {
+        try {
+            // Verificar si ya existe una disputa abierta para esta orden
+            const disputesRef = this.database.ref('disputes');
+            const snapshot = await disputesRef.orderByChild('orderId').equalTo(orderId).once('value');
+            const disputes = snapshot.val() || {};
+            
+            // Buscar disputas abiertas
+            for (const disputeId in disputes) {
+                const dispute = disputes[disputeId];
+                if (dispute.status === 'open') {
+                    return true; // Ya existe una disputa abierta
+                }
+            }
+            
+            return false; // No hay disputas abiertas
+        } catch (e) {
+            console.error('Error checking existing dispute:', e);
+            return false;
+        }
+    }
+
+    async checkPendingClaimPayments() {
+        try {
+            // Buscar órdenes en estado 'escrowed' para este chat
+            const ordersRef = this.database.ref('encounterOrders');
+            const snapshot = await ordersRef.orderByChild('chatId').equalTo(this.chatId).once('value');
+            const orders = snapshot.val() || {};
+            
+            for (const orderId in orders) {
+                const order = orders[orderId];
+                if (order.status === 'escrowed' && order.providerConfirmed) {
+                    // Verificar si han pasado más de 5 minutos desde que el proveedor confirmó
+                    const providerConfirmedAt = new Date(order.providerConfirmedAt || order.updatedAt).getTime();
+                    const now = Date.now();
+                    const fiveMinutes = 5 * 60 * 1000; // 5 minutos en milisegundos
+                    
+                    if (now - providerConfirmedAt > fiveMinutes) {
+                        // Verificar si ya existe una disputa
+                        const hasOpenDispute = await this.checkExistingDispute(orderId);
+                        if (!hasOpenDispute) {
+                            // Mostrar el botón de reclamar pago
+                            await this.showClaimPaymentButton(orderId);
+                            
+                            // Mostrar banner de tiempo agotado
+                            let banner = document.getElementById('orderCountdownBanner');
+                            if (!banner) {
+                                banner = document.createElement('div');
+                                banner.id = 'orderCountdownBanner';
+                                banner.style.cssText = 'position:fixed;left:16px;right:16px;bottom:72px;background:#0f172a;color:#fff;padding:10px 14px;border-radius:8px;z-index:9998;box-shadow:0 6px 16px rgba(0,0,0,.25);font-size:14px';
+                                document.body.appendChild(banner);
+                            }
+                            banner.textContent = '⌛ Tiempo agotado. El cliente no confirmó. Puedes reclamar el pago.';
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error checking pending claim payments:', e);
+        }
     }
 
     async claimPaymentAsProvider(orderId) {
         try {
+            // Verificar nuevamente si ya existe una disputa antes de crear una nueva
+            const hasOpenDispute = await this.checkExistingDispute(orderId);
+            if (hasOpenDispute) {
+                this.showError('Ya existe una disputa abierta para esta orden');
+                return;
+            }
+
             const reason = prompt('Describe por qué reclamas el pago (el cliente no confirmó en 5 minutos):', 'El cliente no confirmó la finalización del encuentro en el tiempo establecido');
             if (!reason) return;
 

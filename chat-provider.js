@@ -384,6 +384,8 @@ class ChatProvider {
         if (!message || !this.database || !this.chatId) return;
 
         try {
+            // Los mensajes normales del proveedor son GRATUITOS
+            // No se cobra nada por mensajes de texto básicos
             const messageData = {
                 id: Date.now().toString(),
                 senderId: this.currentUser.id,

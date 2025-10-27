@@ -466,14 +466,8 @@ class ChatClient {
         if (!message || !this.database || !this.chatId) return;
 
         try {
-            // Cobro por mensaje de cliente: 100
-            const canCharge = await this.chargeClient(390, 'message');
-            if (!canCharge) {
-                showInsufficientBalanceModal();
-                return;
-            }
-            // Acreditar al proveedor y registrar microtransacción
-            await this.creditProvider(100, 'message');
+            // Los mensajes normales ahora son GRATUITOS
+            // No se cobra nada por mensajes de texto básicos
             const messageData = {
                 id: Date.now().toString(),
                 senderId: this.currentUser.id,

@@ -797,6 +797,11 @@ class DeseoApp {
             
             this.renderWishesOnMap();
             
+            // Verificar si hay un apodo en la URL después de inicializar Firebase
+            setTimeout(async () => {
+                await this.handleUrlRouting();
+            }, 2000);
+            
             setTimeout(() => {
                 this.gemini = this.initializeGeminiClient();
                 console.log('Gemini client initialized:', !!this.gemini);
@@ -806,6 +811,166 @@ class DeseoApp {
         } catch (error) {
             console.error('Error inicializando la aplicación:', error);
             this.showNotification('Error al cargar el mapa. Verifica tu token de Mapbox.', 'error');
+        }
+    }
+    
+    // ===== SISTEMA DE ROUTING POR APODO =====
+    normalizeNickname(nickname) {
+        return nickname.toLowerCase().trim().replace(/\s+/g, '');
+    }
+    
+    async handleUrlRouting() {
+        try {
+            // Obtener el hash de la URL (ej: #wocca)
+            const hash = window.location.hash;
+            
+            // Si no hay hash, no hay routing
+            if (!hash || hash.length < 2) {
+                return;
+            }
+            
+            // Extraer el apodo del hash (eliminar el # inicial)
+            const nicknameFromUrl = hash.replace(/^#/, '').split('/')[0].trim();
+            
+            if (!nicknameFromUrl || nicknameFromUrl.length < 3) {
+                return;
+            }
+            
+            console.log('🔍 Apodo detectado en hash de URL:', nicknameFromUrl);
+            
+            // Normalizar el apodo
+            const normalizedNickname = this.normalizeNickname(nicknameFromUrl);
+            
+            // Buscar usuario por apodo
+            const userId = await this.findUserByNickname(normalizedNickname);
+            
+            if (userId) {
+                console.log('✅ Usuario encontrado por apodo:', normalizedNickname, '->', userId);
+                
+                // Esperar un poco para que los perfiles se carguen
+                setTimeout(async () => {
+                    await this.openProfileByNickname(userId, normalizedNickname);
+                }, 2000);
+            } else {
+                console.log('⚠️ No se encontró usuario con el apodo:', normalizedNickname);
+                this.showNotification('Usuario no encontrado', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error en routing por apodo:', error);
+        }
+    }
+    
+    async findUserByNickname(nickname) {
+        try {
+            if (!this.database) {
+                await this.initializeFirebase();
+            }
+            
+            if (!this.database) {
+                console.error('Firebase no disponible');
+                return null;
+            }
+            
+            // Buscar en el índice de apodos
+            const nicknameRef = this.database.ref(`nicknames/${nickname}`);
+            const snapshot = await nicknameRef.once('value');
+            const userId = snapshot.val();
+            
+            return userId;
+        } catch (error) {
+            console.error('Error buscando usuario por apodo:', error);
+            return null;
+        }
+    }
+    
+    async openProfileByNickname(userId, nickname) {
+        try {
+            if (!this.database) {
+                await this.initializeFirebase();
+            }
+            
+            if (!this.database) {
+                console.error('Firebase no disponible');
+                return;
+            }
+            
+            // Buscar el perfil del usuario en availableProfiles
+            let targetProfile = null;
+            
+            // Primero intentar encontrar en availableProfiles
+            if (this.availableProfiles && this.availableProfiles.length > 0) {
+                targetProfile = this.availableProfiles.find(p => p.userId === userId);
+            }
+            
+            // Si no está en availableProfiles, obtenerlo directamente de Firebase
+            if (!targetProfile) {
+                console.log('🔍 Perfil no encontrado en availableProfiles, buscando en Firebase...');
+                
+                // Obtener datos del usuario desde Firebase
+                const userRef = this.database.ref(`users/${userId}`);
+                const userSnapshot = await userRef.once('value');
+                const userData = userSnapshot.val();
+                
+                if (!userData) {
+                    console.error('Usuario no encontrado en Firebase');
+                    this.showNotification('Usuario no encontrado', 'error');
+                    return;
+                }
+                
+                const profile = userData.profile || {};
+                const userInfo = userData.userInfo || {};
+                
+                // Obtener ubicación del usuario (si está disponible)
+                const locationRef = this.database.ref(`profiles/${userId}`);
+                const locationSnapshot = await locationRef.once('value');
+                const locationData = locationSnapshot.val();
+                
+                // Crear un perfil temporal para mostrar
+                targetProfile = {
+                    id: userId,
+                    userId: userId,
+                    userName: profile.nickname || nickname,
+                    userProfileImage: profile.photos && profile.photos.length > 0 
+                        ? profile.photos[0] 
+                        : (userInfo.profileImageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'),
+                    latitude: locationData?.latitude || 0,
+                    longitude: locationData?.longitude || 0,
+                    category: locationData?.category || 'general',
+                    price: locationData?.price || 0,
+                    isAvailable: locationData?.isAvailable || false
+                };
+            }
+            
+            if (targetProfile) {
+                console.log('✅ Abriendo perfil:', targetProfile);
+                
+                // Encontrar el índice del perfil en availableProfiles
+                let profileIndex = 0;
+                if (this.availableProfiles && this.availableProfiles.length > 0) {
+                    const foundIndex = this.availableProfiles.findIndex(p => p.userId === userId);
+                    if (foundIndex >= 0) {
+                        profileIndex = foundIndex;
+                    }
+                }
+                
+                // Abrir el modal de Tinder con este perfil
+                await this.showProfileDetails(targetProfile, profileIndex);
+                
+                // Centrar el mapa en la ubicación del usuario si tiene coordenadas
+                if (targetProfile.latitude && targetProfile.longitude && this.map) {
+                    this.map.flyTo({
+                        center: [targetProfile.longitude, targetProfile.latitude],
+                        zoom: 15,
+                        duration: 2000
+                    });
+                }
+            } else {
+                console.error('No se pudo obtener el perfil del usuario');
+                this.showNotification('No se pudo cargar el perfil', 'error');
+            }
+        } catch (error) {
+            console.error('Error abriendo perfil por apodo:', error);
+            this.showNotification('Error al cargar el perfil', 'error');
         }
     }
 
@@ -1192,6 +1357,12 @@ class DeseoApp {
                     this.closeModal(modal.id);
                 }
             });
+        });
+        
+        // Listener para cambios en el hash de la URL (hash routing)
+        window.addEventListener('hashchange', async () => {
+            console.log('🔍 Hash de URL cambió:', window.location.hash);
+            await this.handleUrlRouting();
         });
     }
 

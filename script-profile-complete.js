@@ -408,8 +408,9 @@ class ProfileCompleteManager {
         try {
             // Recopilar datos del formulario
             const formData = new FormData(e.target);
+            const nickname = formData.get('nickname').trim();
             const profileData = {
-                nickname: formData.get('nickname'),
+                nickname: nickname,
                 description: formData.get('description'),
                 age: parseInt(formData.get('age')),
                 photos: this.photos,
@@ -418,8 +419,41 @@ class ProfileCompleteManager {
                 isComplete: true
             };
             
+            // Obtener usuario actual para validar unicidad
+            let currentUser = null;
+            if (window.deseoApp && window.deseoApp.currentUser) {
+                currentUser = window.deseoApp.currentUser;
+            } else if (window.Clerk && window.Clerk.user) {
+                const clerkUser = window.Clerk.user;
+                currentUser = {
+                    id: clerkUser.id,
+                    name: clerkUser.fullName || clerkUser.firstName || 'Usuario',
+                    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+                    profileImageUrl: clerkUser.imageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
+                };
+            } else {
+                const user = JSON.parse(localStorage.getItem('deseo_user') || '{}');
+                if (user.uid || user.id) {
+                    currentUser = user;
+                }
+            }
+            
+            if (!currentUser || (!currentUser.id && !currentUser.uid)) {
+                throw new Error('Usuario no autenticado. Por favor, inicia sesión primero.');
+            }
+            
+            const userId = currentUser.id || currentUser.uid;
+            
+            // Validar unicidad del apodo
+            const isUnique = await this.validateUniqueNickname(nickname, userId);
+            if (!isUnique) {
+                this.showNotification('Este apodo ya está en uso. Por favor, elige otro.', 'error');
+                this.showLoading(false);
+                return;
+            }
+            
             // Guardar en Firebase
-            await this.saveProfileToFirebase(profileData);
+            await this.saveProfileToFirebase(profileData, userId);
             
             // Limpiar borrador
             this.clearDraft();
@@ -433,7 +467,7 @@ class ProfileCompleteManager {
             
         } catch (error) {
             console.error('Error completando perfil:', error);
-            this.showNotification('Error al completar el perfil', 'error');
+            this.showNotification(error.message || 'Error al completar el perfil', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -446,6 +480,24 @@ class ProfileCompleteManager {
         
         if (!nickname) {
             this.showNotification('El apodo es requerido', 'error');
+            return false;
+        }
+        
+        // Validar formato del apodo (solo letras, números, guiones y guiones bajos)
+        const nicknameRegex = /^[a-zA-Z0-9_-]+$/;
+        if (!nicknameRegex.test(nickname)) {
+            this.showNotification('El apodo solo puede contener letras, números, guiones y guiones bajos', 'error');
+            return false;
+        }
+        
+        // Validar longitud mínima y máxima
+        if (nickname.length < 3) {
+            this.showNotification('El apodo debe tener al menos 3 caracteres', 'error');
+            return false;
+        }
+        
+        if (nickname.length > 20) {
+            this.showNotification('El apodo no puede tener más de 20 caracteres', 'error');
             return false;
         }
         
@@ -472,7 +524,38 @@ class ProfileCompleteManager {
         return true;
     }
     
-    async saveProfileToFirebase(profileData) {
+    // Normalizar apodo: minúsculas, sin espacios
+    normalizeNickname(nickname) {
+        return nickname.toLowerCase().trim().replace(/\s+/g, '');
+    }
+    
+    // Validar que el apodo sea único
+    async validateUniqueNickname(nickname, currentUserId) {
+        try {
+            if (!this.database) {
+                throw new Error('Firebase no disponible');
+            }
+            
+            const normalizedNickname = this.normalizeNickname(nickname);
+            
+            // Verificar en el índice de apodos
+            const nicknameRef = this.database.ref(`nicknames/${normalizedNickname}`);
+            const snapshot = await nicknameRef.once('value');
+            const existingUserId = snapshot.val();
+            
+            // Si existe y no es el usuario actual, el apodo ya está en uso
+            if (existingUserId && existingUserId !== currentUserId) {
+                return false;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Error validando unicidad del apodo:', error);
+            throw error;
+        }
+    }
+    
+    async saveProfileToFirebase(profileData, userId) {
         try {
             if (!this.database) {
                 throw new Error('Firebase no disponible');
@@ -522,25 +605,46 @@ class ProfileCompleteManager {
                 }
             }
             
-            // No crear usuarios temporales - requerir autenticación real
-            
-            if (!currentUser || (!currentUser.id && !currentUser.uid)) {
-                throw new Error('Usuario no autenticado. Por favor, inicia sesión primero.');
+            // Si no se pasó userId, intentar obtenerlo del currentUser
+            if (!userId) {
+                if (!currentUser || (!currentUser.id && !currentUser.uid)) {
+                    throw new Error('Usuario no autenticado. Por favor, inicia sesión primero.');
+                }
+                userId = currentUser.id || currentUser.uid;
             }
             
-            // Usar el ID del usuario para guardar en Firebase
-            const userId = currentUser.id || currentUser.uid;
+            // Normalizar el apodo
+            const normalizedNickname = this.normalizeNickname(profileData.nickname);
+            
+            // Obtener el apodo anterior del usuario (si existe) para eliminarlo del índice
+            const userRef = this.database.ref(`users/${userId}`);
+            const userSnapshot = await userRef.once('value');
+            const existingUserData = userSnapshot.val();
+            const existingProfile = existingUserData?.profile || {};
+            const oldNickname = existingProfile.nickname;
+            
+            // Si el usuario tenía un apodo anterior y es diferente, eliminarlo del índice
+            if (oldNickname && oldNickname !== profileData.nickname) {
+                const oldNormalizedNickname = this.normalizeNickname(oldNickname);
+                const oldNicknameRef = this.database.ref(`nicknames/${oldNormalizedNickname}`);
+                await oldNicknameRef.remove();
+                console.log('✅ Apodo anterior eliminado del índice:', oldNormalizedNickname);
+            }
+            
+            // Guardar el nuevo apodo en el índice
+            const nicknameRef = this.database.ref(`nicknames/${normalizedNickname}`);
+            await nicknameRef.set(userId);
+            console.log('✅ Apodo guardado en índice:', normalizedNickname, '->', userId);
             
             // Guardar perfil completo
-            const userRef = this.database.ref(`users/${userId}`);
             await userRef.update({
                 profile: profileData,
                 profileComplete: true,
                 lastUpdated: new Date().toISOString(),
                 userInfo: {
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    profileImageUrl: currentUser.profileImageUrl
+                    name: currentUser?.name || 'Usuario',
+                    email: currentUser?.email || '',
+                    profileImageUrl: currentUser?.profileImageUrl || 'https://www.gravatar.com/avatar/?d=mp&f=y'
                 }
             });
             
